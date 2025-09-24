@@ -146,6 +146,13 @@ function ProjektePage() {
 										Dokumente
 									</Link>
 									<Link
+										to="/projekte/$id/kommentare"
+										params={{ id: project._id }}
+										className="rounded-md border px-3 py-2 transition-colors hover:bg-muted"
+									>
+										Kommentare
+									</Link>
+									<Link
 										to="/projekte/$id/export"
 										params={{ id: project._id }}
 										className="rounded-md border px-3 py-2 transition-colors hover:bg-muted"

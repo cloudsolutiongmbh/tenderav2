@@ -76,6 +76,22 @@ export default defineSchema({
 		createdAt: v.number(),
 	})
 		.index("by_orgId", ["orgId"]),
+	comments: defineTable({
+		projectId: v.id("projects"),
+		contextType: v.union(
+			v.literal("general"),
+			v.literal("milestone"),
+			v.literal("criterion"),
+		),
+		referenceId: v.optional(v.string()),
+		referenceLabel: v.optional(v.string()),
+		content: v.string(),
+		orgId: v.string(),
+		createdBy: v.string(),
+		createdAt: v.number(),
+	})
+		.index("by_projectId", ["projectId"])
+		.index("by_orgId", ["orgId"]),
 	documents: defineTable({
 		projectId: v.id("projects"),
 		filename: v.string(),

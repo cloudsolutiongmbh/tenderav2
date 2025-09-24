@@ -11,8 +11,8 @@ import {
 	RequirementsCard,
 	SummaryCard,
 } from "@/components/analysis-cards";
-import { StatusBadge } from "@/components/status-badge";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatusBadge, type AnalysisStatus } from "@/components/status-badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Citation {
 	page: number;
@@ -49,6 +49,11 @@ interface StandardResult {
 	requirements: StandardRequirement[];
 	openQuestions: StandardOpenQuestion[];
 	metadata: StandardMetadataItem[];
+}
+
+interface RunSummary {
+	status: AnalysisStatus;
+	error?: string | null;
 }
 
 const placeholder: StandardResult = {
@@ -100,7 +105,19 @@ function ProjectStandardPage() {
 		}
 		return null;
 	}, [standard]);
+
+	const runSummary = useMemo<RunSummary | null>(() => {
+		if (!standard?.run) {
+			return null;
+		}
+		return {
+			status: standard.run.status,
+			error: standard.run.error,
+		};
+	}, [standard]);
+
 	const projectMeta = project?.project;
+	const isLoading = project === undefined || standard === undefined;
 
 	return (
 		<div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
@@ -114,7 +131,7 @@ function ProjectStandardPage() {
 						Diese Ansicht zeigt den aktuellen Stand der Standard-Analyse. Ohne Ergebnis werden Platzhalter angezeigt.
 					</CardDescription>
 					<div className="flex flex-wrap items-center gap-3">
-						<StatusBadge status={standard?.run?.status ?? "wartet"} />
+						<StatusBadge status={runSummary?.status ?? "wartet"} />
 						<nav className="flex flex-wrap gap-2 text-sm">
 							<Link
 								to="/projekte/$id/standard"
@@ -137,20 +154,60 @@ function ProjectStandardPage() {
 							>
 								Dokumente
 							</Link>
+							<Link
+								to="/projekte/$id/kommentare"
+								params={{ id: projectId }}
+								className="rounded-md border px-3 py-1"
+							>
+								Kommentare
+							</Link>
+							<Link
+								to="/projekte/$id/export"
+								params={{ id: projectId }}
+								className="rounded-md border px-3 py-1"
+							>
+								Export
+							</Link>
 						</nav>
 					</div>
 				</CardHeader>
+				{runSummary?.error || runSummary?.status === "läuft" || runSummary?.status === "wartet" ? (
+					<CardContent className="text-sm text-muted-foreground">
+						{runSummary.error
+							? `Analyse fehlgeschlagen: ${runSummary.error}`
+							: runSummary.status === "läuft"
+								? "Analyse läuft – Ergebnisse werden nach Abschluss angezeigt."
+								: runSummary.status === "wartet"
+									? "Analyse ist in der Warteschlange."
+									: null}
+					</CardContent>
+				) : null}
 			</Card>
 
 			<section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
 				<div className="space-y-6">
-					<SummaryCard summary={standardResult?.summary ?? placeholder.summary} />
-					<MilestonesCard milestones={standardResult?.milestones ?? placeholder.milestones} />
-					<RequirementsCard requirements={standardResult?.requirements ?? placeholder.requirements} />
+					<SummaryCard
+						summary={standardResult?.summary ?? placeholder.summary}
+						isLoading={isLoading}
+					/>
+					<MilestonesCard
+						milestones={standardResult?.milestones ?? placeholder.milestones}
+						isLoading={isLoading}
+					/>
+					<RequirementsCard
+						requirements={standardResult?.requirements ?? placeholder.requirements}
+						isLoading={isLoading}
+					/>
 				</div>
 				<div className="space-y-6">
-					<QuestionsCard questions={standardResult?.openQuestions ?? placeholder.openQuestions} />
-					<MetadataCard metadata={standardResult?.metadata ?? placeholder.metadata} />
+					<QuestionsCard
+						questions={standardResult?.openQuestions ?? placeholder.openQuestions}
+						isLoading={isLoading}
+					/>
+					<MetadataCard
+						metadata={standardResult?.metadata ?? placeholder.metadata}
+						isLoading={isLoading}
+					/>
 				</div>
 			</section>
 		</div>

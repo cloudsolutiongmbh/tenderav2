@@ -225,16 +225,16 @@
 
 **Tasks (`/projekte/:id/standard`):**
 
-* [ ] Header: project meta (Name, Kunde, Tags) + **Status** badge of latest standard run.
-* [ ] Cards:
+* [x] Header: project meta (Name, Kunde, Tags) + **Status** badge of latest standard run.
+* [x] Cards:
 
-  * [ ] **Executive Summary** (\~200–300 Wörter)
-  * [ ] **Meilensteine/Fristen** (label + ISO date + citation `{page, quote}`)
-  * [ ] **Wesentliche Anforderungen** (functional / non‑functional) with citation for each item
-  * [ ] **Eignungskriterien** & **Ausschlusskriterien** with citation
-  * [ ] **Offene Punkte/Unklarheiten** with citation
-  * [ ] **Metadaten** (tenderId, authority, term, budget) + `sources[]` with citations
-* [ ] Empty/none states when result is missing.
+  * [x] **Executive Summary** (\~200–300 Wörter)
+  * [x] **Meilensteine/Fristen** (label + ISO date + citation `{page, quote}`)
+  * [x] **Wesentliche Anforderungen** (functional / non‑functional) with citation for each item
+  * [x] **Eignungskriterien** & **Ausschlusskriterien** with citation
+  * [x] **Offene Punkte/Unklarheiten** with citation
+  * [x] **Metadaten** (tenderId, authority, term, budget) + `sources[]` with citations
+* [x] Empty/none states when result is missing.
 
 **Acceptance:**
 
@@ -249,14 +249,14 @@
 
 **Tasks (`/projekte/:id/kriterien`):**
 
-* [ ] If project has no template: dropdown to pick one from `/templates`.
-* [ ] Show **left list** of criteria with status chips (Gefunden/ Nicht gefunden/ n. v.).
-* [ ] **Right detail**: for selected criterion show:
+* [x] If project has no template: dropdown to pick one from `/templates`.
+* [x] Show **left list** of criteria with status chips (Gefunden/ Nicht gefunden/ n. v.).
+* [x] **Right detail**: for selected criterion show:
 
-  * [ ] `references[]` as list of **Zitat** + **Seite** (documentId not shown, but kept for deep‑link later)
-  * [ ] `comment` (LLM interpretation)
+  * [x] `references[]` as list of **Zitat** + **Seite** (documentId not shown, but kept for deep‑link later)
+  * [x] `comment` (LLM interpretation)
   * [ ] *(Should)* score if provided
-* [ ] “Kriterien‑Analyse starten” button (re‑run allowed).
+* [x] “Kriterien‑Analyse starten” button (re‑run allowed).
 
 **Acceptance:**
 
@@ -270,13 +270,13 @@
 
 **Tasks:**
 
-* [ ] `/templates` list: name, version, language, visibleOrgWide.
-* [ ] `/templates/:id` editor:
+* [x] `/templates` list: name, version, language, visibleOrgWide.
+* [x] `/templates/:id` editor:
 
-  * [ ] Fields: Name, Beschreibung, Sprache, Version, Sichtbarkeit.
-  * [ ] Criteria table/editor: Titel, Beschreibung, Hinweise/Beispiele, Antworttyp (Boolean/Skala/Text), Gewicht (0–100), Pflicht (ja/nein), *(optional)* Keywords.
-  * [ ] Save via `templates.upsert`.
-* [ ] Templates are **org‑scoped**; `visibleOrgWide` shows to all members of the org.
+  * [x] Fields: Name, Beschreibung, Sprache, Version, Sichtbarkeit.
+  * [x] Criteria table/editor: Titel, Beschreibung, Hinweise/Beispiele, Antworttyp (Boolean/Skala/Text), Gewicht (0–100), Pflicht (ja/nein), *(optional)* Keywords.
+  * [x] Save via `templates.upsert`.
+* [x] Templates are **org‑scoped**; `visibleOrgWide` shows to all members of the org.
 
 **Acceptance:**
 
@@ -288,19 +288,19 @@
 
 **Tasks:**
 
-* [ ] `/projekte/:id/export`:
+* [x] `/projekte/:id/export`:
 
-  * [ ] Render a **print‑optimized** combined view (Standard + Criteria sections) mirroring on‑screen structure.
-  * [ ] Footer per page: project name + export date.
-  * [ ] Export button → **client‑side** print‑to‑PDF (ensure citations visible).
-* [ ] **Read‑only share**:
+  * [x] Render a **print‑optimized** combined view (Standard + Criteria sections) mirroring on‑screen structure.
+  * [x] Footer per page: project name + export date.
+  * [x] Export button → **client‑side** print‑to‑PDF (ensure citations visible).
+* [x] **Read‑only share**:
 
-  * [ ] Button “Link teilen” opens dialog: pick TTL (e.g., 7 Tage) → call `shares.create`.
-  * [ ] Construct share URL on client: `${origin}/share/${token}` (do **not** store origin server‑side).
-  * [ ] `/share/:token` route:
+  * [x] Button “Link teilen” opens dialog: pick TTL (e.g., 7 Tage) → call `shares.create`.
+  * [x] Construct share URL on client: `${origin}/share/${token}` (do **not** store origin server‑side).
+  * [x] `/share/:token` route:
 
-    * [ ] Calls `shares.resolve` (no auth). If valid, show read‑only Standard + Criteria results; **no upload, no edits**.
-    * [ ] If expired/invalid → friendly error.
+    * [x] Calls `shares.resolve` (no auth). If valid, show read‑only Standard + Criteria results; **no upload, no edits**.
+    * [x] If expired/invalid → friendly error.
 
 **Acceptance:**
 
@@ -313,15 +313,15 @@
 
 **Tasks (only after MVP green):**
 
-* [ ] `/projekte/:id/kommentare` or inline comment drawers:
+* [x] `/projekte/:id/kommentare` or inline comment drawers:
 
-  * [ ] Add simple `comments.add` mutation.
+  * [x] Add simple `comments.add` mutation.
   * [ ] Optional `tasks.create|toggle|delete` using existing `/todos` patterns.
-* [ ] Scope strictly to per‑project; no assignments beyond a free‑text `assignee?` string.
+* [x] Scope strictly to per‑project; no assignments beyond a free‑text `assignee?` string.
 
 **Acceptance:**
 
-* Can add a comment to a milestone/criterion; persists; lists chronologically.
+* [x] Can add a comment to a milestone/criterion; persists; lists chronologically.
 
 ---
 

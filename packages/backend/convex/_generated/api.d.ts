@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as analysis from "../analysis.js";
 import type * as auth from "../auth.js";
+import type * as comments from "../comments.js";
 import type * as docPages from "../docPages.js";
 import type * as documents from "../documents.js";
 import type * as extract from "../extract.js";
@@ -37,6 +38,7 @@ import type * as todos from "../todos.js";
 declare const fullApi: ApiFromModules<{
   analysis: typeof analysis;
   auth: typeof auth;
+  comments: typeof comments;
   docPages: typeof docPages;
   documents: typeof documents;
   extract: typeof extract;

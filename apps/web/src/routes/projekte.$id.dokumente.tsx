@@ -196,6 +196,13 @@ function ProjectDocumentsPage() {
 							Kriterien
 						</Link>
 						<Link
+							to="/projekte/$id/kommentare"
+							params={{ id: projectId }}
+							className="rounded-md border px-3 py-1 text-sm"
+						>
+							Kommentare
+						</Link>
+						<Link
 							to="/projekte/$id/export"
 							params={{ id: projectId }}
 							className="rounded-md border px-3 py-1 text-sm"

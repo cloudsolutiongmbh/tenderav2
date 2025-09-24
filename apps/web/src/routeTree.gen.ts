@@ -19,6 +19,7 @@ import { Route as TemplatesIdRouteImport } from './routes/templates.$id'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
 import { Route as ProjekteIdStandardRouteImport } from './routes/projekte.$id.standard'
 import { Route as ProjekteIdKriterienRouteImport } from './routes/projekte.$id.kriterien'
+import { Route as ProjekteIdKommentareRouteImport } from './routes/projekte.$id.kommentare'
 import { Route as ProjekteIdExportRouteImport } from './routes/projekte.$id.export'
 import { Route as ProjekteIdDokumenteRouteImport } from './routes/projekte.$id.dokumente'
 
@@ -72,6 +73,11 @@ const ProjekteIdKriterienRoute = ProjekteIdKriterienRouteImport.update({
   path: '/$id/kriterien',
   getParentRoute: () => ProjekteRoute,
 } as any)
+const ProjekteIdKommentareRoute = ProjekteIdKommentareRouteImport.update({
+  id: '/$id/kommentare',
+  path: '/$id/kommentare',
+  getParentRoute: () => ProjekteRoute,
+} as any)
 const ProjekteIdExportRoute = ProjekteIdExportRouteImport.update({
   id: '/$id/export',
   path: '/$id/export',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/templates/$id': typeof TemplatesIdRoute
   '/projekte/$id/dokumente': typeof ProjekteIdDokumenteRoute
   '/projekte/$id/export': typeof ProjekteIdExportRoute
+  '/projekte/$id/kommentare': typeof ProjekteIdKommentareRoute
   '/projekte/$id/kriterien': typeof ProjekteIdKriterienRoute
   '/projekte/$id/standard': typeof ProjekteIdStandardRoute
 }
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/templates/$id': typeof TemplatesIdRoute
   '/projekte/$id/dokumente': typeof ProjekteIdDokumenteRoute
   '/projekte/$id/export': typeof ProjekteIdExportRoute
+  '/projekte/$id/kommentare': typeof ProjekteIdKommentareRoute
   '/projekte/$id/kriterien': typeof ProjekteIdKriterienRoute
   '/projekte/$id/standard': typeof ProjekteIdStandardRoute
 }
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/templates/$id': typeof TemplatesIdRoute
   '/projekte/$id/dokumente': typeof ProjekteIdDokumenteRoute
   '/projekte/$id/export': typeof ProjekteIdExportRoute
+  '/projekte/$id/kommentare': typeof ProjekteIdKommentareRoute
   '/projekte/$id/kriterien': typeof ProjekteIdKriterienRoute
   '/projekte/$id/standard': typeof ProjekteIdStandardRoute
 }
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/templates/$id'
     | '/projekte/$id/dokumente'
     | '/projekte/$id/export'
+    | '/projekte/$id/kommentare'
     | '/projekte/$id/kriterien'
     | '/projekte/$id/standard'
   fileRoutesByTo: FileRoutesByTo
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/templates/$id'
     | '/projekte/$id/dokumente'
     | '/projekte/$id/export'
+    | '/projekte/$id/kommentare'
     | '/projekte/$id/kriterien'
     | '/projekte/$id/standard'
   id:
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/templates/$id'
     | '/projekte/$id/dokumente'
     | '/projekte/$id/export'
+    | '/projekte/$id/kommentare'
     | '/projekte/$id/kriterien'
     | '/projekte/$id/standard'
   fileRoutesById: FileRoutesById
@@ -253,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjekteIdKriterienRouteImport
       parentRoute: typeof ProjekteRoute
     }
+    '/projekte/$id/kommentare': {
+      id: '/projekte/$id/kommentare'
+      path: '/$id/kommentare'
+      fullPath: '/projekte/$id/kommentare'
+      preLoaderRoute: typeof ProjekteIdKommentareRouteImport
+      parentRoute: typeof ProjekteRoute
+    }
     '/projekte/$id/export': {
       id: '/projekte/$id/export'
       path: '/$id/export'
@@ -273,6 +292,7 @@ declare module '@tanstack/react-router' {
 interface ProjekteRouteChildren {
   ProjekteIdDokumenteRoute: typeof ProjekteIdDokumenteRoute
   ProjekteIdExportRoute: typeof ProjekteIdExportRoute
+  ProjekteIdKommentareRoute: typeof ProjekteIdKommentareRoute
   ProjekteIdKriterienRoute: typeof ProjekteIdKriterienRoute
   ProjekteIdStandardRoute: typeof ProjekteIdStandardRoute
 }
@@ -280,6 +300,7 @@ interface ProjekteRouteChildren {
 const ProjekteRouteChildren: ProjekteRouteChildren = {
   ProjekteIdDokumenteRoute: ProjekteIdDokumenteRoute,
   ProjekteIdExportRoute: ProjekteIdExportRoute,
+  ProjekteIdKommentareRoute: ProjekteIdKommentareRoute,
   ProjekteIdKriterienRoute: ProjekteIdKriterienRoute,
   ProjekteIdStandardRoute: ProjekteIdStandardRoute,
 }

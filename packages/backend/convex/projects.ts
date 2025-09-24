@@ -169,6 +169,35 @@ export const startAnalysis = mutation({
 	},
 });
 
+export const setTemplate = mutation({
+	args: {
+		projectId: v.id("projects"),
+		templateId: v.optional(v.id("templates")),
+	},
+	handler: async (ctx, { projectId, templateId }) => {
+		const identity = await getIdentityOrThrow(ctx);
+		const project = await ctx.db.get(projectId);
+		if (!project || project.orgId !== identity.orgId) {
+			throw new Error("Projekt nicht gefunden.");
+		}
+
+		let normalizedTemplate: Id<"templates"> | undefined = undefined;
+		if (templateId) {
+			const template = await ctx.db.get(templateId);
+			if (!template || template.orgId !== identity.orgId) {
+				throw new Error("Template gehört nicht zur Organisation.");
+			}
+			normalizedTemplate = templateId;
+		}
+
+		await ctx.db.patch(projectId, {
+			templateId: normalizedTemplate,
+		});
+
+		return { success: true };
+	},
+});
+
 async function loadLatestRuns(
 	ctx: QueryCtx | MutationCtx,
 	projectIds: Id<"projects">[],
