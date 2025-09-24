@@ -79,11 +79,11 @@
 
 **Tasks:**
 
-* [ ] Create `auth.ts` with helper:
+* [x] Create `auth.ts` with helper:
 
-  * [ ] `getIdentityOrThrow(ctx)` → returns `{ userId, orgId, email }`, throws if missing.
-  * [ ] `requireOrgFilter(ctx, orgId)` guidance: every query/mutation must filter by `orgId`.
-* [ ] Ensure Clerk JWT template “convex” includes org claim (e.g. `org_id`). In code, read that claim from `ctx.auth.getUserIdentity()`.
+  * [x] `getIdentityOrThrow(ctx)` → returns `{ userId, orgId, email }`, throws if missing.
+  * [x] `requireOrgFilter(ctx, orgId)` guidance: every query/mutation must filter by `orgId`.
+* [x] Ensure Clerk JWT template “convex” includes org claim (e.g. `org_id`). In code, read that claim from `ctx.auth.getUserIdentity()`.
 
 **Acceptance:**
 
