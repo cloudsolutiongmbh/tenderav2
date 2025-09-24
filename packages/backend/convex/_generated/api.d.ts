@@ -13,10 +13,13 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as analysis from "../analysis.js";
 import type * as auth from "../auth.js";
 import type * as docPages from "../docPages.js";
 import type * as documents from "../documents.js";
+import type * as extract from "../extract.js";
 import type * as healthCheck from "../healthCheck.js";
+import type * as llm from "../llm.js";
 import type * as privateData from "../privateData.js";
 import type * as projects from "../projects.js";
 import type * as shares from "../shares.js";
@@ -32,10 +35,13 @@ import type * as todos from "../todos.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  analysis: typeof analysis;
   auth: typeof auth;
   docPages: typeof docPages;
   documents: typeof documents;
+  extract: typeof extract;
   healthCheck: typeof healthCheck;
+  llm: typeof llm;
   privateData: typeof privateData;
   projects: typeof projects;
   shares: typeof shares;

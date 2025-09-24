@@ -128,27 +128,27 @@
 
 **Tasks:**
 
-* [ ] `extract.textFromFile({ storageId, mimeType })` → `{ pages: [{ page, text }] }`
+* [x] `extract.textFromFile({ storageId, mimeType })` → `{ pages: [{ page, text }] }`
 
   * Preferred path is **client‑side** extraction (see Phase 7), but provide server Action for fallback (TXT supported; PDF/DOCX may be limited if libs are problematic).
-* [ ] `analysis.runStandard({ projectId, docPageIds[] })`
+* [x] `analysis.runStandard({ projectId, docPageIds[] })`
 
-  * [ ] Chunk `docPages` by page windows (e.g. 8–12 pages per chunk).
-  * [ ] Build **strict prompt** enforcing **German output** and **JSON schema** from PRD §9.
-  * [ ] Anti‑hallucination: instruct “**answer only from provided pages**”, require citations (`page` + short `quote`) for every fact.
-  * [ ] Merge chunk outputs (dedupe + keep sources).
-  * [ ] Validate with Zod (schema mirrors PRD JSON).
-  * [ ] Write `analysisResults` and finalize `analysisRuns` with telemetry (`tokens`, `latencyMs`, `provider`, `model`).
-* [ ] `analysis.runCriteria({ projectId, templateId, docPageIds[] })`
+  * [x] Chunk `docPages` by page windows (e.g. 8–12 pages per chunk).
+  * [x] Build **strict prompt** enforcing **German output** and **JSON schema** from PRD §9.
+  * [x] Anti‑halluzination: instruct “**answer only from provided pages**”, require citations (`page` + short `quote`) for every fact.
+  * [x] Merge chunk outputs (dedupe + keep sources).
+  * [x] Validate with Zod (schema mirrors PRD JSON).
+  * [x] Write `analysisResults` and finalize `analysisRuns` with telemetry (`tokens`, `latencyMs`, `provider`, `model`).
+* [x] `analysis.runCriteria({ projectId, templateId, docPageIds[] })`
 
-  * [ ] For each criterion, build a constrained prompt with the criterion context and same citation rule.
-  * [ ] Output JSON per PRD; Zod‑validate; store result.
-* [ ] `analysis.getLatest({ projectId, type })` → returns `{ status, result? }` (reactive query).
-* [ ] `llm.ts`: provider switch
+  * [x] For each criterion, build a constrained prompt with the criterion context and same citation rule.
+  * [x] Output JSON per PRD; Zod‑validate; store result.
+* [x] `analysis.getLatest({ projectId, type })` → returns `{ status, result? }` (reactive query).
+* [x] `llm.ts`: provider switch
 
-  * [ ] Read `LLM_PROVIDER` (`"OPENAI" | "ANTHROPIC"`) and `LLM_MODEL`.
-  * [ ] Normalized call that returns `{ text, usage: { promptTokens, completionTokens }, latencyMs }`.
-  * [ ] If model/provider missing → throw descriptive error.
+  * [x] Read `LLM_PROVIDER` (`"OPENAI" | "ANTHROPIC"`) and `LLM_MODEL`.
+  * [x] Normalized call that returns `{ text, usage: { promptTokens, completionTokens }, latencyMs }`.
+  * [x] If model/provider missing → throw descriptive error.
 
 **Acceptance:**
 
