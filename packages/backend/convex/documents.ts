@@ -74,3 +74,25 @@ export const listByProject = query({
 			.collect();
 	},
 });
+
+export const markExtracted = mutation({
+	args: {
+		documentId: v.id("documents"),
+		pageCount: v.number(),
+	},
+	handler: async (ctx, { documentId, pageCount }) => {
+		const identity = await getIdentityOrThrow(ctx);
+		const document = await ctx.db.get(documentId);
+		if (!document || document.orgId !== identity.orgId) {
+			throw new Error("Dokument nicht gefunden.");
+		}
+
+		await ctx.db.patch(documentId, {
+			pageCount,
+			textExtracted: true,
+			updatedAt: Date.now(),
+		});
+
+		return { success: true };
+	},
+});

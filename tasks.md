@@ -194,23 +194,23 @@
 
 **Tasks:**
 
-* [ ] `/projekte`:
+* [x] `/projekte`:
 
-  * [ ] Table/List of projects (name, customer, tags, updatedAt, latest status badge).
-  * [ ] “Neues Projekt” dialog: fields **Projektname**, **Kunde/Behörde**, **interne Tags**, optional **Template** select.
-* [ ] `/projekte/:id/dokumente`:
+  * [x] Table/List of projects (name, customer, tags, updatedAt, latest status badge).
+  * [x] “Neues Projekt” dialog: fields **Projektname**, **Kunde/Behörde**, **interne Tags**, optional **Template** select.
+* [x] `/projekte/:id/dokumente`:
 
-  * [ ] Dropzone: accept PDF/DOCX/TXT; **multiple**; **sum ≤ MAX\_UPLOAD\_MB**; show per‑file chips with validation.
-  * [ ] Upload flow: call `documents.createUploadUrl()` → upload file → `documents.attach(...)`.
-  * [ ] **Client‑side text extraction** immediately after attach (preferred):
+  * [x] Dropzone: accept PDF/DOCX/TXT; **multiple**; **sum ≤ MAX\_UPLOAD\_MB**; show per‑file chips with validation.
+  * [x] Upload flow: call `documents.createUploadUrl()` → upload file → `documents.attach(...)`.
+  * [x] **Client‑side text extraction** immediately after attach (preferred):
 
-    * PDF: `pdfjs-dist` → per‑page text.
-    * DOCX: `mammoth` → split into pseudo‑pages by headings/length heuristic; record `page` starting at 1.
-    * TXT: single page.
-  * [ ] Save pages via `docPages.bulkInsert`.
-  * [ ] Mark `documents.textExtracted = true`, `pageCount`.
-  * [ ] Button(s): **„Standard‑Analyse starten“**, **„Kriterien‑Analyse starten“** (disabled until at least one page exists).
-  * [ ] Show an **Analysis Runs** section with live status.
+    * [x] PDF: `pdfjs-dist` → per‑page text.
+    * [x] DOCX: `mammoth` → split into pseudo‑pages by headings/length heuristic; record `page` starting at 1.
+    * [x] TXT: single page.
+  * [x] Save pages via `docPages.bulkInsert`.
+  * [x] Mark `documents.textExtracted = true`, `pageCount`.
+  * [x] Button(s): **„Standard‑Analyse starten“**, **„Kriterien‑Analyse starten“** (disabled until at least one page exists).
+  * [x] Show an **Analysis Runs** section with live status.
 
 **Acceptance:**
 

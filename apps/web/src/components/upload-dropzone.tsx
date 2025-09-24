@@ -7,6 +7,7 @@ interface UploadDropzoneProps {
 	maxTotalSizeMb?: number;
 	onFilesAccepted?: (files: File[]) => void;
 	disabled?: boolean;
+	currentTotalBytes?: number;
 }
 
 const DEFAULT_MAX_TOTAL_MB = 200;
@@ -15,6 +16,7 @@ export function UploadDropzone({
 	maxTotalSizeMb = DEFAULT_MAX_TOTAL_MB,
 	onFilesAccepted,
 	disabled = false,
+	currentTotalBytes = 0,
 }: UploadDropzoneProps) {
 	const inputRef = useRef<HTMLInputElement | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -30,17 +32,20 @@ export function UploadDropzone({
 			const totalBytes = fileArray.reduce((sum, file) => sum + file.size, 0);
 			const maxBytes = maxTotalSizeMb * 1024 * 1024;
 
-			if (totalBytes > maxBytes) {
+			if (totalBytes + currentTotalBytes > maxBytes) {
 				setError(
-					`Maximal zulässige Gesamtgrösse: ${maxTotalSizeMb} MB. Ausgewählt: ${formatBytes(totalBytes)}.`,
+					`Limit ${maxTotalSizeMb} MB überschritten. Bereits genutzt: ${formatBytes(currentTotalBytes)} · Auswahl: ${formatBytes(totalBytes)}.`,
 				);
 				return;
 			}
 
 			setError(null);
 			onFilesAccepted?.(fileArray);
+			if (inputRef.current) {
+				inputRef.current.value = "";
+			}
 		},
-		[disabled, maxTotalSizeMb, onFilesAccepted],
+		[disabled, maxTotalSizeMb, onFilesAccepted, currentTotalBytes],
 	);
 
 	const handleInputChange = useCallback(
@@ -82,7 +87,7 @@ export function UploadDropzone({
 					ref={inputRef}
 					type="file"
 					multiple
-					accept=".pdf,.doc,.docx,.txt,.md"
+					accept=".pdf,.docx,.txt"
 					className="hidden"
 					onChange={handleInputChange}
 				/>
@@ -98,7 +103,7 @@ export function UploadDropzone({
 					Dateien auswählen
 				</Button>
 				<p className="mt-2 text-xs text-muted-foreground">
-					Unterstützt: PDF, DOCX, TXT – Gesamtlimit {maxTotalSizeMb} MB
+					Unterstützt: PDF, DOCX, TXT – Gesamtlimit {maxTotalSizeMb} MB · genutzt {formatBytes(currentTotalBytes)}
 				</p>
 			</div>
 			{error ? (
