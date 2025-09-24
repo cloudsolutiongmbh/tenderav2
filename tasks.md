@@ -16,19 +16,19 @@
 
 **Goal:** Prepare navigation, titles, ENV placeholders, and a clean surface for MVP routes.
 
-* [ ] Update titles:
+* [x] Update titles:
 
-  * [ ] `apps/web/index.html` → title `tendera.ch`
-  * [ ] `apps/web/src/routes/__root.tsx` head meta title → `tendera.ch`
-* [ ] Update navbar links in `apps/web/src/components/header.tsx`:
+  * [x] `apps/web/index.html` → title `tendera.ch`
+  * [x] `apps/web/src/routes/__root.tsx` head meta title → `tendera.ch`
+* [x] Update navbar links in `apps/web/src/components/header.tsx`:
 
-  * [ ] **Replace** “Aufgaben” with: **Projekte** (`/projekte`), **Templates** (`/templates`), **Profil**, \*\*Organisation\`\`
-* [ ] Keep `/todos` route for now but **remove** header link to it.
-* [ ] Add ENV placeholders:
+  * [x] **Replace** “Aufgaben” with: **Projekte** (`/projekte`), **Templates** (`/templates`), **Profil**, \*\*Organisation\`\`
+* [x] Keep `/todos` route for now but **remove** header link to it.
+* [x] Add ENV placeholders:
 
-  * [ ] `apps/web/.env.example`: add `MAX_UPLOAD_MB=200`
-  * [ ] `packages/backend/convex/auth.config.ts` already expects `CLERK_JWT_ISSUER_DOMAIN`. Ensure placeholder in `packages/backend/.env.local` (commented).
-  * [ ] `packages/backend/.env.local`: add commented placeholders for `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `LLM_PROVIDER`, `LLM_MODEL`.
+  * [x] `apps/web/.env.example`: add `MAX_UPLOAD_MB=200`
+  * [x] `packages/backend/convex/auth.config.ts` already expects `CLERK_JWT_ISSUER_DOMAIN`. Ensure placeholder in `packages/backend/.env.local` (commented).
+  * [x] `packages/backend/.env.local`: add commented placeholders for `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `LLM_PROVIDER`, `LLM_MODEL`.
 
 **Acceptance:**
 
