@@ -45,24 +45,24 @@
 
 **Tasks:**
 
-* [ ] Append tables (do not remove `todos`):
+* [x] Append tables (do not remove `todos`):
 
-  * [ ] `projects` → `name`, `customer`, `tags[]`, `templateId?`, `latestRunId?`, `orgId`, `createdBy`, `createdAt`
-  * [ ] `documents` → `projectId`, `filename`, `mimeType`, `size`, `storageId`, `pageCount?`, `textExtracted (bool)`, `orgId`, timestamps
-  * [ ] `docPages` → `documentId`, `page (number)`, `text (string)`, `orgId`
-  * [ ] `templates` → fields per PRD incl. `criteria[]` object array + `visibleOrgWide (bool)`, `orgId`, timestamps
-  * [ ] `analysisRuns` → `projectId`, `type ("standard" | "criteria")`, `status ("wartet" | "läuft" | "fertig" | "fehler")`, `error?`, `startedAt`, `finishedAt`, `resultRef?`, **telemetry fields**: `provider`, `model`, `promptTokens?`, `completionTokens?`, `latencyMs?`, `orgId`
-  * [ ] `analysisResults` → per PRD result shapes (standard/criteria), `orgId`
-  * [ ] `shares` → `projectId`, `token (string)`, `expiresAt`, `createdBy`, `orgId`
+  * [x] `projects` → `name`, `customer`, `tags[]`, `templateId?`, `latestRunId?`, `orgId`, `createdBy`, `createdAt`
+  * [x] `documents` → `projectId`, `filename`, `mimeType`, `size`, `storageId`, `pageCount?`, `textExtracted (bool)`, `orgId`, timestamps
+  * [x] `docPages` → `documentId`, `page (number)`, `text (string)`, `orgId`
+  * [x] `templates` → fields per PRD incl. `criteria[]` object array + `visibleOrgWide (bool)`, `orgId`, timestamps
+  * [x] `analysisRuns` → `projectId`, `type ("standard" | "criteria")`, `status ("wartet" | "läuft" | "fertig" | "fehler")`, `error?`, `startedAt`, `finishedAt`, `resultRef?`, **telemetry fields**: `provider`, `model`, `promptTokens?`, `completionTokens?`, `latencyMs?`, `orgId`
+  * [x] `analysisResults` → per PRD result shapes (standard/criteria), `orgId`
+  * [x] `shares` → `projectId`, `token (string)`, `expiresAt`, `createdBy`, `orgId`
   * [ ] *(Optional / Should)* `comments`, `tasks` as in PRD
-* [ ] Indexes:
+* [x] Indexes:
 
-  * [ ] `documents` by `projectId`
-  * [ ] `docPages` by `documentId` and secondary composite `(documentId, page)`
-  * [ ] `analysisRuns` by `projectId`, and composite `(projectId, type)`; also `orgId` for backpressure queries
-  * [ ] `analysisResults` by `result type` if needed, and by `_id`
-  * [ ] `shares` by `token` (unique), and by `projectId`
-  * [ ] `templates` by `orgId` and `visibleOrgWide`
+  * [x] `documents` by `projectId`
+  * [x] `docPages` by `documentId` and secondary composite `(documentId, page)`
+  * [x] `analysisRuns` by `projectId`, and composite `(projectId, type)`; also `orgId` for backpressure queries
+  * [x] `analysisResults` by `result type` if needed, and by `_id`
+  * [x] `shares` by `token` (unique), and by `projectId`
+  * [x] `templates` by `orgId` and `visibleOrgWide`
 
 **Acceptance:**
 
