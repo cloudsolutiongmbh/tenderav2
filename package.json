@@ -1,0 +1,22 @@
+{
+	"name": "my-convex-app",
+	"private": true,
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
+	"scripts": {
+		"dev": "turbo dev",
+		"build": "turbo build",
+		"check-types": "turbo check-types",
+		"dev:native": "turbo -F native dev",
+		"dev:web": "turbo -F web dev",
+		"dev:server": "turbo -F @tendera/backend dev",
+		"dev:setup": "turbo -F @tendera/backend dev:setup"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"turbo": "^2.5.4"
+	},
+	"packageManager": "npm@11.5.2"
+}

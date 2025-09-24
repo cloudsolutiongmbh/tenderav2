@@ -1,0 +1,174 @@
+Produktanforderungsdokument (PRD)
+
+1) Überblick
+
+Produktname: tendera.chKurzbeschreibung: SaaS zur Analyse von Ausschreibungsunterlagen ("Tenders"). Nutzer:innen laden Dokumente hoch, wählen optional einen Kriterienkatalog (Template) aus und erhalten:
+
+Standard-Ansicht mit Zusammenfassung, Meilensteinen, Fristen & Basis-Metadaten.
+
+Kriterien-Ansicht mit erkannten, auf das Template gemappten Punkten (Checkliste, Findings, ggf. Bewertung).Technik: Einfache LLM-Aufrufe via Vercel AI SDK; File-Upload + schlanke Pipeline.
+
+2) Ziele & Nicht‑Ziele
+
+Ziele (MVP):
+
+Upload von Ausschreibungsunterlagen (PDF/DOCX/TXT; mehrerer Dateien) pro Projekt.
+
+Verwaltung von Templates (Kriterienkataloge) mit frei definierbaren Kriterien -> als Prompt Felder.
+
+Automatisierte LLM-Analysen: Standard-Ansicht (Summary, Meilensteine/Fristen, Anforderungen, offene Fragen), Kriterien-Ansicht basierend auf Template.
+
+Export (PDF) der Ergebnisse.
+
+Nicht‑Ziele (MVP):
+
+Vollautomatische Angebotsgenerierung.
+
+Komplexes Scoring/Ranking gegen Mitbewerber.
+
+Live‑Datenbanken/Trendrecherchen (nur Dokumentinhalt).
+
+E‑Signaturen, Vertragsmanagement.
+
+ ZIP Upload
+
+Einfache Kollaboration: Projekte im Workspace, Rollen Owner/Editor/Viewer.
+
+Export (Word/Markdown) der Ergebnisse.
+
+3) Zielgruppen & Nutzen
+
+KMU/Bau/IT/Consulting, die regelmässig auf Ausschreibungen reagieren.
+
+Sales/Presales/PMO, die schnell Überblick, Deadlines und Fit‑Gaps brauchen.Nutzen: Zeitgewinn, reduzierte Fehlrisiken durch wiederverwendbare Kriterienkataloge, konsistente Erstbewertung.
+
+4) Haupt-Use-Cases & User Stories (MoSCoW + Akzeptanzkriterien)
+
+UC1: Projekt & Upload (Must)
+
+Story: Als Nutzer:in möchte ich ein Projekt anlegen und Dokumente hochladen, damit tendera.ch die Ausschreibung analysiert.
+
+Akzeptanzkriterien:
+
+Ich kann Projektname, Kunde/Behörde,  interne Tags erfassen.
+
+Upload akzeptiert PDF/DOCX/TXT (min. 200 MB gesamt, konfigurierbar).
+
+Mehrere Dateien werden intern zusammengeführt (Dokumentsatz).
+
+Nach Upload startet eine Analyse-Queue; UI zeigt Status (z.B. Wartet → Läuft → Fertig).
+
+UC2: Standard-Ansicht (Must)
+
+Story: Als Nutzer:in möchte ich nach der Analyse eine Standard-Ansicht sehen.
+
+Akzeptanzkriterien:
+
+Executive Summary (max. ~200–300 Wörter, deutsch).
+
+Meilensteine/Fristen (Einreichung, Q&A, Bieterfragen, Präsentationen, Vertragsstart).
+
+Wesentliche Anforderungen (funktional, nicht-funktional), Eignungskriterien, Ausschlusskriterien.
+
+Offene Punkte/Unklarheiten (Fragenliste für Q&A).
+
+Extrahierte Metadaten (Ausschreibungsnummer, Vergabestelle, Laufzeit, Budget – sofern im Text vorhanden).
+
+UC3: Kriterien-Ansicht (Must)
+
+Story: Als Nutzer:in möchte ich einen Kriterienkatalog auswählen, damit tendera.ch gezielt auf meine Custom-Kriterien prüft.
+
+Akzeptanzkriterien:
+
+Ich kann beim Projektstart oder nachträglich ein Template zuweisen.
+
+Pro Kriterium zeigt das System: Gefunden/Nicht gefunden, Fundstellen (Zitate/Seiten), Kommentar (LLM-Interpretation).
+
+Optional (Should): Gewichtung & Punktzahl je Kriterium; Gesamtscore.
+
+UC4: Template-Verwaltung (Must)
+
+Story: Als Editor möchte ich Templates anlegen/bearbeiten, damit Teams konsistent prüfen.
+
+Akzeptanzkriterien:
+
+Template-Felder: Name, Beschreibung, Sprache, Version, Sichtbarkeit (Org-weit), Kriterien[].
+
+Kriterium: Titel, Beschreibung, Hinweise/Beispiele, Antworttyp (Boolean/Skala/Text), Gewicht (0–100), Pflicht (ja/nein).
+
+(Should) Keyword-Hinweise als heuristische Zusatzsignale für die Fundstellensuche.
+
+UC5: Ergebnisse exportieren & teilen (Must)
+
+Story: Als Nutzer:in möchte ich die Analyse exportieren (PDF/Word/Markdown) und mit Kolleg:innen teilen.
+
+Akzeptanzkriterien:
+
+Export bewahrt Struktur (Summary, Meilensteine, Kriterienresultate).
+
+Sharable Link (Read‑only) für interne Reviewer (Viewer‑Rolle).
+
+UC6: Kommentare & Aufgaben (Should)
+
+Story: Als Team möchte ich Findings kommentieren und in Aufgaben überführen.
+
+Akzeptanzkriterien:
+
+Inline‑Kommentare zu Kriterien oder Meilensteinen.
+
+(Should) Aufgaben mit Zuständigkeit & Fälligkeitsdatum.
+
+5) Informationsarchitektur & Screens
+
+Navigation:
+
+Dashboard → Projekte (Liste, Filter) → Projekt-Detail mit Tabs: Standard, Kriterien, Dokumente, Kommentare, Export.
+
+Templates → Liste → Detail (Kriterien-Editor, Versionen).
+
+Projekt-Detail / Standard-Ansicht:
+
+Header mit Projektmeta + Analyse-Status.
+
+Karten: Executive Summary, Meilensteine/Fristen, Anforderungen, Offene Fragen, Metadaten.
+
+Projekt-Detail / Kriterien-Ansicht:
+
+Linke Spalte: Kriterienliste (Statusbadges).
+
+Rechte Fläche: Detail mit Fundstellen (Zitat + Seitenreferenz), Kommentar, (optional) Score.
+
+7) Architektur & Technik
+
+Frontend: Next.js (App Router), React, Tailwind, Shadcn UI.
+
+LLM: Vercel AI SDK (Edge‑fähige Routen), Modellanbieter konfigurierbar (z. B. OpenAI).
+
+OCR (Optional): ich glaube das können wir über den LLM Call schon machen
+
+
+
+Ablauf (vereinfacht):
+
+Upload → File persistieren → (Optional) OCR → Textextraktion.
+
+Run-Start: Zwei Pipelines parallel/seriell: Standard und Kriterien.
+
+Vercel AI SDK ruft Modell an (mit System-/User-Prompts + Chunking/Referenzen).
+
+Ergebnisse speichern → UI aktualisieren (Polling / Revalidate Path / WS).
+
+10) Nicht‑funktionale Anforderungen
+
+Performance: Erste Ergebnisse < 60 s bei ~50 Seiten, vollständige Analyse < 3–5 min (abhängig von OCR).
+
+Skalierbarkeit: Parallelverarbeitung, Queue‑Backpressure.
+
+Verfügbarkeit: 99.5% (MVP), Statusseite.
+
+Beobachtbarkeit: Tokens, Latenzen, Fehlerraten; Alarmierung.
+
+13) Risiken & Annahmen
+
+Halluzinationen → striktes Prompting, Zitatpflicht, Begrenzung auf Dokumenttext.
+
