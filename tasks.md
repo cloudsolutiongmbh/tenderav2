@@ -98,22 +98,22 @@
 
 **Tasks:**
 
-* [ ] `projects.create({ name, customer, tags, templateId? })` → returns `Id`
-* [ ] `projects.list({ filter? })` (by name/tag) scoped by `orgId`
-* [ ] `projects.get({ projectId })`
-* [ ] `documents.createUploadUrl()` → Convex storage upload URL (per Convex file upload pattern)
-* [ ] `documents.attach({ projectId, filename, mimeType, size, storageId })`
-* [ ] `documents.listByProject({ projectId })`
-* [ ] `docPages.bulkInsert({ documentId, pages: [{ page, text }] })` → fast insert
-* [ ] `templates.list()` (org‑scoped + `visibleOrgWide`)
-* [ ] `templates.get({ templateId })`
-* [ ] `templates.upsert({...})` (create/update incl. `criteria[]`)
-* [ ] `projects.startAnalysis({ projectId, type })`
+* [x] `projects.create({ name, customer, tags, templateId? })` → returns `Id`
+* [x] `projects.list({ filter? })` (by name/tag) scoped by `orgId`
+* [x] `projects.get({ projectId })`
+* [x] `documents.createUploadUrl()` → Convex storage upload URL (per Convex file upload pattern)
+* [x] `documents.attach({ projectId, filename, mimeType, size, storageId })`
+* [x] `documents.listByProject({ projectId })`
+* [x] `docPages.bulkInsert({ documentId, pages: [{ page, text }] })` → fast insert
+* [x] `templates.list()` (org‑scoped + `visibleOrgWide`)
+* [x] `templates.get({ templateId })`
+* [x] `templates.upsert({...})` (create/update incl. `criteria[]`)
+* [x] `projects.startAnalysis({ projectId, type })`
 
-  * [ ] Creates `analysisRuns` with `status="wartet"`; saves `startedAt` when moved to `"läuft"`.
-  * [ ] **Backpressure:** If there are N active (`"wartet"|"läuft"`) runs for this `orgId`, enqueue (N configurable; default 1 per org).
-* [ ] `shares.create({ projectId, ttlDays })` → returns `{ token, expiresAt }`
-* [ ] `shares.resolve({ token })` → returns sanitized read‑only payload for UI (project meta + last standard result + last criteria result if present). **No live editing.**
+  * [x] Creates `analysisRuns` with `status="wartet"`; saves `startedAt` when moved to `"läuft"`.
+  * [x] **Backpressure:** If there are N active (`"wartet"|"läuft"`) runs for this `orgId`, enqueue (N configurable; default 1 per org).
+* [x] `shares.create({ projectId, ttlDays })` → returns `{ token, expiresAt }`
+* [x] `shares.resolve({ token })` → returns sanitized read‑only payload for UI (project meta + last standard result + last criteria result if present). **No live editing.**
 
 **Acceptance:**
 
