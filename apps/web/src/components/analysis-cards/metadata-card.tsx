@@ -1,0 +1,61 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface Citation {
+	page: number;
+	quote: string;
+}
+
+export interface MetadataItem {
+	label: string;
+	value: string;
+	citation?: Citation;
+}
+
+interface MetadataCardProps {
+	metadata?: MetadataItem[];
+	isLoading?: boolean;
+}
+
+export function MetadataCard({ metadata = [], isLoading }: MetadataCardProps) {
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>Metadaten</CardTitle>
+				<CardDescription>Rahmendaten aus der Ausschreibung.</CardDescription>
+			</CardHeader>
+			<CardContent>
+				{isLoading ? (
+					<div className="space-y-2">
+						<Skeleton className="h-4 w-full" />
+						<Skeleton className="h-4 w-[85%]" />
+						<Skeleton className="h-4 w-[60%]" />
+					</div>
+				) : metadata.length > 0 ? (
+					<dl className="grid gap-3 text-sm sm:grid-cols-2">
+						{metadata.map((item, index) => (
+							<div
+								key={`${item.label}-${index}`}
+								className="rounded-lg border border-border/60 p-3"
+							>
+								<dt className="text-xs uppercase text-muted-foreground">
+									{item.label}
+								</dt>
+								<dd className="mt-1 font-medium">{item.value}</dd>
+								{item.citation ? (
+									<p className="mt-2 text-xs text-muted-foreground">
+										Zitat (Seite {item.citation.page}): „{item.citation.quote}“
+									</p>
+								) : null}
+							</div>
+						))}
+					</dl>
+				) : (
+					<p className="text-sm text-muted-foreground">
+						Noch keine Metadaten vorhanden.
+					</p>
+				)}
+			</CardContent>
+		</Card>
+	);
+}

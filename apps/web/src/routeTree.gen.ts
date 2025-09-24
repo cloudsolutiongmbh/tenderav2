@@ -15,6 +15,12 @@ import { Route as ProjekteRouteImport } from './routes/projekte'
 import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as OrganisationRouteImport } from './routes/organisation'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TemplatesIdRouteImport } from './routes/templates.$id'
+import { Route as ShareTokenRouteImport } from './routes/share.$token'
+import { Route as ProjekteIdStandardRouteImport } from './routes/projekte.$id.standard'
+import { Route as ProjekteIdKriterienRouteImport } from './routes/projekte.$id.kriterien'
+import { Route as ProjekteIdExportRouteImport } from './routes/projekte.$id.export'
+import { Route as ProjekteIdDokumenteRouteImport } from './routes/projekte.$id.dokumente'
 
 const TodosRoute = TodosRouteImport.update({
   id: '/todos',
@@ -46,31 +52,79 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TemplatesIdRoute = TemplatesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => TemplatesRoute,
+} as any)
+const ShareTokenRoute = ShareTokenRouteImport.update({
+  id: '/share/$token',
+  path: '/share/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjekteIdStandardRoute = ProjekteIdStandardRouteImport.update({
+  id: '/$id/standard',
+  path: '/$id/standard',
+  getParentRoute: () => ProjekteRoute,
+} as any)
+const ProjekteIdKriterienRoute = ProjekteIdKriterienRouteImport.update({
+  id: '/$id/kriterien',
+  path: '/$id/kriterien',
+  getParentRoute: () => ProjekteRoute,
+} as any)
+const ProjekteIdExportRoute = ProjekteIdExportRouteImport.update({
+  id: '/$id/export',
+  path: '/$id/export',
+  getParentRoute: () => ProjekteRoute,
+} as any)
+const ProjekteIdDokumenteRoute = ProjekteIdDokumenteRouteImport.update({
+  id: '/$id/dokumente',
+  path: '/$id/dokumente',
+  getParentRoute: () => ProjekteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/organisation': typeof OrganisationRoute
   '/profil': typeof ProfilRoute
-  '/projekte': typeof ProjekteRoute
-  '/templates': typeof TemplatesRoute
+  '/projekte': typeof ProjekteRouteWithChildren
+  '/templates': typeof TemplatesRouteWithChildren
   '/todos': typeof TodosRoute
+  '/share/$token': typeof ShareTokenRoute
+  '/templates/$id': typeof TemplatesIdRoute
+  '/projekte/$id/dokumente': typeof ProjekteIdDokumenteRoute
+  '/projekte/$id/export': typeof ProjekteIdExportRoute
+  '/projekte/$id/kriterien': typeof ProjekteIdKriterienRoute
+  '/projekte/$id/standard': typeof ProjekteIdStandardRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/organisation': typeof OrganisationRoute
   '/profil': typeof ProfilRoute
-  '/projekte': typeof ProjekteRoute
-  '/templates': typeof TemplatesRoute
+  '/projekte': typeof ProjekteRouteWithChildren
+  '/templates': typeof TemplatesRouteWithChildren
   '/todos': typeof TodosRoute
+  '/share/$token': typeof ShareTokenRoute
+  '/templates/$id': typeof TemplatesIdRoute
+  '/projekte/$id/dokumente': typeof ProjekteIdDokumenteRoute
+  '/projekte/$id/export': typeof ProjekteIdExportRoute
+  '/projekte/$id/kriterien': typeof ProjekteIdKriterienRoute
+  '/projekte/$id/standard': typeof ProjekteIdStandardRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/organisation': typeof OrganisationRoute
   '/profil': typeof ProfilRoute
-  '/projekte': typeof ProjekteRoute
-  '/templates': typeof TemplatesRoute
+  '/projekte': typeof ProjekteRouteWithChildren
+  '/templates': typeof TemplatesRouteWithChildren
   '/todos': typeof TodosRoute
+  '/share/$token': typeof ShareTokenRoute
+  '/templates/$id': typeof TemplatesIdRoute
+  '/projekte/$id/dokumente': typeof ProjekteIdDokumenteRoute
+  '/projekte/$id/export': typeof ProjekteIdExportRoute
+  '/projekte/$id/kriterien': typeof ProjekteIdKriterienRoute
+  '/projekte/$id/standard': typeof ProjekteIdStandardRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,8 +135,26 @@ export interface FileRouteTypes {
     | '/projekte'
     | '/templates'
     | '/todos'
+    | '/share/$token'
+    | '/templates/$id'
+    | '/projekte/$id/dokumente'
+    | '/projekte/$id/export'
+    | '/projekte/$id/kriterien'
+    | '/projekte/$id/standard'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/organisation' | '/profil' | '/projekte' | '/templates' | '/todos'
+  to:
+    | '/'
+    | '/organisation'
+    | '/profil'
+    | '/projekte'
+    | '/templates'
+    | '/todos'
+    | '/share/$token'
+    | '/templates/$id'
+    | '/projekte/$id/dokumente'
+    | '/projekte/$id/export'
+    | '/projekte/$id/kriterien'
+    | '/projekte/$id/standard'
   id:
     | '__root__'
     | '/'
@@ -91,15 +163,22 @@ export interface FileRouteTypes {
     | '/projekte'
     | '/templates'
     | '/todos'
+    | '/share/$token'
+    | '/templates/$id'
+    | '/projekte/$id/dokumente'
+    | '/projekte/$id/export'
+    | '/projekte/$id/kriterien'
+    | '/projekte/$id/standard'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   OrganisationRoute: typeof OrganisationRoute
   ProfilRoute: typeof ProfilRoute
-  ProjekteRoute: typeof ProjekteRoute
-  TemplatesRoute: typeof TemplatesRoute
+  ProjekteRoute: typeof ProjekteRouteWithChildren
+  TemplatesRoute: typeof TemplatesRouteWithChildren
   TodosRoute: typeof TodosRoute
+  ShareTokenRoute: typeof ShareTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -146,16 +225,89 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/templates/$id': {
+      id: '/templates/$id'
+      path: '/$id'
+      fullPath: '/templates/$id'
+      preLoaderRoute: typeof TemplatesIdRouteImport
+      parentRoute: typeof TemplatesRoute
+    }
+    '/share/$token': {
+      id: '/share/$token'
+      path: '/share/$token'
+      fullPath: '/share/$token'
+      preLoaderRoute: typeof ShareTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projekte/$id/standard': {
+      id: '/projekte/$id/standard'
+      path: '/$id/standard'
+      fullPath: '/projekte/$id/standard'
+      preLoaderRoute: typeof ProjekteIdStandardRouteImport
+      parentRoute: typeof ProjekteRoute
+    }
+    '/projekte/$id/kriterien': {
+      id: '/projekte/$id/kriterien'
+      path: '/$id/kriterien'
+      fullPath: '/projekte/$id/kriterien'
+      preLoaderRoute: typeof ProjekteIdKriterienRouteImport
+      parentRoute: typeof ProjekteRoute
+    }
+    '/projekte/$id/export': {
+      id: '/projekte/$id/export'
+      path: '/$id/export'
+      fullPath: '/projekte/$id/export'
+      preLoaderRoute: typeof ProjekteIdExportRouteImport
+      parentRoute: typeof ProjekteRoute
+    }
+    '/projekte/$id/dokumente': {
+      id: '/projekte/$id/dokumente'
+      path: '/$id/dokumente'
+      fullPath: '/projekte/$id/dokumente'
+      preLoaderRoute: typeof ProjekteIdDokumenteRouteImport
+      parentRoute: typeof ProjekteRoute
+    }
   }
 }
+
+interface ProjekteRouteChildren {
+  ProjekteIdDokumenteRoute: typeof ProjekteIdDokumenteRoute
+  ProjekteIdExportRoute: typeof ProjekteIdExportRoute
+  ProjekteIdKriterienRoute: typeof ProjekteIdKriterienRoute
+  ProjekteIdStandardRoute: typeof ProjekteIdStandardRoute
+}
+
+const ProjekteRouteChildren: ProjekteRouteChildren = {
+  ProjekteIdDokumenteRoute: ProjekteIdDokumenteRoute,
+  ProjekteIdExportRoute: ProjekteIdExportRoute,
+  ProjekteIdKriterienRoute: ProjekteIdKriterienRoute,
+  ProjekteIdStandardRoute: ProjekteIdStandardRoute,
+}
+
+const ProjekteRouteWithChildren = ProjekteRoute._addFileChildren(
+  ProjekteRouteChildren,
+)
+
+interface TemplatesRouteChildren {
+  TemplatesIdRoute: typeof TemplatesIdRoute
+}
+
+const TemplatesRouteChildren: TemplatesRouteChildren = {
+  TemplatesIdRoute: TemplatesIdRoute,
+}
+
+const TemplatesRouteWithChildren = TemplatesRoute._addFileChildren(
+  TemplatesRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   OrganisationRoute: OrganisationRoute,
   ProfilRoute: ProfilRoute,
-  ProjekteRoute: ProjekteRoute,
-  TemplatesRoute: TemplatesRoute,
+  ProjekteRoute: ProjekteRouteWithChildren,
+  TemplatesRoute: TemplatesRouteWithChildren,
   TodosRoute: TodosRoute,
+  ShareTokenRoute: ShareTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

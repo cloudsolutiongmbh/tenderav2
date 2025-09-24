@@ -163,23 +163,23 @@
 
 **Tasks (routes to create):**
 
-* [ ] `/projekte` → `routes/projekte.tsx` (list + “Neues Projekt” dialog)
-* [ ] `/projekte/:id/standard` → `routes/projekte.$id.standard.tsx`
-* [ ] `/projekte/:id/kriterien` → `routes/projekte.$id.kriterien.tsx`
-* [ ] `/projekte/:id/dokumente` → `routes/projekte.$id.dokumente.tsx`
-* [ ] `/projekte/:id/export` → `routes/projekte.$id.export.tsx`
-* [ ] `/templates` → `routes/templates.tsx`
-* [ ] `/templates/:templateId` → `routes/templates.$id.tsx`
-* [ ] `/share/:token` (read‑only view) → `routes/share.$token.tsx`
+* [x] `/projekte` → `routes/projekte.tsx` (list + “Neues Projekt” dialog)
+* [x] `/projekte/:id/standard` → `routes/projekte.$id.standard.tsx`
+* [x] `/projekte/:id/kriterien` → `routes/projekte.$id.kriterien.tsx`
+* [x] `/projekte/:id/dokumente` → `routes/projekte.$id.dokumente.tsx`
+* [x] `/projekte/:id/export` → `routes/projekte.$id.export.tsx`
+* [x] `/templates` → `routes/templates.tsx`
+* [x] `/templates/:templateId` → `routes/templates.$id.tsx`
+* [x] `/share/:token` (read‑only view) → `routes/share.$token.tsx`
 
 **UI components (new under `apps/web/src/components/`):**
 
-* [ ] `status-badge.tsx` → maps run status to badge styles
-* [ ] `upload-dropzone.tsx` → accepts multiple files (PDF/DOCX/TXT), enforces **sum ≤ MAX\_UPLOAD\_MB**
-* [ ] `analysis-cards/*` → small card components for Summary, Milestones, Requirements, Open Questions, Metadata
-* [ ] `criteria-panel/*` → left list with status badges + right detail panel (citations with page numbers)
-* [ ] `pdf-export-button.tsx` → triggers print‑to‑PDF or client PDF render
-* [ ] `share-link.tsx` → create & display copyable read‑only link
+* [x] `status-badge.tsx` → maps run status to badge styles
+* [x] `upload-dropzone.tsx` → accepts multiple files (PDF/DOCX/TXT), enforces **sum ≤ MAX\_UPLOAD\_MB**
+* [x] `analysis-cards/*` → small card components for Summary, Milestones, Requirements, Open Questions, Metadata
+* [x] `criteria-panel/*` → left list with status badges + right detail panel (citations with page numbers)
+* [x] `pdf-export-button.tsx` → triggers print‑to‑PDF or client PDF render
+* [x] `share-link.tsx` → create & display copyable read‑only link
 
 **Acceptance:**
 
