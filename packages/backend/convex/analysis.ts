@@ -437,8 +437,16 @@ async function analyseStandardChunk(
 ) {
 	const systemPrompt =
 		"Du bist ein deutschsprachiger Assistent für die Analyse von Ausschreibungsunterlagen. Antworte ausschliesslich auf Deutsch und nur auf Basis der bereitgestellten Seiten.";
-	const userPrompt = `Lies die folgenden Seiten und extrahiere die Informationen gemäss dem JSON-Schema. Antworte strikt als JSON ohne zusätzlichen Text. Jede Aussage benötigt mindestens ein Zitat mit Seitenzahl.
+    const userPrompt = `Lies die folgenden Seiten und liefere genau EIN JSON-Objekt (kein Array, keine Erklärungen) mit folgender Struktur:
 
+{\n  \"summary\": string,\n  \"milestones\": [ { \"title\": string, \"date\": string | null, \"citation\": { \"page\": number, \"quote\": string } | null } ],\n  \"requirements\": [ { \"title\": string, \"category\": string | null, \"notes\": string | null, \"citation\": { \"page\": number, \"quote\": string } | null } ],\n  \"openQuestions\": [ { \"question\": string, \"citation\": { \"page\": number, \"quote\": string } | null } ],\n  \"metadata\": [ { \"label\": string, \"value\": string, \"citation\": { \"page\": number, \"quote\": string } | null } ]\n}
+
+Regeln:
+- Gib ausschliesslich dieses JSON-Objekt zurück (kein Array, kein Fliesstext).
+- Jede Aussage benötigt ein Zitat (citation) mit Seitenzahl, wenn vorhanden.
+- Fehlende Werte als null eintragen.
+
+Seiten:
 ${chunk.text}`;
 
     const { parsed, usage, latencyMs, provider, model } = await callLlmForJson({
@@ -447,7 +455,8 @@ ${chunk.text}`;
         maxOutputTokens: 1800,
     });
 
-	const result = standardResultSchema.parse(parsed);
+    const candidate = Array.isArray(parsed) ? parsed[0] : parsed;
+    const result = standardResultSchema.parse(candidate);
 
 	return {
 		result,
@@ -492,7 +501,8 @@ ${documentContext}`;
         maxOutputTokens: 800,
     });
 
-	const validated = criteriaItemSchema.parse(parsed);
+    const c = Array.isArray(parsed) ? parsed[0] : parsed;
+    const validated = criteriaItemSchema.parse(c);
 
 	return {
 		result: validated,
