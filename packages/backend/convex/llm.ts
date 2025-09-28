@@ -97,7 +97,6 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
                 text: { format: { type: "text" }, verbosity: "low" },
                 reasoning: { effort: "medium" },
                 tool_choice: "none",
-                modalities: ["text"],
             }),
         });
 

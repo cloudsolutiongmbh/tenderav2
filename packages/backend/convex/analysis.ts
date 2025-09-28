@@ -490,13 +490,6 @@ Hinweise:
 - Nicht eindeutig belegbare Inhalte sind wegzulassen oder mit \`null\` zu kennzeichnen.
 - Bei unvollständigem oder fehlendem Kontext sind alle Felder gemäß oben zu behandeln und keine Fehlerhinweise oder Meldungen auszugeben.`;
 
-Arbeite präzise, folge den Zitierregeln, und gib **nur** das JSON zurück.
-
-Stop-Bedingung:
-- Kein weiterer Text.
-- Keine Erklärungen.
-- JSON-Syntax muss valide und vollständig sein.`;
-
     const userPrompt = `Lies die folgenden Seiten und liefere genau EIN valides JSON-Objekt (kein Array, keine Erklärungen, keine Kommentare, kein Fließtext).
 
 Seiten:
