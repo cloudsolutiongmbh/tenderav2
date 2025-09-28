@@ -108,18 +108,27 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
 		}
 
 		// Responses API: prefer `output_text`, otherwise stitch text from content
-		let text: string = data?.output_text ?? "";
-		if (!text && Array.isArray(data?.output)) {
-			const parts: string[] = [];
-			for (const turn of data.output) {
-				if (Array.isArray(turn?.content)) {
-					for (const c of turn.content) {
-						if (typeof c?.text === "string") parts.push(c.text);
-					}
-				}
-			}
-			text = parts.join("\n");
-		}
+        // Extract structured/text output from Responses API
+        let text: string = typeof data?.output_text === "string" ? data.output_text : "";
+        if (!text && Array.isArray(data?.output)) {
+            const jsonPieces: any[] = [];
+            const textPieces: string[] = [];
+            for (const item of data.output) {
+                const content = Array.isArray(item?.content) ? item.content : [];
+                for (const c of content) {
+                    if (c?.type === "output_json" && c?.json !== undefined) {
+                        jsonPieces.push(c.json);
+                    } else if (typeof c?.text === "string") {
+                        textPieces.push(c.text);
+                    }
+                }
+            }
+            if (jsonPieces.length > 0) {
+                text = JSON.stringify(jsonPieces.length === 1 ? jsonPieces[0] : jsonPieces);
+            } else if (textPieces.length > 0) {
+                text = textPieces.join("\n");
+            }
+        }
 
 		return {
 			text,
