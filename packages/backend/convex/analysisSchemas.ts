@@ -1,40 +1,40 @@
 import { z } from "zod";
 
 export const citationSchema = z.object({
-	page: z.number(),
-	quote: z.string().min(1),
+    page: z.number(),
+    quote: z.string().min(1),
 });
 
 export const standardResultSchema = z.object({
-	summary: z.string().min(1),
-	milestones: z.array(
-		z.object({
-			title: z.string().min(1),
-			date: z.string().optional(),
-			citation: citationSchema.optional(),
-		}),
-	),
-	requirements: z.array(
-		z.object({
-			title: z.string().min(1),
-			category: z.string().optional(),
-			notes: z.string().optional(),
-			citation: citationSchema.optional(),
-		}),
-	),
-	openQuestions: z.array(
-		z.object({
-			question: z.string().min(1),
-			citation: citationSchema.optional(),
-		}),
-	),
-	metadata: z.array(
-		z.object({
-			label: z.string().min(1),
-			value: z.string().min(1),
-			citation: citationSchema.optional(),
-		}),
-	),
+    summary: z.string().min(1).nullable(),
+    milestones: z.array(
+        z.object({
+            title: z.string().min(1),
+            date: z.string().nullable().optional(),
+            citation: citationSchema.nullable().optional(),
+        }),
+    ),
+    requirements: z.array(
+        z.object({
+            title: z.string().min(1),
+            category: z.string().nullable().optional(),
+            notes: z.string().nullable().optional(),
+            citation: citationSchema.nullable().optional(),
+        }),
+    ),
+    openQuestions: z.array(
+        z.object({
+            question: z.string().min(1),
+            citation: citationSchema.nullable().optional(),
+        }),
+    ),
+    metadata: z.array(
+        z.object({
+            label: z.string().min(1),
+            value: z.string().min(1),
+            citation: citationSchema.nullable().optional(),
+        }),
+    ),
 });
 
 export const criteriaItemSchema = z.object({
