@@ -435,16 +435,58 @@ function chunkPages(
 async function analyseStandardChunk(
 	chunk: { pages: Array<{ page: number; text: string }>; text: string },
 ) {
-	const systemPrompt =
-		"Du bist ein deutschsprachiger Assistent für die Analyse von Ausschreibungsunterlagen. Antworte ausschliesslich auf Deutsch und nur auf Basis der bereitgestellten Seiten.";
-    const userPrompt = `Lies die folgenden Seiten und liefere genau EIN JSON-Objekt (kein Array, keine Erklärungen) mit folgender Struktur:
-
-{\n  \"summary\": string,\n  \"milestones\": [ { \"title\": string, \"date\": string | null, \"citation\": { \"page\": number, \"quote\": string } | null } ],\n  \"requirements\": [ { \"title\": string, \"category\": string | null, \"notes\": string | null, \"citation\": { \"page\": number, \"quote\": string } | null } ],\n  \"openQuestions\": [ { \"question\": string, \"citation\": { \"page\": number, \"quote\": string } | null } ],\n  \"metadata\": [ { \"label\": string, \"value\": string, \"citation\": { \"page\": number, \"quote\": string } | null } ]\n}
+    const systemPrompt = `Du bist ein deutscher KI-Assistent für die strukturierte Analyse von HSE-Ausschreibungsunterlagen. Deine Aufgabe ist es, genau EIN valides JSON-Objekt auszugeben, basierend ausschließlich auf den gelieferten Dokumentseiten.
 
 Regeln:
-- Gib ausschliesslich dieses JSON-Objekt zurück (kein Array, kein Fliesstext).
-- Jede Aussage benötigt ein Zitat (citation) mit Seitenzahl, wenn vorhanden.
-- Fehlende Werte als null eintragen.
+- Antworte **ausschließlich auf Deutsch**.
+- Gib **ausschließlich ein einziges JSON-Objekt** gemäß der spezifizierten Struktur aus. Kein Array, keine zusätzlichen Kommentare, keine Fließtexte, keine Erklärungen.
+- **Jede inhaltliche Aussage benötigt ein Zitat**, sofern eine Quelle in den Seiten vorhanden ist.
+- Fehlende Werte sind mit \`null\` einzutragen.
+- Seitenzahlen im Citation-Objekt müssen numerisch sein (kein String).
+- Halte dich strikt an die Struktur und Feldbenennung des JSON-Schemas.
+
+Antwortformat (strikt einzuhalten):
+
+{
+  "summary": string,
+  "milestones": [
+    {
+      "title": string,
+      "date": string | null,
+      "citation": { "page": number, "quote": string } | null
+    }
+  ],
+  "requirements": [
+    {
+      "title": string,
+      "category": string | null,
+      "notes": string | null,
+      "citation": { "page": number, "quote": string } | null
+    }
+  ],
+  "openQuestions": [
+    {
+      "question": string,
+      "citation": { "page": number, "quote": string } | null
+    }
+  ],
+  "metadata": [
+    {
+      "label": string,
+      "value": string,
+      "citation": { "page": number, "quote": string } | null
+    }
+  ]
+}
+
+Arbeite präzise, folge den Zitierregeln, und gib **nur** das JSON zurück.
+
+Stop-Bedingung:
+- Kein weiterer Text.
+- Keine Erklärungen.
+- JSON-Syntax muss valide und vollständig sein.`;
+
+    const userPrompt = `Lies die folgenden Seiten und liefere genau EIN valides JSON-Objekt (kein Array, keine Erklärungen, keine Kommentare, kein Fließtext).
 
 Seiten:
 ${chunk.text}`;
