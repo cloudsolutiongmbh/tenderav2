@@ -53,6 +53,11 @@ export async function callLlm(args: LlmCallArgs): Promise<LlmCallResult> {
 	}
 }
 
+function shouldUseResponsesApi(model: string) {
+  // Heuristic: GPT‑5 models and some newer families expect the Responses API
+  return /^gpt-5/i.test(model);
+}
+
 async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResult> {
 	const apiKey = process.env.OPENAI_API_KEY;
 	if (!apiKey) {
@@ -60,6 +65,63 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
 	}
 
 	const start = Date.now();
+	let latencyMs = 0;
+
+	if (shouldUseResponsesApi(model)) {
+		// Newer OpenAI models (e.g., GPT‑5) use the Responses API and `max_completion_tokens`
+		const response = await fetch("https://api.openai.com/v1/responses", {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				model,
+				input: [
+					{ role: "system", content: args.systemPrompt },
+					{ role: "user", content: args.userPrompt },
+				],
+				temperature: args.temperature ?? 0,
+				// Some newer models expect max_completion_tokens (not max_tokens/max_output_tokens)
+				max_completion_tokens: args.maxOutputTokens ?? 2000,
+				response_format: { type: "json_object" },
+			}),
+		});
+
+		latencyMs = Date.now() - start;
+		const data = await response.json();
+		if (!response.ok) {
+			const message = data?.error?.message ?? "OpenAI-Anfrage fehlgeschlagen.";
+			throw new ConvexError(message);
+		}
+
+		// Responses API: prefer `output_text`, otherwise stitch text from content
+		let text: string = data?.output_text ?? "";
+		if (!text && Array.isArray(data?.output)) {
+			const parts: string[] = [];
+			for (const turn of data.output) {
+				if (Array.isArray(turn?.content)) {
+					for (const c of turn.content) {
+						if (typeof c?.text === "string") parts.push(c.text);
+					}
+				}
+			}
+			text = parts.join("\n");
+		}
+
+		return {
+			text,
+			usage: {
+				promptTokens: data?.usage?.input_tokens,
+				completionTokens: data?.usage?.output_tokens,
+			},
+			latencyMs,
+			provider: "OPENAI",
+			model,
+		};
+	}
+
+	// Legacy Chat Completions API
 	const response = await fetch("https://api.openai.com/v1/chat/completions", {
 		method: "POST",
 		headers: {
@@ -78,9 +140,8 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
 		}),
 	});
 
-	const latencyMs = Date.now() - start;
+	latencyMs = Date.now() - start;
 	const data = await response.json();
-
 	if (!response.ok) {
 		const message = data?.error?.message ?? "OpenAI-Anfrage fehlgeschlagen.";
 		throw new ConvexError(message);
