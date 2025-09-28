@@ -71,7 +71,8 @@ export const standardResultJsonSchema = {
           date: { type: ["string", "null"] },
           citation: { anyOf: [citationJsonSchema, { type: "null" }] },
         },
-        required: ["title"],
+        // In strict mode, required must include every key in properties; allow nulls where optional
+        required: ["title", "date", "citation"],
       },
     },
     requirements: {
@@ -85,7 +86,7 @@ export const standardResultJsonSchema = {
           notes: { type: ["string", "null"] },
           citation: { anyOf: [citationJsonSchema, { type: "null" }] },
         },
-        required: ["title"],
+        required: ["title", "category", "notes", "citation"],
       },
     },
     openQuestions: {
@@ -97,7 +98,7 @@ export const standardResultJsonSchema = {
           question: { type: "string" },
           citation: { anyOf: [citationJsonSchema, { type: "null" }] },
         },
-        required: ["question"],
+        required: ["question", "citation"],
       },
     },
     metadata: {
@@ -110,7 +111,7 @@ export const standardResultJsonSchema = {
           value: { type: "string" },
           citation: { anyOf: [citationJsonSchema, { type: "null" }] },
         },
-        required: ["label", "value"],
+        required: ["label", "value", "citation"],
       },
     },
   },
@@ -130,5 +131,5 @@ export const criteriaItemJsonSchema = {
     },
     score: { type: ["number", "null"] },
   },
-  required: ["status", "citations"],
+  required: ["status", "comment", "answer", "citations", "score"],
 } as const;
