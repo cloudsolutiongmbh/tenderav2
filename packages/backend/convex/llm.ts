@@ -67,26 +67,27 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
 	const start = Date.now();
 	let latencyMs = 0;
 
-	if (shouldUseResponsesApi(model)) {
-		// Newer OpenAI models (e.g., GPT‑5) use the Responses API and `max_completion_tokens`
-		const response = await fetch("https://api.openai.com/v1/responses", {
-			method: "POST",
-			headers: {
-				Authorization: `Bearer ${apiKey}`,
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				model,
-				input: [
-					{ role: "system", content: args.systemPrompt },
-					{ role: "user", content: args.userPrompt },
-				],
-				temperature: args.temperature ?? 0,
-				// Some newer models expect max_completion_tokens (not max_tokens/max_output_tokens)
-				max_completion_tokens: args.maxOutputTokens ?? 2000,
-				response_format: { type: "json_object" },
-			}),
-		});
+    if (shouldUseResponsesApi(model)) {
+        // Newer OpenAI models (e.g., GPT‑5) use the Responses API.
+        // - Use `instructions` for system prompt
+        // - Use `input` for user content
+        // - Use `text.format` instead of `response_format`
+        const response = await fetch("https://api.openai.com/v1/responses", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                model,
+                instructions: args.systemPrompt,
+                input: args.userPrompt,
+                temperature: args.temperature ?? 0,
+                // Some newer models expect max_completion_tokens (not max_tokens)
+                max_completion_tokens: args.maxOutputTokens ?? 2000,
+                text: { format: { type: "json_object" } },
+            }),
+        });
 
 		latencyMs = Date.now() - start;
 		const data = await response.json();
