@@ -885,7 +885,7 @@ async function callLlmForJson({
 	let model = primary.model;
 
 	try {
-		const parsed = JSON.parse(primary.text);
+		const parsed = safeParseJson(primary.text);
 		return { parsed, usage, latencyMs, provider, model };
 	} catch (error) {
 		const retry = await callLlm({
@@ -915,7 +915,7 @@ async function callLlmForJson({
 		provider = retry.provider;
 		model = retry.model;
 
-		const parsed = JSON.parse(retry.text);
+		const parsed = safeParseJson(retry.text);
 		return { parsed, usage, latencyMs, provider, model };
 	}
 }
@@ -924,4 +924,42 @@ function buildDocumentContext(pages: Array<{ page: number; text: string }>) {
 	return pages
 		.map((page) => `Seite ${page.page}:\n${page.text}`)
 		.join("\n\n");
+}
+
+function safeParseJson(text: string): any {
+  // Fast path
+  try {
+    return JSON.parse(text);
+  } catch {}
+
+  // Remove common code fences
+  const fenced = /```json\s*([\s\S]*?)\s*```/i.exec(text);
+  if (fenced && fenced[1]) {
+    const candidate = fenced[1].trim();
+    try { return JSON.parse(candidate); } catch {}
+  }
+
+  // Extract the largest JSON object or array substring
+  const firstObj = text.indexOf("{");
+  const lastObj = text.lastIndexOf("}");
+  const firstArr = text.indexOf("[");
+  const lastArr = text.lastIndexOf("]");
+
+  const hasObj = firstObj !== -1 && lastObj !== -1 && lastObj > firstObj;
+  const hasArr = firstArr !== -1 && lastArr !== -1 && lastArr > firstArr;
+
+  const candidates: string[] = [];
+  if (hasObj) candidates.push(text.slice(firstObj, lastObj + 1));
+  if (hasArr) candidates.push(text.slice(firstArr, lastArr + 1));
+
+  for (const c of candidates) {
+    try { return JSON.parse(c); } catch {}
+  }
+
+  // If still failing, surface the original content for debugging
+  throw new Error("JSON parse failed. Raw text: " + truncate(text, 800));
+}
+
+function truncate(s: string, n: number) {
+  return s.length > n ? s.slice(0, n) + "…" : s;
 }
