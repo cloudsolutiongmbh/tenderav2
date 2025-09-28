@@ -87,7 +87,9 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
                 input: args.userPrompt,
                 // Some GPT‑5 variants do not support temperature; omit it here
                 max_output_tokens: args.maxOutputTokens ?? 2000,
-                // Align with official examples: avoid custom text.format; rely on instructions
+                // Align with official examples
+                text: { verbosity: "low" },
+                reasoning: { effort: "medium" },
             }),
         });
 

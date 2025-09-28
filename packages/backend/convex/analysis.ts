@@ -481,7 +481,14 @@ async function analyseCriterion(
 ) {
 	const systemPrompt =
 		"Du bist ein deutschsprachiger Assistent zur Bewertung von Kriterien in Ausschreibungsunterlagen. Antworte ausschliesslich auf Deutsch und nur auf Basis der bereitgestellten Textauszüge.";
-	const userPrompt = `Bewerte das folgende Kriterium anhand der bereitgestellten Dokumentseiten. Gib eine JSON-Antwort mit den Feldern status, comment, answer, score, citations (Liste von {\"page\", \"quote\"}). Status muss einer der Werte "gefunden", "nicht_gefunden" oder "teilweise" sein.
+    const userPrompt = `Bewerte das folgende Kriterium anhand der bereitgestellten Dokumentseiten. Liefere GENAU EIN JSON-OBJEKT (kein Array, keine Erklärungen, kein Markdown) mit folgender Struktur:
+
+{\n  \"status\": \"gefunden\" | \"nicht_gefunden\" | \"teilweise\",\n  \"comment\": string | null,\n  \"answer\": string | null,\n  \"score\": number | null,\n  \"citations\": [ { \"page\": number, \"quote\": string } ]\n}
+
+Regeln:
+- Gib ausschliesslich dieses JSON-Objekt zurück (kein Array, kein Fliesstext, keine Codeblöcke).
+- Jede Aussage benötigt mindestens ein Zitat in \"citations\" (page + quote).
+- Fehlende Werte als null eintragen.
 
 Kriterium:
 Titel: ${criterion.title}
