@@ -83,8 +83,8 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
                 instructions: args.systemPrompt,
                 input: args.userPrompt,
                 temperature: args.temperature ?? 0,
-                // Some newer models expect max_completion_tokens (not max_tokens)
-                max_completion_tokens: args.maxOutputTokens ?? 2000,
+                // Responses API expects `max_output_tokens` (not max_tokens)
+                max_output_tokens: args.maxOutputTokens ?? 2000,
                 text: { format: { type: "json_object" } },
             }),
         });
