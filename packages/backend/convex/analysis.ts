@@ -445,8 +445,6 @@ ${chunk.text}`;
         systemPrompt,
         userPrompt,
         maxOutputTokens: 1800,
-        jsonSchema: standardResultJsonSchema,
-        schemaName: "StandardResult",
     });
 
 	const result = standardResultSchema.parse(parsed);
@@ -492,8 +490,6 @@ ${documentContext}`;
         systemPrompt,
         userPrompt,
         maxOutputTokens: 800,
-        jsonSchema: criteriaItemJsonSchema,
-        schemaName: "CriteriaItem",
     });
 
 	const validated = criteriaItemSchema.parse(parsed);
@@ -872,23 +868,17 @@ async function callLlmForJson({
     userPrompt,
     maxOutputTokens,
     temperature,
-    jsonSchema,
-    schemaName,
 }: {
     systemPrompt: string;
     userPrompt: string;
     maxOutputTokens: number;
     temperature?: number;
-    jsonSchema?: any;
-    schemaName?: string;
 }) {
     const primary = await callLlm({
         systemPrompt,
         userPrompt,
         maxOutputTokens,
         temperature,
-        jsonSchema,
-        schemaName,
     });
 
 	let usage = { ...primary.usage };
@@ -909,8 +899,6 @@ async function callLlmForJson({
                 "\nBitte liefere strikt valides JSON ohne zusätzlichen Text.",
             maxOutputTokens,
             temperature,
-            jsonSchema,
-            schemaName,
         });
 
 		if (usage.promptTokens && retry.usage.promptTokens) {

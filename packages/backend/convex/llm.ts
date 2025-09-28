@@ -7,7 +7,7 @@ interface LlmCallArgs {
     userPrompt: string;
     temperature?: number;
     maxOutputTokens?: number;
-    // Optional: Structured outputs via Responses API
+    // Optional (deprecated here): we no longer force structured outputs
     jsonSchema?: any;
     schemaName?: string;
 }
@@ -87,16 +87,7 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
                 input: args.userPrompt,
                 // Some GPT‑5 variants do not support temperature; omit it here
                 max_output_tokens: args.maxOutputTokens ?? 2000,
-                text: args.jsonSchema
-                    ? {
-                        format: {
-                          type: "json_schema",
-                          name: args.schemaName ?? "Response",
-                          schema: args.jsonSchema,
-                          strict: true,
-                        },
-                      }
-                    : { format: { type: "json_object" } },
+                // Align with official examples: avoid custom text.format; rely on instructions
             }),
         });
 
