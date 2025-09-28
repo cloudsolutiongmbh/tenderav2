@@ -82,8 +82,7 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
                 model,
                 instructions: args.systemPrompt,
                 input: args.userPrompt,
-                temperature: args.temperature ?? 0,
-                // Responses API expects `max_output_tokens` (not max_tokens)
+                // Some GPT‑5 variants do not support temperature; omit it here
                 max_output_tokens: args.maxOutputTokens ?? 2000,
                 text: { format: { type: "json_object" } },
             }),
