@@ -3,10 +3,13 @@ import { ConvexError } from "convex/values";
 type SupportedProvider = "OPENAI" | "ANTHROPIC";
 
 interface LlmCallArgs {
-	systemPrompt: string;
-	userPrompt: string;
-	temperature?: number;
-	maxOutputTokens?: number;
+    systemPrompt: string;
+    userPrompt: string;
+    temperature?: number;
+    maxOutputTokens?: number;
+    // Optional: Structured outputs via Responses API
+    jsonSchema?: any;
+    schemaName?: string;
 }
 
 export interface LlmCallResult {
@@ -84,7 +87,17 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
                 input: args.userPrompt,
                 // Some GPT‑5 variants do not support temperature; omit it here
                 max_output_tokens: args.maxOutputTokens ?? 2000,
-                text: { format: { type: "json_object" } },
+                text: args.jsonSchema
+                    ? {
+                        format: {
+                          type: "json_schema",
+                          json_schema: {
+                            name: args.schemaName ?? "Response",
+                            schema: args.jsonSchema,
+                          },
+                        },
+                      }
+                    : { format: { type: "json_object" } },
             }),
         });
 

@@ -8,9 +8,11 @@ import { ConvexError } from "convex/values";
 import { z } from "zod";
 import { internal } from "./_generated/api";
 import {
-	citationSchema,
-	criteriaItemSchema,
-	standardResultSchema,
+    citationSchema,
+    criteriaItemSchema,
+    standardResultSchema,
+    standardResultJsonSchema,
+    criteriaItemJsonSchema,
 } from "./analysisSchemas";
 
 const PAGES_PER_CHUNK = Number.parseInt(process.env.CONVEX_ANALYSIS_PAGES_PER_CHUNK ?? "10");
@@ -439,11 +441,13 @@ async function analyseStandardChunk(
 
 ${chunk.text}`;
 
-	const { parsed, usage, latencyMs, provider, model } = await callLlmForJson({
-		systemPrompt,
-		userPrompt,
-		maxOutputTokens: 1800,
-	});
+    const { parsed, usage, latencyMs, provider, model } = await callLlmForJson({
+        systemPrompt,
+        userPrompt,
+        maxOutputTokens: 1800,
+        jsonSchema: standardResultJsonSchema,
+        schemaName: "StandardResult",
+    });
 
 	const result = standardResultSchema.parse(parsed);
 
@@ -484,11 +488,13 @@ Schlüsselwörter: ${(criterion.keywords ?? []).join(", ") || "-"}
 Dokumentseiten:
 ${documentContext}`;
 
-	const { parsed, usage, latencyMs, provider, model } = await callLlmForJson({
-		systemPrompt,
-		userPrompt,
-		maxOutputTokens: 800,
-	});
+    const { parsed, usage, latencyMs, provider, model } = await callLlmForJson({
+        systemPrompt,
+        userPrompt,
+        maxOutputTokens: 800,
+        jsonSchema: criteriaItemJsonSchema,
+        schemaName: "CriteriaItem",
+    });
 
 	const validated = criteriaItemSchema.parse(parsed);
 
@@ -862,22 +868,28 @@ export const activateNextQueuedRun = internalMutation({
 });
 
 async function callLlmForJson({
-	systemPrompt,
-	userPrompt,
-	maxOutputTokens,
-	temperature,
+    systemPrompt,
+    userPrompt,
+    maxOutputTokens,
+    temperature,
+    jsonSchema,
+    schemaName,
 }: {
-	systemPrompt: string;
-	userPrompt: string;
-	maxOutputTokens: number;
-	temperature?: number;
+    systemPrompt: string;
+    userPrompt: string;
+    maxOutputTokens: number;
+    temperature?: number;
+    jsonSchema?: any;
+    schemaName?: string;
 }) {
-	const primary = await callLlm({
-		systemPrompt,
-		userPrompt,
-		maxOutputTokens,
-		temperature,
-	});
+    const primary = await callLlm({
+        systemPrompt,
+        userPrompt,
+        maxOutputTokens,
+        temperature,
+        jsonSchema,
+        schemaName,
+    });
 
 	let usage = { ...primary.usage };
 	let latencyMs = primary.latencyMs;
@@ -888,16 +900,18 @@ async function callLlmForJson({
 		const parsed = safeParseJson(primary.text);
 		return { parsed, usage, latencyMs, provider, model };
 	} catch (error) {
-		const retry = await callLlm({
-			systemPrompt:
-				systemPrompt +
-				"\nAntworte ausschliesslich mit gültigem JSON ohne Erläuterung.",
-			userPrompt:
-				userPrompt +
-				"\nBitte liefere strikt valides JSON ohne zusätzlichen Text.",
-			maxOutputTokens,
-			temperature,
-		});
+        const retry = await callLlm({
+            systemPrompt:
+                systemPrompt +
+                "\nAntworte ausschliesslich mit gültigem JSON ohne Erläuterung.",
+            userPrompt:
+                userPrompt +
+                "\nBitte liefere strikt valides JSON ohne zusätzlichen Text.",
+            maxOutputTokens,
+            temperature,
+            jsonSchema,
+            schemaName,
+        });
 
 		if (usage.promptTokens && retry.usage.promptTokens) {
 			usage.promptTokens += retry.usage.promptTokens;
