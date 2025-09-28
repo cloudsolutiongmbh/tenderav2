@@ -8,33 +8,33 @@ const citationSchema = v.object({
 });
 
 const standardAnalysisSchema = v.object({
-	summary: v.string(),
+	summary: v.union(v.string(), v.null()),
 	milestones: v.array(
 		v.object({
 			title: v.string(),
-			date: v.optional(v.string()),
-			citation: v.optional(citationSchema),
+			date: v.optional(v.union(v.string(), v.null())),
+			citation: v.optional(v.union(citationSchema, v.null())),
 		}),
 	),
 	requirements: v.array(
 		v.object({
 			title: v.string(),
-			category: v.optional(v.string()),
-			notes: v.optional(v.string()),
-			citation: v.optional(citationSchema),
+			category: v.optional(v.union(v.string(), v.null())),
+			notes: v.optional(v.union(v.string(), v.null())),
+			citation: v.optional(v.union(citationSchema, v.null())),
 		}),
 	),
 	openQuestions: v.array(
 		v.object({
 			question: v.string(),
-			citation: v.optional(citationSchema),
+			citation: v.optional(v.union(citationSchema, v.null())),
 		}),
 	),
 	metadata: v.array(
 		v.object({
 			label: v.string(),
 			value: v.string(),
-			citation: v.optional(citationSchema),
+			citation: v.optional(v.union(citationSchema, v.null())),
 		}),
 	),
 });
