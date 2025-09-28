@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -26,11 +26,12 @@ interface TemplateOption {
 }
 
 export const Route = createFileRoute("/projekte/$id/kriterien")({
-	component: ProjectCriteriaPage,
+    component: ProjectCriteriaPage,
 });
 
 function ProjectCriteriaPage() {
-	const { id: projectId } = Route.useParams();
+    const { id: projectId } = Route.useParams();
+    const navigate = useNavigate();
 	const auth = useOrgAuth();
 	const project = useQuery(
 		api.projects.get,
@@ -62,6 +63,7 @@ function ProjectCriteriaPage() {
 
     const startAnalysis = useMutation(api.projects.startAnalysis);
     const runCriteriaForProject = useAction(api.analysis.runCriteriaForProject);
+    const removeProject = useMutation(api.projects.remove);
 	const setTemplate = useMutation(api.projects.setTemplate);
 
 	const runSummary = useMemo<RunSummary | null>(() => {
@@ -125,7 +127,8 @@ function ProjectCriteriaPage() {
 		[documents],
 	);
 
-	const [isAssigningTemplate, setAssigningTemplate] = useState(false);
+    const [isAssigningTemplate, setAssigningTemplate] = useState(false);
+    const [isDeleting, setDeleting] = useState(false);
 
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
@@ -174,6 +177,23 @@ function ProjectCriteriaPage() {
         }
     };
 
+    const handleDeleteProject = async () => {
+        const ok = window.confirm(
+            "Dieses Projekt endgültig löschen? Alle Dokumente, Seiten und Analyse-Läufe werden entfernt.",
+        );
+        if (!ok) return;
+        setDeleting(true);
+        try {
+            await removeProject({ projectId: projectId as any });
+            toast.success("Projekt gelöscht.");
+            navigate({ to: "/projekte" });
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Projekt konnte nicht gelöscht werden.");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
 	const isLoading =
 		project === undefined || criteriaResult === undefined || documents === undefined || templates === undefined;
 	const currentTemplate = useMemo(
@@ -196,8 +216,8 @@ function ProjectCriteriaPage() {
 						<Button size="sm" onClick={handleStart} disabled={!hasPages || !hasTemplate}>
 							Analyse starten
 						</Button>
-						<nav className="flex flex-wrap gap-2 text-sm">
-							<Link
+                    <nav className="flex flex-wrap gap-2 text-sm">
+                        <Link
 								to="/projekte/$id/standard"
 								params={{ id: projectId }}
 								className="rounded-md border px-3 py-1"
@@ -225,7 +245,15 @@ function ProjectCriteriaPage() {
 							>
 								Export
 							</Link>
-						</nav>
+                    </nav>
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDeleteProject}
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? "Lösche …" : "Projekt löschen"}
+                    </Button>
 					</div>
 				</CardHeader>
 				{runSummary?.error || runSummary?.status === "läuft" || runSummary?.status === "wartet" ? (

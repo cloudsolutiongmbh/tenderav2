@@ -198,6 +198,79 @@ export const setTemplate = mutation({
 	},
 });
 
+export const remove = mutation({
+    args: {
+        projectId: v.id("projects"),
+    },
+    handler: async (ctx, { projectId }) => {
+        const identity = await getIdentityOrThrow(ctx);
+        const project = await ctx.db.get(projectId);
+        if (!project || project.orgId !== identity.orgId) {
+            throw new Error("Projekt nicht gefunden.");
+        }
+
+        // Delete shares
+        const shares = await ctx.db
+            .query("shares")
+            .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .collect();
+        for (const share of shares) {
+            await ctx.db.delete(share._id);
+        }
+
+        // Delete comments
+        const comments = await ctx.db
+            .query("comments")
+            .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .collect();
+        for (const comment of comments) {
+            await ctx.db.delete(comment._id);
+        }
+
+        // Delete analysis results and runs
+        const results = await ctx.db
+            .query("analysisResults")
+            .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .collect();
+        for (const res of results) {
+            await ctx.db.delete(res._id);
+        }
+        const runs = await ctx.db
+            .query("analysisRuns")
+            .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .collect();
+        for (const run of runs) {
+            await ctx.db.delete(run._id);
+        }
+
+        // Delete documents and their pages; also delete storage blobs
+        const documents = await ctx.db
+            .query("documents")
+            .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .collect();
+        for (const doc of documents) {
+            const pages = await ctx.db
+                .query("docPages")
+                .withIndex("by_documentId", (q) => q.eq("documentId", doc._id))
+                .collect();
+            for (const page of pages) {
+                await ctx.db.delete(page._id);
+            }
+            try {
+                await ctx.storage.delete(doc.storageId);
+            } catch (e) {
+                // ignore storage delete failures
+            }
+            await ctx.db.delete(doc._id);
+        }
+
+        // Finally, delete the project
+        await ctx.db.delete(projectId);
+
+        return { success: true };
+    },
+});
+
 async function loadLatestRuns(
 	ctx: QueryCtx | MutationCtx,
 	projectIds: Id<"projects">[],

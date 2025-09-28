@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 
-import { Link, createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery } from "convex/react";
+import { toast } from "sonner";
 
 import { api } from "@tendera/backend/convex/_generated/api";
 import {
@@ -94,6 +95,7 @@ export const Route = createFileRoute("/projekte/$id/standard")({
 
 function ProjectStandardPage() {
 	const { id: projectId } = Route.useParams();
+	const navigate = useNavigate();
 	const auth = useOrgAuth();
 	const project = useQuery(
 		api.projects.get,
@@ -127,12 +129,28 @@ function ProjectStandardPage() {
 		};
 	}, [standard]);
 
+	const removeProject = useMutation(api.projects.remove);
+
 	const projectMeta = project?.project;
 	const isLoading = project === undefined || standard === undefined;
 
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
 	}
+
+	const handleDeleteProject = async () => {
+		const ok = window.confirm(
+			"Dieses Projekt endgültig löschen? Alle Dokumente, Seiten und Analyse-Läufe werden entfernt.",
+		);
+		if (!ok) return;
+		try {
+			await removeProject({ projectId: projectId as any });
+			toast.success("Projekt gelöscht.");
+			navigate({ to: "/projekte" });
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Projekt konnte nicht gelöscht werden.");
+		}
+	};
 
 	return (
 		<div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
@@ -184,6 +202,12 @@ function ProjectStandardPage() {
 								Export
 							</Link>
 						</nav>
+						<button
+							onClick={handleDeleteProject}
+							className="rounded-md border border-destructive text-destructive px-3 py-1"
+						>
+							Projekt löschen
+						</button>
 					</div>
 				</CardHeader>
 				{runSummary?.error || runSummary?.status === "läuft" || runSummary?.status === "wartet" ? (

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -28,7 +28,8 @@ interface UploadStateItem {
 }
 
 function ProjectDocumentsPage() {
-	const { id: projectId } = Route.useParams();
+    const { id: projectId } = Route.useParams();
+    const navigate = useNavigate();
 	const auth = useOrgAuth();
 	const project = useQuery(
 		api.projects.get,
@@ -62,12 +63,14 @@ function ProjectDocumentsPage() {
 	const bulkInsertPages = useMutation(api.docPages.bulkInsert);
 	const markDocumentExtracted = useMutation(api.documents.markExtracted);
     const startAnalysis = useMutation(api.projects.startAnalysis);
+    const removeProject = useMutation(api.projects.remove);
     const runStandardForProject = useAction(api.analysis.runStandardForProject);
     const runCriteriaForProject = useAction(api.analysis.runCriteriaForProject);
 
 	const [uploads, setUploads] = useState<UploadStateItem[]>([]);
-	const [isStartingStandard, setStartingStandard] = useState(false);
-	const [isStartingCriteria, setStartingCriteria] = useState(false);
+    const [isStartingStandard, setStartingStandard] = useState(false);
+    const [isStartingCriteria, setStartingCriteria] = useState(false);
+    const [isDeleting, setDeleting] = useState(false);
 
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
@@ -172,7 +175,24 @@ function ProjectDocumentsPage() {
 				);
 			}
 		}
-	};
+    };
+
+    const handleDeleteProject = async () => {
+        const ok = window.confirm(
+            "Dieses Projekt endgültig löschen? Alle Dokumente, Seiten und Analyse-Läufe werden entfernt.",
+        );
+        if (!ok) return;
+        setDeleting(true);
+        try {
+            await removeProject({ projectId: projectId as any });
+            toast.success("Projekt gelöscht.");
+            navigate({ to: "/projekte" });
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Projekt konnte nicht gelöscht werden.");
+        } finally {
+            setDeleting(false);
+        }
+    };
 
     const handleStartAnalysis = async (type: "standard" | "criteria") => {
         try {
@@ -216,13 +236,13 @@ function ProjectDocumentsPage() {
 						</CardDescription>
 					</div>
 					<div className="flex gap-2">
-						<Link
-							to="/projekte/$id/standard"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1 text-sm"
-						>
-							Standard
-						</Link>
+                    <Link
+                        to="/projekte/$id/standard"
+                        params={{ id: projectId }}
+                        className="rounded-md border px-3 py-1 text-sm"
+                    >
+                        Standard
+                    </Link>
 						<Link
 							to="/projekte/$id/kriterien"
 							params={{ id: projectId }}
@@ -237,14 +257,22 @@ function ProjectDocumentsPage() {
 						>
 							Kommentare
 						</Link>
-						<Link
-							to="/projekte/$id/export"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1 text-sm"
-						>
-							Export
-						</Link>
-					</div>
+                    <Link
+                        to="/projekte/$id/export"
+                        params={{ id: projectId }}
+                        className="rounded-md border px-3 py-1 text-sm"
+                    >
+                        Export
+                    </Link>
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDeleteProject}
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? "Lösche …" : "Projekt löschen"}
+                    </Button>
+                </div>
 				</CardHeader>
 				<CardContent>
 					<UploadDropzone
