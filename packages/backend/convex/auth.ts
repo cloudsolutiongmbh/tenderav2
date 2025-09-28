@@ -10,6 +10,9 @@ export interface TenderaIdentity {
 }
 
 const ORG_ID_CLAIM = "org_id";
+const TEST_BYPASS = process.env.CONVEX_TEST_BYPASS_AUTH === "1";
+const TEST_ORG_ID = process.env.CONVEX_TEST_ORG_ID ?? "test-org";
+const TEST_USER_ID = process.env.CONVEX_TEST_USER_ID ?? "user-test";
 
 export async function getIdentityOrThrow(
 	ctx: AuthenticatedCtx,
@@ -17,6 +20,14 @@ export async function getIdentityOrThrow(
 	const identity = await ctx.auth.getUserIdentity();
 
 	if (!identity) {
+		if (TEST_BYPASS) {
+			return {
+				userId: TEST_USER_ID,
+				orgId: TEST_ORG_ID,
+				email: "test@tendera.ch",
+			};
+		}
+
 		throw new ConvexError("Bitte anmelden, um fortzufahren.");
 	}
 
@@ -24,6 +35,14 @@ export async function getIdentityOrThrow(
 	const orgId = typeof orgIdClaim === "string" ? orgIdClaim : undefined;
 
 	if (!orgId) {
+		if (TEST_BYPASS) {
+			return {
+				userId: identity.subject ?? TEST_USER_ID,
+				orgId: TEST_ORG_ID,
+				email: identity.email,
+			};
+		}
+
 		throw new ConvexError(
 			"Organisation konnte nicht ermittelt werden. Bitte erneut anmelden.",
 		);

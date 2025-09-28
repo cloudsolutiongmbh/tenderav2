@@ -329,14 +329,14 @@
 
 **Tasks:**
 
-* [ ] **Telemetry**: In Actions, record `promptTokens`, `completionTokens`, `latencyMs`, `provider`, `model` on the `analysisRuns` row.
-* [ ] **Backpressure**:
+* [x] **Telemetry**: In Actions, record `promptTokens`, `completionTokens`, `latencyMs`, `provider`, `model` on the `analysisRuns` row.
+* [x] **Backpressure**:
 
-  * [ ] In `projects.startAnalysis`, if existing `"wartet"|"läuft"` count for `orgId` ≥ limit, keep `status="wartet"`.
-  * [ ] Background worker (Action) or on‑demand runner picks the next `"wartet"` for `orgId` to `"läuft"`.
-* [ ] **Status page**:
+  * [x] In `projects.startAnalysis`, if existing `"wartet"|"läuft"` count for `orgId` ≥ limit, keep `status="wartet"`.
+  * [x] Background worker (Action) or on-demand runner picks the next `"wartet"` for `orgId` to `"läuft"`.
+* [x] **Status page**:
 
-  * [ ] Minimal: page or console log using `healthCheck.get` returning `"OK"`.
+  * [x] Minimal: page or console log using `healthCheck.get` returning `"OK"`.
 
 **Acceptance:**
 

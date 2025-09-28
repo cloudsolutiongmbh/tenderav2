@@ -10,6 +10,8 @@ import type { CriteriaDetailData, CriteriaListItem } from "@/components/criteria
 import { StatusBadge, type AnalysisStatus } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthStateNotice } from "@/components/auth-state-notice";
+import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 interface RunSummary {
 	status: AnalysisStatus;
@@ -29,16 +31,33 @@ export const Route = createFileRoute("/projekte/$id/kriterien")({
 
 function ProjectCriteriaPage() {
 	const { id: projectId } = Route.useParams();
-	const project = useQuery(api.projects.get, { projectId: projectId as any });
-	const criteriaResult = useQuery(api.analysis.getLatest, {
-		projectId: projectId as any,
-		type: "criteria",
-	});
-	const documents = useQuery(api.documents.listByProject, { projectId: projectId as any });
-	const templates = useQuery(api.templates.list) as TemplateOption[] | undefined;
+	const auth = useOrgAuth();
+	const project = useQuery(
+		api.projects.get,
+		auth.authReady ? { projectId: projectId as any } : "skip",
+	);
+	const criteriaResult = useQuery(
+		api.analysis.getLatest,
+		auth.authReady
+			? {
+				projectId: projectId as any,
+				type: "criteria",
+			}
+			: "skip",
+	);
+	const documents = useQuery(
+		api.documents.listByProject,
+		auth.authReady ? { projectId: projectId as any } : "skip",
+	);
+	const templates = useQuery(
+		api.templates.list,
+		auth.authReady ? undefined : "skip",
+	) as TemplateOption[] | undefined;
 	const templateDoc = useQuery(
 		api.templates.get,
-		project?.project.templateId ? { templateId: project.project.templateId as any } : "skip",
+		auth.authReady && project?.project.templateId
+			? { templateId: project.project.templateId as any }
+			: "skip",
 	);
 
 	const startAnalysis = useMutation(api.projects.startAnalysis);
@@ -106,6 +125,10 @@ function ProjectCriteriaPage() {
 	);
 
 	const [isAssigningTemplate, setAssigningTemplate] = useState(false);
+
+	if (auth.orgStatus !== "ready") {
+		return <AuthStateNotice status={auth.orgStatus} />;
+	}
 
 	const handleTemplateChange = async (templateId: string) => {
 		setAssigningTemplate(true);

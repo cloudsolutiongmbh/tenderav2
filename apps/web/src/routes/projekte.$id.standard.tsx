@@ -13,6 +13,8 @@ import {
 } from "@/components/analysis-cards";
 import { StatusBadge, type AnalysisStatus } from "@/components/status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthStateNotice } from "@/components/auth-state-notice";
+import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 interface Citation {
 	page: number;
@@ -92,11 +94,20 @@ export const Route = createFileRoute("/projekte/$id/standard")({
 
 function ProjectStandardPage() {
 	const { id: projectId } = Route.useParams();
-	const project = useQuery(api.projects.get, { projectId: projectId as any });
-	const standard = useQuery(api.analysis.getLatest, {
-		projectId: projectId as any,
-		type: "standard",
-	});
+	const auth = useOrgAuth();
+	const project = useQuery(
+		api.projects.get,
+		auth.authReady ? { projectId: projectId as any } : "skip",
+	);
+	const standard = useQuery(
+		api.analysis.getLatest,
+		auth.authReady
+			? {
+				projectId: projectId as any,
+				type: "standard",
+			}
+			: "skip",
+	);
 
 	const standardResult = useMemo<StandardResult | null>(() => {
 		const result = standard?.result;
@@ -118,6 +129,10 @@ function ProjectStandardPage() {
 
 	const projectMeta = project?.project;
 	const isLoading = project === undefined || standard === undefined;
+
+	if (auth.orgStatus !== "ready") {
+		return <AuthStateNotice status={auth.orgStatus} />;
+	}
 
 	return (
 		<div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">

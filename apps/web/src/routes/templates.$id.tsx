@@ -5,11 +5,13 @@ import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
 import { api } from "@tendera/backend/convex/_generated/api";
+import { AuthStateNotice } from "@/components/auth-state-notice";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 interface EditableCriterion {
 	localId: string;
@@ -31,20 +33,39 @@ const ANSWER_TYPE_OPTIONS: Array<{ value: EditableCriterion["answerType"]; label
 	];
 
 export const Route = createFileRoute("/templates/$id")({
-	component: TemplateDetailPage,
+    component: TemplateDetailPage,
+    errorComponent: ({ error }) => (
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Template konnte nicht geladen werden</CardTitle>
+                    <CardDescription>
+                        {error instanceof Error ? error.message : String(error)}
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Link to="/templates" className="rounded-md border px-3 py-2 text-sm">
+                        Zurück zur Übersicht
+                    </Link>
+                </CardContent>
+            </Card>
+        </div>
+    ),
 });
 
 function TemplateDetailPage() {
 	const { id } = Route.useParams();
 	const isNew = id === "neu";
 	const navigate = useNavigate();
+	const auth = useOrgAuth();
 
 	const template = useQuery(
 		api.templates.get,
-		isNew ? "skip" : { templateId: id as any },
+		auth.authReady && !isNew ? { templateId: id as any } : "skip",
 	);
 
-	const upsertTemplate = useMutation(api.templates.upsert);
+    const upsertTemplate = useMutation(api.templates.upsert);
+    const removeTemplate = useMutation(api.templates.remove);
 
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
@@ -52,9 +73,14 @@ function TemplateDetailPage() {
 	const [version, setVersion] = useState("1.0");
 	const [visibleOrgWide, setVisibleOrgWide] = useState(false);
 	const [criteria, setCriteria] = useState<EditableCriterion[]>([createEmptyCriterion()]);
-	const [isSaving, setSaving] = useState(false);
+    const [isSaving, setSaving] = useState(false);
+    const [isDeleting, setDeleting] = useState(false);
 
 	const isLoading = !isNew && template === undefined;
+
+	if (auth.orgStatus !== "ready") {
+		return <AuthStateNotice status={auth.orgStatus} />;
+	}
 
 	useEffect(() => {
 		if (template) {
@@ -81,7 +107,23 @@ function TemplateDetailPage() {
 		}
 	}, [template, isNew]);
 
-	const hasExistingTemplate = useMemo(() => !isNew && template !== undefined && template !== null, [isNew, template]);
+    const hasExistingTemplate = useMemo(() => !isNew && template !== undefined && template !== null, [isNew, template]);
+
+    const handleDelete = async () => {
+        if (!hasExistingTemplate || !template?._id) return;
+        const ok = window.confirm("Dieses Template wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.");
+        if (!ok) return;
+        setDeleting(true);
+        try {
+            await removeTemplate({ templateId: template._id as any });
+            toast.success("Template gelöscht.");
+            navigate({ to: "/templates" });
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Template konnte nicht gelöscht werden.");
+        } finally {
+            setDeleting(false);
+        }
+    };
 
 	const handleCriterionChange = <T extends keyof EditableCriterion>(
 		localId: string,
@@ -197,19 +239,29 @@ function TemplateDetailPage() {
 
 	return (
 		<div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
-			<Card>
-				<CardHeader className="flex flex-wrap items-start justify-between gap-3">
-					<div>
-						<CardTitle>{isNew ? "Neues Template" : template?.name ?? "Template"}</CardTitle>
-						<CardDescription>
-							Verwalte Name, Sichtbarkeit und Kriterien dieses Templates.
-						</CardDescription>
-					</div>
-					<Link to="/templates" className="rounded-md border px-3 py-1 text-sm">
-						Zurück zur Übersicht
-					</Link>
-				</CardHeader>
-			</Card>
+            <Card>
+                <CardHeader className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <CardTitle>{isNew ? "Neues Template" : template?.name ?? "Template"}</CardTitle>
+                        <CardDescription>
+                            Verwalte Name, Sichtbarkeit und Kriterien dieses Templates.
+                        </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Link to="/templates" className="rounded-md border px-3 py-1 text-sm">
+                            Zurück zur Übersicht
+                        </Link>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={handleDelete}
+                            disabled={!hasExistingTemplate || isDeleting}
+                        >
+                            {isDeleting ? "Lösche …" : "Template löschen"}
+                        </Button>
+                    </div>
+                </CardHeader>
+            </Card>
 
 			<form className="space-y-6" onSubmit={handleSave}>
 				<Card>

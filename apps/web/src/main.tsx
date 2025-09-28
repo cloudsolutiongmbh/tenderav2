@@ -3,11 +3,13 @@ import ReactDOM from "react-dom/client";
 import Loader from "./components/loader";
 import { routeTree } from "./routeTree.gen";
 
-import { ConvexReactClient } from "convex/react";
+import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { ClerkProvider, useAuth } from "@clerk/clerk-react";
 import { deDE } from "@clerk/localizations";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+
+const isE2EMock = import.meta.env.VITE_E2E_MOCK === "1";
 
 const router = createRouter({
 	routeTree,
@@ -15,6 +17,14 @@ const router = createRouter({
 	defaultPendingComponent: () => <Loader />,
 	context: {},
 	Wrap: function WrapComponent({ children }: { children: React.ReactNode }) {
+		if (isE2EMock) {
+			return (
+				<ClerkProvider publishableKey="test" localization={deDE}>
+					<ConvexProvider client={convex}>{children}</ConvexProvider>
+				</ClerkProvider>
+			);
+		}
+
 		return (
 			<ClerkProvider
 				publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}

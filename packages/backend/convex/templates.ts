@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getIdentityOrThrow } from "./auth";
+import type { Id } from "./_generated/dataModel";
 
 const criterionValidator = v.object({
 	key: v.string(),
@@ -89,6 +90,33 @@ export const upsert = mutation({
 
 		return templateId;
 	},
+});
+
+export const remove = mutation({
+    args: {
+        templateId: v.id("templates"),
+    },
+    handler: async (ctx, { templateId }) => {
+        const identity = await getIdentityOrThrow(ctx);
+        const template = await ctx.db.get(templateId);
+        if (!template || template.orgId !== identity.orgId) {
+            throw new Error("Template nicht gefunden.");
+        }
+
+        // Prevent deletion if in use by any project in the same org
+        const projectsInOrg = await ctx.db
+            .query("projects")
+            .withIndex("by_orgId", (q) => q.eq("orgId", identity.orgId))
+            .collect();
+
+        const inUse = projectsInOrg.some((p) => p.templateId === (templateId as Id<"templates">));
+        if (inUse) {
+            throw new Error("Template ist einem oder mehreren Projekten zugewiesen und kann nicht gelöscht werden.");
+        }
+
+        await ctx.db.delete(templateId);
+        return { success: true };
+    },
 });
 
 function validateCriteria(criteria: Array<{ weight: number }>) {

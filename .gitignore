@@ -3,3 +3,5 @@ node_modules/
 .npm-cache/
 .DS_Store
 dist/
+playwright-report/
+test-results/

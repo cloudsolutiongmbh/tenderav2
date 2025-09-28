@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
 import { api } from "@tendera/backend/convex/_generated/api";
 import { StatusBadge } from "@/components/status-badge";
+import { AuthStateNotice } from "@/components/auth-state-notice";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import {
 	DialogTrigger,
 	DialogClose,
 } from "@/components/ui/dialog";
+import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 interface TemplateOption {
 	_id: string;
@@ -53,10 +55,27 @@ export const Route = createFileRoute("/projekte")({
 
 function ProjektePage() {
 	const [isDialogOpen, setDialogOpen] = useState(false);
-	const projects = useQuery(api.projects.list, { filter: undefined }) as ListedProject[] | undefined;
-	const templates = useQuery(api.templates.list) as TemplateOption[] | undefined;
+	const pathname = useRouterState({ select: (s) => s.location.pathname });
+	const isIndex = pathname === "/projekte";
+	const auth = useOrgAuth();
+	const projects = useQuery(
+		api.projects.list,
+		auth.authReady ? { filter: undefined } : "skip",
+	) as ListedProject[] | undefined;
+	const templates = useQuery(
+		api.templates.list,
+		auth.authReady ? undefined : "skip",
+	) as TemplateOption[] | undefined;
 
 	const templateOptions = useMemo(() => templates ?? [], [templates]);
+
+	if (auth.orgStatus !== "ready") {
+		return <AuthStateNotice status={auth.orgStatus} />;
+	}
+
+	if (!isIndex) {
+		return <Outlet />;
+	}
 
 	return (
 		<div className="mx-auto flex h-full w-full max-w-5xl flex-col gap-6 px-4 py-10">

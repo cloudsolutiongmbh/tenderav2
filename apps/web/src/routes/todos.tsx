@@ -15,6 +15,8 @@ import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@tendera/backend/convex/_generated/api";
 import type { Id } from "@tendera/backend/convex/_generated/dataModel";
+import { AuthStateNotice } from "@/components/auth-state-notice";
+import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 export const Route = createFileRoute("/todos")({
 	component: TodosRoute,
@@ -22,8 +24,9 @@ export const Route = createFileRoute("/todos")({
 
 function TodosRoute() {
 	const [newTodoText, setNewTodoText] = useState("");
+	const auth = useOrgAuth();
 
-	const todos = useQuery(api.todos.getAll);
+	const todos = useQuery(api.todos.getAll, auth.authReady ? undefined : "skip");
 	const createTodo = useMutation(api.todos.create);
 	const toggleTodo = useMutation(api.todos.toggle);
 	const deleteTodo = useMutation(api.todos.deleteTodo);
@@ -43,6 +46,10 @@ function TodosRoute() {
 	const handleDeleteTodo = (id: Id<"todos">) => {
 		deleteTodo({ id });
 	};
+
+	if (auth.orgStatus !== "ready") {
+		return <AuthStateNotice status={auth.orgStatus} />;
+	}
 
 	return (
 		<div className="mx-auto w-full max-w-md py-10">

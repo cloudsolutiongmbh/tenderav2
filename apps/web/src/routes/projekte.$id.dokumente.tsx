@@ -10,6 +10,8 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { extractDocumentPages } from "@/lib/extract-text";
+import { AuthStateNotice } from "@/components/auth-state-notice";
+import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 const MAX_UPLOAD_MB = Number(
 	import.meta.env.VITE_MAX_UPLOAD_MB ?? import.meta.env.MAX_UPLOAD_MB ?? 200,
@@ -27,16 +29,33 @@ interface UploadStateItem {
 
 function ProjectDocumentsPage() {
 	const { id: projectId } = Route.useParams();
-	const project = useQuery(api.projects.get, { projectId: projectId as any });
-	const documents = useQuery(api.documents.listByProject, { projectId: projectId as any });
-	const standardRun = useQuery(api.analysis.getLatest, {
-		projectId: projectId as any,
-		type: "standard",
-	});
-	const criteriaRun = useQuery(api.analysis.getLatest, {
-		projectId: projectId as any,
-		type: "criteria",
-	});
+	const auth = useOrgAuth();
+	const project = useQuery(
+		api.projects.get,
+		auth.authReady ? { projectId: projectId as any } : "skip",
+	);
+	const documents = useQuery(
+		api.documents.listByProject,
+		auth.authReady ? { projectId: projectId as any } : "skip",
+	);
+	const standardRun = useQuery(
+		api.analysis.getLatest,
+		auth.authReady
+			? {
+				projectId: projectId as any,
+				type: "standard",
+			}
+			: "skip",
+	);
+	const criteriaRun = useQuery(
+		api.analysis.getLatest,
+		auth.authReady
+			? {
+				projectId: projectId as any,
+				type: "criteria",
+			}
+			: "skip",
+	);
 
 	const createUploadUrl = useMutation(api.documents.createUploadUrl);
 	const attachDocument = useMutation(api.documents.attach);
@@ -47,6 +66,10 @@ function ProjectDocumentsPage() {
 	const [uploads, setUploads] = useState<UploadStateItem[]>([]);
 	const [isStartingStandard, setStartingStandard] = useState(false);
 	const [isStartingCriteria, setStartingCriteria] = useState(false);
+
+	if (auth.orgStatus !== "ready") {
+		return <AuthStateNotice status={auth.orgStatus} />;
+	}
 
 	const hasExtractedPages = useMemo(
 		() => (documents ?? []).some((doc) => doc.textExtracted && (doc.pageCount ?? 0) > 0),

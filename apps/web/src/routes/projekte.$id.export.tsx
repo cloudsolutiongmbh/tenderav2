@@ -15,6 +15,8 @@ import {
 import { ShareLink } from "@/components/share-link";
 import { PdfExportButton } from "@/components/pdf-export-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthStateNotice } from "@/components/auth-state-notice";
+import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 interface Citation {
 	page: number;
@@ -50,15 +52,29 @@ export const Route = createFileRoute("/projekte/$id/export")({
 
 function ProjectExportPage() {
 	const { id: projectId } = Route.useParams();
-	const project = useQuery(api.projects.get, { projectId: projectId as any });
-	const standard = useQuery(api.analysis.getLatest, {
-		projectId: projectId as any,
-		type: "standard",
-	});
-	const criteria = useQuery(api.analysis.getLatest, {
-		projectId: projectId as any,
-		type: "criteria",
-	});
+	const auth = useOrgAuth();
+	const project = useQuery(
+		api.projects.get,
+		auth.authReady ? { projectId: projectId as any } : "skip",
+	);
+	const standard = useQuery(
+		api.analysis.getLatest,
+		auth.authReady
+			? {
+				projectId: projectId as any,
+				type: "standard",
+			}
+			: "skip",
+	);
+	const criteria = useQuery(
+		api.analysis.getLatest,
+		auth.authReady
+			? {
+				projectId: projectId as any,
+				type: "criteria",
+			}
+			: "skip",
+	);
 
 	const createShare = useMutation(api.shares.create);
 	const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
@@ -87,6 +103,10 @@ function ProjectExportPage() {
 
 	const isLoading =
 		project === undefined || standard === undefined || criteria === undefined;
+
+	if (auth.orgStatus !== "ready") {
+		return <AuthStateNotice status={auth.orgStatus} />;
+	}
 
 	const handleCreateShare = async (ttlDays: number) => {
 		setCreatingShare(true);

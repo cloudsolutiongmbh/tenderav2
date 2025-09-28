@@ -1,5 +1,3 @@
-import { randomBytes } from "node:crypto";
-
 import type { QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
@@ -27,7 +25,7 @@ export const create = mutation({
 
 		let token: string;
 		while (true) {
-			token = randomBytes(24).toString("base64url");
+			token = generateShareToken();
 			const existing = await ctx.db
 				.query("shares")
 				.withIndex("by_token", (q) => q.eq("token", token))
@@ -129,4 +127,30 @@ async function loadLatestResult(
 		createdAt: latest.createdAt,
 		result: latest.criteria,
 	};
+}
+
+const ALPHABET =
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+function generateShareToken(length = 32) {
+	const bytes = new Uint8Array(length);
+	fillRandomBytes(bytes);
+
+	let token = "";
+	for (const byte of bytes) {
+		token += ALPHABET[byte & 63];
+	}
+
+	return token;
+}
+
+function fillRandomBytes(bytes: Uint8Array) {
+	if (typeof globalThis.crypto?.getRandomValues === "function") {
+		globalThis.crypto.getRandomValues(bytes);
+		return;
+	}
+
+	for (let i = 0; i < bytes.length; i++) {
+		bytes[i] = Math.floor(Math.random() * 256);
+	}
 }

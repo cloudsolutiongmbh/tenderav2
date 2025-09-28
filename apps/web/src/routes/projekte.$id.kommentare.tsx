@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AuthStateNotice } from "@/components/auth-state-notice";
+import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 interface MilestoneOption {
 	id: string;
@@ -32,16 +34,33 @@ export const Route = createFileRoute("/projekte/$id/kommentare")({
 
 function ProjectCommentsPage() {
 	const { id: projectId } = Route.useParams();
-	const project = useQuery(api.projects.get, { projectId: projectId as any });
-	const comments = useQuery(api.comments.listByProject, { projectId: projectId as any });
-	const standard = useQuery(api.analysis.getLatest, {
-		projectId: projectId as any,
-		type: "standard",
-	});
-	const criteria = useQuery(api.analysis.getLatest, {
-		projectId: projectId as any,
-		type: "criteria",
-	});
+	const auth = useOrgAuth();
+	const project = useQuery(
+		api.projects.get,
+		auth.authReady ? { projectId: projectId as any } : "skip",
+	);
+	const comments = useQuery(
+		api.comments.listByProject,
+		auth.authReady ? { projectId: projectId as any } : "skip",
+	);
+	const standard = useQuery(
+		api.analysis.getLatest,
+		auth.authReady
+			? {
+				projectId: projectId as any,
+				type: "standard",
+			}
+			: "skip",
+	);
+	const criteria = useQuery(
+		api.analysis.getLatest,
+		auth.authReady
+			? {
+				projectId: projectId as any,
+				type: "criteria",
+			}
+			: "skip",
+	);
 
 	const addComment = useMutation(api.comments.add);
 
@@ -72,6 +91,10 @@ function ProjectCommentsPage() {
 		content: "",
 	});
 	const [isSubmitting, setSubmitting] = useState(false);
+
+	if (auth.orgStatus !== "ready") {
+		return <AuthStateNotice status={auth.orgStatus} />;
+	}
 
 	const sortedComments = useMemo(() => {
 		if (!comments) {

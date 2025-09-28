@@ -7,53 +7,13 @@ import type { ActionCtx } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { z } from "zod";
 import { internal } from "./_generated/api";
+import {
+	citationSchema,
+	criteriaItemSchema,
+	standardResultSchema,
+} from "./analysisSchemas";
 
-const PAGES_PER_CHUNK = 10;
-
-const citationSchema = z.object({
-	page: z.number(),
-	quote: z.string().min(1),
-});
-
-const standardResultSchema = z.object({
-	summary: z.string().min(1),
-	milestones: z.array(
-		z.object({
-			title: z.string().min(1),
-			date: z.string().optional(),
-			citation: citationSchema.optional(),
-		}),
-	),
-	requirements: z.array(
-		z.object({
-			title: z.string().min(1),
-			category: z.string().optional(),
-			notes: z.string().optional(),
-			citation: citationSchema.optional(),
-		}),
-	),
-	openQuestions: z.array(
-		z.object({
-			question: z.string().min(1),
-			citation: citationSchema.optional(),
-		}),
-	),
-	metadata: z.array(
-		z.object({
-			label: z.string().min(1),
-			value: z.string().min(1),
-			citation: citationSchema.optional(),
-		}),
-	),
-});
-
-const criteriaItemSchema = z.object({
-	status: z.enum(["gefunden", "nicht_gefunden", "teilweise"]),
-	comment: z.string().optional(),
-	answer: z.string().optional(),
-	citations: z.array(citationSchema).min(0),
-	score: z.number().optional(),
-});
+const PAGES_PER_CHUNK = Number.parseInt(process.env.CONVEX_ANALYSIS_PAGES_PER_CHUNK ?? "10");
 
 interface CriterionComputation {
 	key: string;
@@ -370,7 +330,7 @@ ${documentContext}`;
 		maxOutputTokens: 800,
 	});
 
-	const validated = criteriaItemSchema.extend({ citations: z.array(citationSchema).min(0) }).parse(parsed);
+	const validated = criteriaItemSchema.parse(parsed);
 
 	return {
 		result: validated,
@@ -563,6 +523,10 @@ export const recordStandardResult = internalMutation({
 			model: args.telemetry.model,
 		});
 
+		await ctx.runMutation(internal.analysis.activateNextQueuedRun, {
+			orgId: args.orgId,
+		});
+
 		return { resultId };
 	},
 });
@@ -653,6 +617,10 @@ export const recordCriteriaResult = internalMutation({
 			model: args.telemetry.model,
 		});
 
+		await ctx.runMutation(internal.analysis.activateNextQueuedRun, {
+			orgId: args.orgId,
+		});
+
 		return { resultId };
 	},
 });
@@ -663,11 +631,52 @@ export const markRunFailed = internalMutation({
 		error: v.string(),
 	},
 	handler: async (ctx, { runId, error }) => {
+		const run = await ctx.db.get(runId);
+		if (!run) {
+			throw new ConvexError("Analyse nicht gefunden.");
+		}
+
 		await ctx.db.patch(runId, {
 			status: "fehler",
 			error,
 			finishedAt: Date.now(),
 		});
+
+		await ctx.runMutation(internal.analysis.activateNextQueuedRun, {
+			orgId: run.orgId,
+		});
+	},
+});
+
+export const activateNextQueuedRun = internalMutation({
+	args: {
+		orgId: v.string(),
+	},
+	handler: async (ctx, { orgId }) => {
+		const runs = await ctx.db
+			.query("analysisRuns")
+			.withIndex("by_orgId", (q) => q.eq("orgId", orgId))
+			.collect();
+
+		const hasActive = runs.some((run) => run.status === "läuft");
+		if (hasActive) {
+			return null;
+		}
+
+		const next = runs
+			.filter((run) => run.status === "wartet")
+			.sort((a, b) => a.queuedAt - b.queuedAt)[0];
+
+		if (!next) {
+			return null;
+		}
+
+		await ctx.db.patch(next._id, {
+			status: "läuft",
+			startedAt: Date.now(),
+		});
+
+		return next._id;
 	},
 });
 
