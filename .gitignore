@@ -5,3 +5,7 @@ node_modules/
 dist/
 playwright-report/
 test-results/
+
+# Local env files (examples are tracked)
+apps/web/.env
+packages/backend/.env.local

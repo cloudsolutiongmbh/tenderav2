@@ -25,12 +25,20 @@ Install dependencies (workspace root):
 npm install
 ```
 
-Set environment variables for the web app:
+Environment variables
 
-- Copy `apps/web/.env.example` to `apps/web/.env`
-- Fill in:
+- Web app: copy `apps/web/.env.example` → `apps/web/.env`
   - `VITE_CONVEX_URL` (from Convex)
   - `VITE_CLERK_PUBLISHABLE_KEY` (from Clerk)
+  - `MAX_UPLOAD_MB` (optional, defaults to 200)
+
+- Backend (Convex): copy `packages/backend/.env.example` → `packages/backend/.env.local`
+  - `CONVEX_DEPLOYMENT` and `CONVEX_URL` (from `npx convex dev` or dashboard)
+  - `CLERK_JWT_ISSUER_DOMAIN` (from Clerk)
+  - `LLM_PROVIDER` (OPENAI | ANTHROPIC)
+  - `LLM_MODEL` (e.g., `gpt-4o-mini` or `claude-3-5-sonnet`)
+  - `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` (match your provider)
+  - `MAX_UPLOAD_MB` (server-side limit; UI reads VITE_MAX_UPLOAD_MB/MAX_UPLOAD_MB)
 
 Run the web app:
 
@@ -92,4 +100,3 @@ packages/
 ## Notes
 
 - Do not commit `.env` files. Use the provided examples.
-
