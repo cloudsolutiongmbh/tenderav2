@@ -100,6 +100,77 @@ export const runStandard = action({
 	},
 });
 
+// Convenience: auto-resolve doc pages for a project and run Standard analysis
+export const runStandardForProject = action({
+    args: {
+        projectId: v.id("projects"),
+    },
+    handler: async (ctx, { projectId }) => {
+        const identity = await getIdentityOrThrow(ctx);
+        const project = (await ctx.runQuery(internal.analysis.getProjectForAnalysis, {
+            projectId,
+        })) as Doc<"projects"> | null;
+        if (!project || project.orgId !== identity.orgId) {
+            throw new ConvexError("Projekt nicht gefunden.");
+        }
+
+        const docPageIds = (await ctx.runQuery(
+            internal.analysis.getDocPageIdsForProject,
+            { projectId },
+        )) as Id<"docPages">[];
+        if (docPageIds.length === 0) {
+            throw new ConvexError("Keine Dokumentseiten zum Analysieren gefunden.");
+        }
+        console.log("[analysis] runStandardForProject: pages=", docPageIds.length, "project=", projectId);
+
+        // Acquire or promote a queued run
+        const run = await acquireRun(ctx as any, project._id, identity.orgId, "standard");
+
+        const pages = await fetchDocPages(ctx as any, docPageIds, identity.orgId, project._id);
+        const chunks = chunkPages(pages, PAGES_PER_CHUNK);
+
+        let totalPromptTokens = 0;
+        let totalCompletionTokens = 0;
+        let totalLatency = 0;
+        let provider = run.provider;
+        let model = run.model;
+
+        const partialResults: Array<z.infer<typeof standardResultSchema>> = [];
+        try {
+            for (const chunk of chunks) {
+                const { result, usage, latencyMs, meta } = await analyseStandardChunk(chunk);
+                partialResults.push(result);
+                if (usage.promptTokens) totalPromptTokens += usage.promptTokens;
+                if (usage.completionTokens) totalCompletionTokens += usage.completionTokens;
+                totalLatency += latencyMs;
+                provider = meta.provider;
+                model = meta.model;
+            }
+
+            const merged = mergeStandardResults(partialResults);
+            const { resultId } = (await ctx.runMutation(internal.analysis.recordStandardResult, {
+                projectId: project._id,
+                runId: run._id,
+                orgId: identity.orgId,
+                result: merged,
+                telemetry: {
+                    provider,
+                    model,
+                    promptTokens: totalPromptTokens || undefined,
+                    completionTokens: totalCompletionTokens || undefined,
+                    latencyMs: totalLatency,
+                },
+            })) as { resultId: Id<"analysisResults"> };
+
+            console.log("[analysis] runStandardForProject: finished run=", run._id);
+            return { status: "fertig", resultId };
+        } catch (error) {
+            await failRun(ctx as any, run._id, error);
+            throw error;
+        }
+    },
+});
+
 export const runCriteria = action({
 	args: {
 		projectId: v.id("projects"),
@@ -184,6 +255,95 @@ export const runCriteria = action({
 			throw error;
 		}
 	},
+});
+
+// Convenience: auto-resolve doc pages + project template and run Criteria analysis
+export const runCriteriaForProject = action({
+    args: {
+        projectId: v.id("projects"),
+    },
+    handler: async (ctx, { projectId }) => {
+        const identity = await getIdentityOrThrow(ctx);
+        const project = (await ctx.runQuery(internal.analysis.getProjectForAnalysis, {
+            projectId,
+        })) as Doc<"projects"> | null;
+        if (!project || project.orgId !== identity.orgId) {
+            throw new ConvexError("Projekt nicht gefunden.");
+        }
+        if (!project.templateId) {
+            throw new ConvexError("Für die Kriterien-Analyse muss ein Template gewählt sein.");
+        }
+        const template = (await ctx.runQuery(internal.analysis.getTemplateForAnalysis, {
+            templateId: project.templateId,
+        })) as Doc<"templates"> | null;
+        if (!template || template.orgId !== identity.orgId) {
+            throw new ConvexError("Template nicht gefunden.");
+        }
+
+        const docPageIds = (await ctx.runQuery(
+            internal.analysis.getDocPageIdsForProject,
+            { projectId },
+        )) as Id<"docPages">[];
+        if (docPageIds.length === 0) {
+            throw new ConvexError("Keine Dokumentseiten zum Analysieren gefunden.");
+        }
+        console.log("[analysis] runCriteriaForProject: pages=", docPageIds.length, "project=", projectId);
+
+        // Acquire or promote a queued run
+        const run = await acquireRun(ctx as any, project._id, identity.orgId, "criteria");
+
+        const pages = await fetchDocPages(ctx as any, docPageIds, identity.orgId, project._id);
+        let totalPromptTokens = 0;
+        let totalCompletionTokens = 0;
+        let totalLatency = 0;
+        let provider = run.provider;
+        let model = run.model;
+
+        try {
+            const documentContext = buildDocumentContext(pages);
+            const criteriaResults: CriterionComputation[] = [];
+            for (const criterion of template.criteria) {
+                const { result, usage, latencyMs, meta } = await analyseCriterion(
+                    criterion,
+                    documentContext,
+                );
+                criteriaResults.push({
+                    ...criterion,
+                    status: result.status,
+                    comment: result.comment,
+                    answer: result.answer,
+                    score: result.score,
+                    citations: result.citations ?? [],
+                });
+                if (usage.promptTokens) totalPromptTokens += usage.promptTokens;
+                if (usage.completionTokens) totalCompletionTokens += usage.completionTokens;
+                totalLatency += latencyMs;
+                provider = meta.provider;
+                model = meta.model;
+            }
+
+            const { resultId } = (await ctx.runMutation(internal.analysis.recordCriteriaResult, {
+                projectId: project._id,
+                runId: run._id,
+                orgId: identity.orgId,
+                templateId: template._id,
+                items: criteriaResults,
+                telemetry: {
+                    provider,
+                    model,
+                    promptTokens: totalPromptTokens || undefined,
+                    completionTokens: totalCompletionTokens || undefined,
+                    latencyMs: totalLatency,
+                },
+            })) as { resultId: Id<"analysisResults"> };
+
+            console.log("[analysis] runCriteriaForProject: finished run=", run._id);
+            return { status: "fertig", resultId };
+        } catch (error) {
+            await failRun(ctx as any, run._id, error);
+            throw error;
+        }
+    },
 });
 
 export const getLatest = query({
@@ -437,6 +597,27 @@ export const getDocPagesByIds = internalQuery({
 		}
 		return pages.sort((a, b) => a.page - b.page);
 	},
+});
+
+export const getDocPageIdsForProject = internalQuery({
+    args: {
+        projectId: v.id("projects"),
+    },
+    handler: async (ctx, { projectId }) => {
+        const documents = await ctx.db
+            .query("documents")
+            .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .collect();
+        const ids: Id<"docPages">[] = [] as any;
+        for (const doc of documents) {
+            const pages = await ctx.db
+                .query("docPages")
+                .withIndex("by_documentId", (q) => q.eq("documentId", doc._id))
+                .collect();
+            for (const page of pages) ids.push(page._id as any);
+        }
+        return ids;
+    },
 });
 
 export const acquireRunForAction = internalMutation({

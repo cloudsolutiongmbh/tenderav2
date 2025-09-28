@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
 import { api } from "@tendera/backend/convex/_generated/api";
@@ -57,11 +57,13 @@ function ProjectDocumentsPage() {
 			: "skip",
 	);
 
-	const createUploadUrl = useMutation(api.documents.createUploadUrl);
+    const createUploadUrl = useMutation(api.documents.createUploadUrl);
 	const attachDocument = useMutation(api.documents.attach);
 	const bulkInsertPages = useMutation(api.docPages.bulkInsert);
 	const markDocumentExtracted = useMutation(api.documents.markExtracted);
-	const startAnalysis = useMutation(api.projects.startAnalysis);
+    const startAnalysis = useMutation(api.projects.startAnalysis);
+    const runStandardForProject = useAction(api.analysis.runStandardForProject);
+    const runCriteriaForProject = useAction(api.analysis.runCriteriaForProject);
 
 	const [uploads, setUploads] = useState<UploadStateItem[]>([]);
 	const [isStartingStandard, setStartingStandard] = useState(false);
@@ -172,15 +174,25 @@ function ProjectDocumentsPage() {
 		}
 	};
 
-	const handleStartAnalysis = async (type: "standard" | "criteria") => {
-		try {
-			type === "standard" ? setStartingStandard(true) : setStartingCriteria(true);
-			await startAnalysis({ projectId: projectId as any, type });
-			toast.success(
-				type === "standard"
-					? "Standard-Analyse gestartet."
-					: "Kriterien-Analyse gestartet.",
-			);
+    const handleStartAnalysis = async (type: "standard" | "criteria") => {
+        try {
+            type === "standard" ? setStartingStandard(true) : setStartingCriteria(true);
+            const res = (await startAnalysis({ projectId: projectId as any, type })) as
+                | { status: "läuft" | "wartet"; runId: string }
+                | undefined;
+            // Trigger the actual analysis run via Convex action only if started immediately
+            if (res?.status === "läuft") {
+                if (type === "standard") {
+                    await runStandardForProject({ projectId: projectId as any });
+                } else {
+                    await runCriteriaForProject({ projectId: projectId as any });
+                }
+            }
+            toast.success(
+                type === "standard"
+                    ? "Standard-Analyse gestartet."
+                    : "Kriterien-Analyse gestartet.",
+            );
 		} catch (error) {
 			toast.error(
 				error instanceof Error

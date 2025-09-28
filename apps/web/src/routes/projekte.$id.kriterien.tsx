@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
 import { api } from "@tendera/backend/convex/_generated/api";
@@ -60,7 +60,8 @@ function ProjectCriteriaPage() {
 			: "skip",
 	);
 
-	const startAnalysis = useMutation(api.projects.startAnalysis);
+    const startAnalysis = useMutation(api.projects.startAnalysis);
+    const runCriteriaForProject = useAction(api.analysis.runCriteriaForProject);
 	const setTemplate = useMutation(api.projects.setTemplate);
 
 	const runSummary = useMemo<RunSummary | null>(() => {
@@ -147,26 +148,31 @@ function ProjectCriteriaPage() {
 		}
 	};
 
-	const handleStart = async () => {
-		if (!hasTemplate) {
-			toast.error("Bitte zuerst ein Template zuweisen.");
-			return;
-		}
-		if (!hasPages) {
-			toast.error("Bitte zuerst Dokumente hochladen und extrahieren.");
-			return;
-		}
-		try {
-			await startAnalysis({ projectId: projectId as any, type: "criteria" });
-			toast.success("Kriterien-Analyse gestartet.");
-		} catch (error) {
-			toast.error(
-				error instanceof Error
-					? error.message
-					: "Analyse konnte nicht gestartet werden.",
-			);
-		}
-	};
+    const handleStart = async () => {
+        if (!hasTemplate) {
+            toast.error("Bitte zuerst ein Template zuweisen.");
+            return;
+        }
+        if (!hasPages) {
+            toast.error("Bitte zuerst Dokumente hochladen und extrahieren.");
+            return;
+        }
+        try {
+            const res = (await startAnalysis({ projectId: projectId as any, type: "criteria" })) as
+                | { status: "läuft" | "wartet"; runId: string }
+                | undefined;
+            if (res?.status === "läuft") {
+                await runCriteriaForProject({ projectId: projectId as any });
+            }
+            toast.success("Kriterien-Analyse gestartet.");
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Analyse konnte nicht gestartet werden.",
+            );
+        }
+    };
 
 	const isLoading =
 		project === undefined || criteriaResult === undefined || documents === undefined || templates === undefined;
