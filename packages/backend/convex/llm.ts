@@ -91,10 +91,9 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
                     ? {
                         format: {
                           type: "json_schema",
-                          json_schema: {
-                            name: args.schemaName ?? "Response",
-                            schema: args.jsonSchema,
-                          },
+                          name: args.schemaName ?? "Response",
+                          schema: args.jsonSchema,
+                          strict: true,
                         },
                       }
                     : { format: { type: "json_object" } },
