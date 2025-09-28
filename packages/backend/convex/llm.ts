@@ -86,10 +86,18 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
                 instructions: args.systemPrompt,
                 input: args.userPrompt,
                 // Some GPT‑5 variants do not support temperature; omit it here
-                max_output_tokens: args.maxOutputTokens ?? 2000,
-                // Align with official examples
-                text: { verbosity: "low" },
+                max_output_tokens: (() => {
+                  const envMax = Number.parseInt(process.env.OPENAI_RESPONSES_MAX_OUTPUT_TOKENS ?? "0");
+                  const requested = args.maxOutputTokens ?? 0;
+                  const fallback = 20000; // ensure enough space for reasoning + output
+                  const candidates = [envMax, requested, fallback].filter((n) => Number.isFinite(n) && n > 0) as number[];
+                  return Math.max(...candidates);
+                })(),
+                // Strongly request a text message output and no tools/web search
+                text: { format: { type: "text" }, verbosity: "low" },
                 reasoning: { effort: "medium" },
+                tool_choice: "none",
+                modalities: ["text"],
             }),
         });
 
