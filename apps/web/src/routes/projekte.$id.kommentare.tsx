@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AuthStateNotice } from "@/components/auth-state-notice";
+import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 interface MilestoneOption {
@@ -146,55 +147,16 @@ function ProjectCommentsPage() {
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
-			<Card>
-				<CardHeader className="flex flex-wrap items-start justify-between gap-3">
-					<div>
-						<CardTitle>Kommentare</CardTitle>
-						<CardDescription>
-							Diskussionen zu Meilensteinen oder Kriterien dieses Projekts.
-						</CardDescription>
-					</div>
-					<nav className="flex flex-wrap gap-2 text-sm">
-						<Link
-							to="/projekte/$id/standard"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1"
-						>
-							Standard
-						</Link>
-						<Link
-							to="/projekte/$id/kriterien"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1"
-						>
-							Kriterien
-						</Link>
-						<Link
-							to="/projekte/$id/dokumente"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1"
-						>
-							Dokumente
-						</Link>
-						<Link
-							to="/projekte/$id/kommentare"
-							params={{ id: projectId }}
-							className="rounded-md bg-primary px-3 py-1 text-primary-foreground"
-						>
-							Kommentare
-						</Link>
-						<Link
-							to="/projekte/$id/export"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1"
-						>
-							Export
-						</Link>
-					</nav>
-				</CardHeader>
-			</Card>
-
+		<ProjectSectionLayout
+			projectId={projectId}
+			projectName={project?.project.name}
+			customer={project?.project.customer ?? null}
+			section={{
+				id: "kommentare",
+				title: "Kommentare",
+				description: "Diskussionen zu Meilensteinen oder Kriterien dieses Projekts.",
+			}}
+		>
 			<Card>
 				<CardHeader>
 					<CardTitle>Neuen Kommentar erfassen</CardTitle>
@@ -291,7 +253,7 @@ function ProjectCommentsPage() {
 					)}
 				</CardContent>
 			</Card>
-		</div>
+		</ProjectSectionLayout>
 	);
 }
 

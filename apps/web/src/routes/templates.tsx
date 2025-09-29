@@ -1,5 +1,6 @@
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
+import * as React from "react";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { AuthStateNotice } from "@/components/auth-state-notice";
@@ -21,6 +22,7 @@ import {
     DialogClose,
 } from "@/components/ui/dialog";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
+import { Grid3x3, List, Trash2, Search } from "lucide-react";
 
 interface TemplateSummary {
 	_id: string;
@@ -37,14 +39,31 @@ export const Route = createFileRoute("/templates")({
 
 function TemplatesPage() {
     const [isDialogOpen, setDialogOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<"board" | "list">("board");
+    const [searchQuery, setSearchQuery] = useState("");
     const pathname = useRouterState({ select: (s) => s.location.pathname });
     const isIndex = pathname === "/templates";
     const auth = useOrgAuth();
-    const templates = useQuery(
+    const allTemplates = useQuery(
         api.templates.list,
         auth.authReady ? undefined : "skip",
     ) as TemplateSummary[] | undefined;
-    const isLoading = templates === undefined;
+    const isLoading = allTemplates === undefined;
+    const deleteTemplate = useMutation(api.templates.remove);
+
+    const templates = React.useMemo(() => {
+        if (!allTemplates) return allTemplates;
+        if (!searchQuery.trim()) return allTemplates;
+
+        const query = searchQuery.toLowerCase().trim();
+        return allTemplates.filter((template) => {
+            return (
+                template.name.toLowerCase().includes(query) ||
+                template.language.toLowerCase().includes(query) ||
+                template.version.toLowerCase().includes(query)
+            );
+        });
+    }, [allTemplates, searchQuery]);
 
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
@@ -54,19 +73,62 @@ function TemplatesPage() {
         return <Outlet />;
     }
 
+    const handleDelete = async (templateId: string, templateName: string) => {
+        if (!confirm(`Template "${templateName}" wirklich löschen?`)) {
+            return;
+        }
+        try {
+            await deleteTemplate({ templateId: templateId as any });
+            toast.success("Template gelöscht.");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Template konnte nicht gelöscht werden.");
+        }
+    };
+
     return (
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
             <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-                <header className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h1 className="text-3xl font-semibold">Templates</h1>
-                        <p className="text-muted-foreground">
-                            Verwalte Kriterienkataloge für die Kriterien-Analyse.
-                        </p>
+                <header className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h1 className="text-3xl font-semibold">Templates</h1>
+                            <p className="text-muted-foreground">
+                                Verwalte Kriterienkataloge für die Kriterien-Analyse.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="flex rounded-md border">
+                                <Button
+                                    variant={viewMode === "board" ? "default" : "ghost"}
+                                    size="sm"
+                                    onClick={() => setViewMode("board")}
+                                    className="rounded-r-none"
+                                >
+                                    <Grid3x3 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant={viewMode === "list" ? "default" : "ghost"}
+                                    size="sm"
+                                    onClick={() => setViewMode("list")}
+                                    className="rounded-l-none"
+                                >
+                                    <List className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <DialogTrigger asChild>
+                                <Button disabled={!auth.authReady}>Neues Template</Button>
+                            </DialogTrigger>
+                        </div>
                     </div>
-                    <DialogTrigger asChild>
-                        <Button disabled={!auth.authReady}>Neues Template</Button>
-                    </DialogTrigger>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            placeholder="Templates durchsuchen..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9"
+                        />
+                    </div>
                 </header>
 
                 <DialogContent>
@@ -80,7 +142,7 @@ function TemplatesPage() {
                 </DialogContent>
             </Dialog>
 
-            <section className="grid gap-4">
+            <section className={viewMode === "board" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "flex flex-col gap-2"}>
                 {isLoading ? (
                     <Card>
                         <CardContent className="py-6 text-sm text-muted-foreground">Lade Templates …</CardContent>
@@ -91,15 +153,34 @@ function TemplatesPage() {
                             Noch keine Templates vorhanden. Lege ein neues Template an, um Kriterien zu definieren.
                         </CardContent>
                     </Card>
-                ) : (
+                ) : viewMode === "board" ? (
                     templates!.map((template) => (
-                        <Card key={template._id}>
-                            <CardHeader className="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                    <CardTitle>{template.name}</CardTitle>
-                                    <CardDescription>
-                                        Version {template.version} · {template.language} · {template.visibleOrgWide ? "Org-weit sichtbar" : "Privat"}
-                                    </CardDescription>
+                        <Link
+                            to="/templates/$id"
+                            params={{ id: template._id }}
+                            key={template._id}
+                            className="block"
+                        >
+                            <Card className="group relative cursor-pointer transition-shadow hover:shadow-md">
+                            <CardHeader className="space-y-3">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <CardTitle>{template.name}</CardTitle>
+                                        <CardDescription>
+                                            Version {template.version} · {template.language} · {template.visibleOrgWide ? "Org-weit sichtbar" : "Privat"}
+                                        </CardDescription>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            handleDelete(template._id, template.name);
+                                        }}
+                                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 flex-shrink-0"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
                                 </div>
                                 {template.updatedAt ? (
                                     <span className="text-xs text-muted-foreground">
@@ -107,16 +188,66 @@ function TemplatesPage() {
                                     </span>
                                 ) : null}
                             </CardHeader>
-                            <CardContent>
-                                <Link
-                                    to="/templates/$id"
-                                    params={{ id: template._id }}
-                                    className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted"
+                            <CardContent onClick={(e) => e.preventDefault()}>
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        window.location.href = `/templates/${template._id}`;
+                                    }}
+                                    className="w-full rounded-md border px-3 py-2 text-sm text-center transition-colors hover:bg-muted"
                                 >
                                     Template bearbeiten
-                                </Link>
+                                </button>
                             </CardContent>
                         </Card>
+                        </Link>
+                    ))
+                ) : (
+                    templates!.map((template) => (
+                        <Link
+                            to="/templates/$id"
+                            params={{ id: template._id }}
+                            key={template._id}
+                            className="block"
+                        >
+                            <Card className="group relative cursor-pointer transition-shadow hover:shadow-md">
+                            <CardHeader className="flex flex-row items-center justify-between py-3">
+                                <div className="flex flex-1 items-center gap-4">
+                                    <div className="flex-1">
+                                        <CardTitle className="text-base">{template.name}</CardTitle>
+                                        <CardDescription className="text-xs">
+                                            Version {template.version} · {template.language} · {template.visibleOrgWide ? "Org-weit sichtbar" : "Privat"}
+                                        </CardDescription>
+                                    </div>
+                                    {template.updatedAt ? (
+                                        <span className="text-xs text-muted-foreground">
+                                            Aktualisiert am {formatDate(template.updatedAt)}
+                                        </span>
+                                    ) : null}
+                                    <button
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            window.location.href = `/templates/${template._id}`;
+                                        }}
+                                        className="rounded-md border px-3 py-1.5 text-xs transition-colors hover:bg-muted"
+                                    >
+                                        Bearbeiten
+                                    </button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            handleDelete(template._id, template.name);
+                                        }}
+                                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                        </Card>
+                        </Link>
                     ))
                 )}
             </section>

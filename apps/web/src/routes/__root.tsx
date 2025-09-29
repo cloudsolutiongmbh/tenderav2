@@ -1,4 +1,5 @@
-import Header from "@/components/header";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 import Loader from "@/components/loader";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -42,18 +43,22 @@ function RootComponent() {
 	return (
 		<>
 			<HeadContent />
-			<ThemeProvider
-				attribute="class"
-				defaultTheme="light"
-				disableTransitionOnChange
-				storageKey="vite-ui-theme"
-			>
-				<div className="grid grid-rows-[auto_1fr] h-svh">
-					<Header />
-					{isFetching ? <Loader /> : <Outlet />}
-				</div>
-				<Toaster richColors />
-			</ThemeProvider>
+            <ThemeProvider
+                attribute="class"
+                defaultTheme="light"
+                disableTransitionOnChange
+                storageKey="vite-ui-theme"
+            >
+                <SidebarProvider>
+                    <AppSidebar />
+                    <main className="flex-1 overflow-y-auto">
+                        <div className="p-3">
+                            {isFetching ? <Loader /> : <Outlet />}
+                        </div>
+                    </main>
+                </SidebarProvider>
+                <Toaster richColors />
+            </ThemeProvider>
 			<TanStackRouterDevtools position="bottom-left" />
 		</>
 	);

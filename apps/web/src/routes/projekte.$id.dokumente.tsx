@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { extractDocumentPages } from "@/lib/extract-text";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
+import { ProjectSectionLayout } from "@/components/project-section-layout";
 
 const MAX_UPLOAD_MB = Number(
 	import.meta.env.VITE_MAX_UPLOAD_MB ?? import.meta.env.MAX_UPLOAD_MB ?? 200,
@@ -225,54 +226,31 @@ function ProjectDocumentsPage() {
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
+		<ProjectSectionLayout
+			projectId={projectId}
+			projectName={project?.project.name}
+			customer={project?.project.customer ?? null}
+			section={{
+				id: "dokumente",
+				title: "Dokumente",
+				description:
+					"Upload und Verarbeitung der Angebotsunterlagen. Nach dem Upload werden die Texte lokal extrahiert und an Convex übertragen.",
+			}}
+			className="max-w-5xl"
+			actions={
+				<Button
+					variant="destructive"
+					size="sm"
+					onClick={handleDeleteProject}
+					disabled={isDeleting}
+				>
+					{isDeleting ? "Lösche …" : "Projekt löschen"}
+				</Button>
+			}
+		>
 			<Card>
-				<CardHeader className="flex flex-wrap items-start justify-between gap-3">
-					<div>
-						<CardTitle>Dokumente · {project?.project.name ?? "Projekt"}</CardTitle>
-						<CardDescription>
-							Upload und Verarbeitung der Angebotsunterlagen. Nach dem Upload werden die Texte lokal
-							extrahiert und an Convex übertragen.
-						</CardDescription>
-					</div>
-					<div className="flex gap-2">
-                    <Link
-                        to="/projekte/$id/standard"
-                        params={{ id: projectId }}
-                        className="rounded-md border px-3 py-1 text-sm"
-                    >
-                        Standard
-                    </Link>
-						<Link
-							to="/projekte/$id/kriterien"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1 text-sm"
-						>
-							Kriterien
-						</Link>
-						<Link
-							to="/projekte/$id/kommentare"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1 text-sm"
-						>
-							Kommentare
-						</Link>
-                    <Link
-                        to="/projekte/$id/export"
-                        params={{ id: projectId }}
-                        className="rounded-md border px-3 py-1 text-sm"
-                    >
-                        Export
-                    </Link>
-                    <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDeleteProject}
-                        disabled={isDeleting}
-                    >
-                        {isDeleting ? "Lösche …" : "Projekt löschen"}
-                    </Button>
-                </div>
+				<CardHeader>
+					<CardTitle>Dokumente</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<UploadDropzone
@@ -361,7 +339,7 @@ function ProjectDocumentsPage() {
 					/>
 				</CardContent>
 			</Card>
-		</div>
+		</ProjectSectionLayout>
 	);
 }
 

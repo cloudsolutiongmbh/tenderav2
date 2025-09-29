@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ import { ShareLink } from "@/components/share-link";
 import { PdfExportButton } from "@/components/pdf-export-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AuthStateNotice } from "@/components/auth-state-notice";
+import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 interface Citation {
@@ -127,58 +128,31 @@ function ProjectExportPage() {
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 print:bg-white">
-			<Card>
-				<CardHeader className="flex flex-wrap items-start justify-between gap-3">
-					<div>
-						<CardTitle>Exportansicht</CardTitle>
-						<CardDescription>
-							Kombinierter Bericht für Standard- und Kriterien-Analyse. Zum Export auf „Als PDF exportieren“ klicken.
-						</CardDescription>
-					</div>
-					<div className="flex flex-wrap items-center gap-2">
-						<Link
-							to="/projekte/$id/standard"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1 text-sm"
-						>
-							Standard
-						</Link>
-						<Link
-							to="/projekte/$id/kriterien"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1 text-sm"
-						>
-							Kriterien
-						</Link>
-						<Link
-							to="/projekte/$id/dokumente"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1 text-sm"
-						>
-							Dokumente
-						</Link>
-						<Link
-							to="/projekte/$id/kommentare"
-							params={{ id: projectId }}
-							className="rounded-md border px-3 py-1 text-sm"
-						>
-							Kommentare
-						</Link>
-						<PdfExportButton disabled={isLoading} />
-					</div>
-				</CardHeader>
-				{projectMeta ? (
-					<CardContent className="text-sm text-muted-foreground">
+		<ProjectSectionLayout
+			projectId={projectId}
+			projectName={projectMeta?.name}
+			customer={projectMeta?.customer ?? null}
+			section={{
+				id: "export",
+				title: "Export",
+				description:
+					"Kombinierter Bericht für Standard- und Kriterien-Analyse. Zum Export auf „Als PDF exportieren“ klicken.",
+			}}
+			className="print:bg-white"
+			actions={<PdfExportButton disabled={isLoading} />}
+			headerContent={
+				projectMeta ? (
+					<div className="space-y-1">
 						<p className="font-medium text-foreground">{projectMeta.name}</p>
 						<p>
-							Kunde/Behörde: {projectMeta.customer}
+							Kunde/Behörde: {projectMeta.customer ?? "–"}
 							{projectMeta.tags.length > 0 ? ` · Tags: ${projectMeta.tags.join(", ")}` : ""}
 						</p>
-					</CardContent>
-				) : null}
-			</Card>
-
+					</div>
+				) : null
+			}
+			contentClassName="print:bg-white"
+		>
 			<section className="space-y-6">
 				<SummaryCard
 					summary={standardResult?.summary ?? "Noch keine Standard-Analyse verfügbar."}
@@ -272,7 +246,7 @@ function ProjectExportPage() {
 					{projectMeta?.name ?? "Projekt"} · Exportiert am {formatDate(Date.now())}
 				</span>
 			</footer>
-		</div>
+		</ProjectSectionLayout>
 	);
 }
 

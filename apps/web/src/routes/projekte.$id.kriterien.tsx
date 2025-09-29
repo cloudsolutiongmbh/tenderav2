@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -11,6 +11,7 @@ import { StatusBadge, type AnalysisStatus } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AuthStateNotice } from "@/components/auth-state-notice";
+import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 interface RunSummary {
@@ -202,73 +203,43 @@ function ProjectCriteriaPage() {
 	);
 
 	return (
-		<div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
-			<Card>
-				<CardHeader className="flex flex-wrap items-start justify-between gap-3">
-					<div>
-						<CardTitle>Kriterien-Analyse</CardTitle>
-						<CardDescription>
-							Vergleich der Angebotsunterlagen gegen das hinterlegte Template.
-						</CardDescription>
-					</div>
-					<div className="flex items-center gap-3">
-						<StatusBadge status={runSummary?.status ?? "wartet"} />
-						<Button size="sm" onClick={handleStart} disabled={!hasPages || !hasTemplate}>
-							Analyse starten
-						</Button>
-                    <nav className="flex flex-wrap gap-2 text-sm">
-                        <Link
-								to="/projekte/$id/standard"
-								params={{ id: projectId }}
-								className="rounded-md border px-3 py-1"
-							>
-								Standard
-							</Link>
-							<Link
-								to="/projekte/$id/dokumente"
-								params={{ id: projectId }}
-								className="rounded-md border px-3 py-1"
-							>
-								Dokumente
-							</Link>
-							<Link
-								to="/projekte/$id/kommentare"
-								params={{ id: projectId }}
-								className="rounded-md border px-3 py-1"
-							>
-								Kommentare
-							</Link>
-							<Link
-								to="/projekte/$id/export"
-								params={{ id: projectId }}
-								className="rounded-md border px-3 py-1"
-							>
-								Export
-							</Link>
-                    </nav>
-                    <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDeleteProject}
-                        disabled={isDeleting}
-                    >
-                        {isDeleting ? "Lösche …" : "Projekt löschen"}
-                    </Button>
-					</div>
-				</CardHeader>
-				{runSummary?.error || runSummary?.status === "läuft" || runSummary?.status === "wartet" ? (
-					<CardContent className="text-sm text-muted-foreground">
-						{runSummary.error
-							? `Analyse fehlgeschlagen: ${runSummary.error}`
-							: runSummary.status === "läuft"
-								? "Analyse läuft – Ergebnisse erscheinen nach Abschluss."
-								: runSummary.status === "wartet"
-									? "Analyse ist in der Warteschlange."
-									: null}
-					</CardContent>
-				) : null}
-			</Card>
-
+		<ProjectSectionLayout
+			projectId={projectId}
+			projectName={project?.project.name}
+			customer={project?.project.customer ?? null}
+			section={{
+				id: "kriterien",
+				title: "Kriterien-Analyse",
+				description: "Vergleich der Angebotsunterlagen gegen das hinterlegte Template.",
+			}}
+			statusBadge={<StatusBadge status={runSummary?.status ?? "wartet"} />}
+			actions={
+				<div className="flex flex-wrap items-center gap-2">
+					<Button size="sm" onClick={handleStart} disabled={!hasPages || !hasTemplate}>
+						Analyse starten
+					</Button>
+					<Button
+						variant="destructive"
+						size="sm"
+						onClick={handleDeleteProject}
+						disabled={isDeleting}
+					>
+						{isDeleting ? "Lösche …" : "Projekt löschen"}
+					</Button>
+				</div>
+			}
+			headerContent={
+				runSummary?.error || runSummary?.status === "läuft" || runSummary?.status === "wartet"
+					? runSummary.error
+						? `Analyse fehlgeschlagen: ${runSummary.error}`
+						: runSummary.status === "läuft"
+							? "Analyse läuft – Ergebnisse erscheinen nach Abschluss."
+							: runSummary.status === "wartet"
+								? "Analyse ist in der Warteschlange."
+								: null
+					: null
+			}
+		>
 			<TemplateAssignmentCard
 				isLoading={templates === undefined}
 				templates={templates ?? []}
@@ -291,7 +262,7 @@ function ProjectCriteriaPage() {
 				</div>
 				<CriteriaDetail criterion={activeCriterion} />
 			</section>
-		</div>
+		</ProjectSectionLayout>
 	);
 }
 

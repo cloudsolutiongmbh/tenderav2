@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -13,8 +13,9 @@ import {
 	SummaryCard,
 } from "@/components/analysis-cards";
 import { StatusBadge, type AnalysisStatus } from "@/components/status-badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { AuthStateNotice } from "@/components/auth-state-notice";
+import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 
 interface Citation {
@@ -133,6 +134,7 @@ function ProjectStandardPage() {
 
 	const projectMeta = project?.project;
 	const isLoading = project === undefined || standard === undefined;
+	const [isDeleting, setDeleting] = useState(false);
 
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
@@ -143,86 +145,47 @@ function ProjectStandardPage() {
 			"Dieses Projekt endgültig löschen? Alle Dokumente, Seiten und Analyse-Läufe werden entfernt.",
 		);
 		if (!ok) return;
+		setDeleting(true);
 		try {
 			await removeProject({ projectId: projectId as any });
 			toast.success("Projekt gelöscht.");
 			navigate({ to: "/projekte" });
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : "Projekt konnte nicht gelöscht werden.");
+		} finally {
+			setDeleting(false);
 		}
 	};
 
 	return (
-		<div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10">
-			<Card>
-				<CardHeader className="gap-2">
-					<CardTitle className="text-2xl font-semibold">
-						{projectMeta?.name ?? "Projekt"}
-						{projectMeta?.customer ? ` · ${projectMeta.customer}` : null}
-					</CardTitle>
-					<CardDescription className="text-sm text-muted-foreground">
-						Diese Ansicht zeigt den aktuellen Stand der Standard-Analyse. Ohne Ergebnis werden Platzhalter angezeigt.
-					</CardDescription>
-					<div className="flex flex-wrap items-center gap-3">
-						<StatusBadge status={runSummary?.status ?? "wartet"} />
-						<nav className="flex flex-wrap gap-2 text-sm">
-							<Link
-								to="/projekte/$id/standard"
-								params={{ id: projectId }}
-								className="rounded-md bg-primary px-3 py-1 text-primary-foreground"
-							>
-								Standard
-							</Link>
-							<Link
-								to="/projekte/$id/kriterien"
-								params={{ id: projectId }}
-								className="rounded-md border px-3 py-1"
-							>
-								Kriterien
-							</Link>
-							<Link
-								to="/projekte/$id/dokumente"
-								params={{ id: projectId }}
-								className="rounded-md border px-3 py-1"
-							>
-								Dokumente
-							</Link>
-							<Link
-								to="/projekte/$id/kommentare"
-								params={{ id: projectId }}
-								className="rounded-md border px-3 py-1"
-							>
-								Kommentare
-							</Link>
-							<Link
-								to="/projekte/$id/export"
-								params={{ id: projectId }}
-								className="rounded-md border px-3 py-1"
-							>
-								Export
-							</Link>
-						</nav>
-						<button
-							onClick={handleDeleteProject}
-							className="rounded-md border border-destructive text-destructive px-3 py-1"
-						>
-							Projekt löschen
-						</button>
-					</div>
-				</CardHeader>
-				{runSummary?.error || runSummary?.status === "läuft" || runSummary?.status === "wartet" ? (
-					<CardContent className="text-sm text-muted-foreground">
-						{runSummary.error
-							? `Analyse fehlgeschlagen: ${runSummary.error}`
-							: runSummary.status === "läuft"
-								? "Analyse läuft – Ergebnisse werden nach Abschluss angezeigt."
-								: runSummary.status === "wartet"
-									? "Analyse ist in der Warteschlange."
-									: null}
-					</CardContent>
-				) : null}
-			</Card>
-
+		<ProjectSectionLayout
+			projectId={projectId}
+			projectName={projectMeta?.name}
+			customer={projectMeta?.customer ?? null}
+			section={{
+				id: "standard",
+				title: "Standard-Analyse",
+				description:
+					"Diese Ansicht zeigt den aktuellen Stand der Standard-Analyse. Ohne Ergebnis werden Platzhalter angezeigt.",
+			}}
+				statusBadge={<StatusBadge status={runSummary?.status ?? "wartet"} />}
+				actions={
+					<Button variant="destructive" size="sm" onClick={handleDeleteProject} disabled={isDeleting}>
+						{isDeleting ? "Lösche …" : "Projekt löschen"}
+					</Button>
+				}
+			headerContent={
+				runSummary?.error || runSummary?.status === "läuft" || runSummary?.status === "wartet"
+					? runSummary.error
+						? `Analyse fehlgeschlagen: ${runSummary.error}`
+						: runSummary.status === "läuft"
+							? "Analyse läuft – Ergebnisse werden nach Abschluss angezeigt."
+							: runSummary.status === "wartet"
+								? "Analyse ist in der Warteschlange."
+								: null
+					: null
+			}
+		>
 			<section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
 				<div className="space-y-6">
 					<SummaryCard
@@ -249,7 +212,7 @@ function ProjectStandardPage() {
 					/>
 				</div>
 			</section>
-		</div>
+		</ProjectSectionLayout>
 	);
 }
 
