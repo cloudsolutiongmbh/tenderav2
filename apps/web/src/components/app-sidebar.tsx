@@ -12,7 +12,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -33,7 +32,6 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <SidebarTrigger className="mr-2" />
         <span className="font-semibold">tendera</span>
         <span className="ml-auto"><ModeToggle /></span>
       </SidebarHeader>
@@ -84,4 +82,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-

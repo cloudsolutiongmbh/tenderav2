@@ -9,14 +9,7 @@ type SidebarState = {
 const SidebarContext = React.createContext<SidebarState | null>(null);
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = React.useState<boolean>(() => {
-    try {
-      const fromStorage = localStorage.getItem("sidebar_open");
-      return fromStorage ? fromStorage === "true" : true;
-    } catch {
-      return true;
-    }
-  });
+  const [open, setOpen] = React.useState<boolean>(true);
 
   const toggle = React.useCallback(() => setOpen((v) => !v), []);
 
@@ -125,4 +118,3 @@ export function SidebarTrigger({ className = "" }: { className?: string }) {
     </button>
   );
 }
-

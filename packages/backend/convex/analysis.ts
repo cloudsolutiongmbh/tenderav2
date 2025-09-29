@@ -13,6 +13,8 @@ import {
     standardResultSchema,
     standardResultJsonSchema,
     criteriaItemJsonSchema,
+    pflichtenheftExtractionSchema,
+    offerCheckResultSchema,
 } from "./analysisSchemas";
 
 const PAGES_PER_CHUNK = Number.parseInt(process.env.CONVEX_ANALYSIS_PAGES_PER_CHUNK ?? "10");
@@ -587,7 +589,7 @@ async function acquireRun(
 	ctx: ActionCtx,
 	projectId: Id<"projects">,
 	orgId: string,
-	type: "standard" | "criteria",
+	type: "standard" | "criteria" | "pflichtenheft_extract" | "offer_check",
 ): Promise<Doc<"analysisRuns">> {
 	return (await ctx.runMutation(internal.analysis.acquireRunForAction, {
 		projectId,
@@ -707,7 +709,12 @@ export const acquireRunForAction = internalMutation({
 	args: {
 		projectId: v.id("projects"),
 		orgId: v.string(),
-		type: v.union(v.literal("standard"), v.literal("criteria")),
+		type: v.union(
+			v.literal("standard"),
+			v.literal("criteria"),
+			v.literal("pflichtenheft_extract"),
+			v.literal("offer_check"),
+		),
 	},
 	handler: async (ctx, { projectId, orgId, type }) => {
 		const runs = await ctx.db
@@ -1046,3 +1053,528 @@ function safeParseJson(text: string): any {
 function truncate(s: string, n: number) {
   return s.length > n ? s.slice(0, n) + "…" : s;
 }
+
+// ========== OFFERTEN-VERGLEICH ACTIONS ==========
+
+/**
+ * Extract criteria from Pflichtenheft document
+ * Creates a template with extracted Muss- and Kann-Kriterien
+ */
+export const extractPflichtenheftCriteria = action({
+	args: {
+		projectId: v.id("projects"),
+	},
+	handler: async (ctx, args) => {
+		const identity = await getIdentityOrThrow(ctx);
+		const project = (await ctx.runQuery(
+			internal.analysis.getProjectForAnalysis,
+			{ projectId: args.projectId },
+		)) as Doc<"projects"> | null;
+
+		if (!project || project.orgId !== identity.orgId) {
+			throw new ConvexError("Projekt nicht gefunden.");
+		}
+
+		// Get Pflichtenheft document pages
+		const docPageIds = (await ctx.runQuery(
+			internal.analysis.getDocPageIdsForProject,
+			{ projectId: args.projectId },
+		)) as Id<"docPages">[];
+
+		if (docPageIds.length === 0) {
+			throw new ConvexError("Keine Pflichtenheft-Dokumente zum Analysieren gefunden.");
+		}
+
+		const run = await acquireRun(ctx as any, project._id, identity.orgId, "pflichtenheft_extract");
+		const pages = await fetchDocPages(ctx as any, docPageIds, identity.orgId, project._id);
+
+		if (pages.length === 0) {
+			throw new ConvexError("Keine Dokumentseiten gefunden.");
+		}
+
+		try {
+			const { result, usage, latencyMs, meta } = await analysePflichtenheft(pages);
+
+			// Create template from extracted criteria
+			const criteriaArray: Array<{
+				key: string;
+				title: string;
+				description?: string;
+				hints?: string;
+				answerType: "boolean";
+				weight: number;
+				required: boolean;
+			}> = [];
+
+			// Add Muss-Kriterien
+			result.mussCriteria.forEach((criterion, idx) => {
+				criteriaArray.push({
+					key: `MUSS_${idx + 1}`,
+					title: criterion.title,
+					description: criterion.description ?? undefined,
+					hints: criterion.hints ?? undefined,
+					answerType: "boolean" as const,
+					weight: 100,
+					required: true,
+				});
+			});
+
+			// Add Kann-Kriterien
+			result.kannCriteria.forEach((criterion, idx) => {
+				criteriaArray.push({
+					key: `KANN_${idx + 1}`,
+					title: criterion.title,
+					description: criterion.description ?? undefined,
+					hints: criterion.hints ?? undefined,
+					answerType: "boolean" as const,
+					weight: 50,
+					required: false,
+				});
+			});
+
+			// Create template
+			const now = Date.now();
+			const templateId = await ctx.runMutation(internal.analysis.createTemplateFromExtraction, {
+				projectId: project._id,
+				orgId: identity.orgId,
+				createdBy: identity.userId,
+				name: `${project.name} - Kriterien`,
+				description: `Automatisch extrahierte Kriterien aus Pflichtenheft`,
+				language: "de",
+				version: "1.0",
+				criteria: criteriaArray,
+			});
+
+			// Mark run as finished
+			await ctx.runMutation(internal.analysis.finishPflichtenheftRun, {
+				runId: run._id,
+				projectId: project._id,
+				templateId: templateId as Id<"templates">,
+				telemetry: {
+					provider: meta.provider,
+					model: meta.model,
+					promptTokens: usage.promptTokens,
+					completionTokens: usage.completionTokens,
+					latencyMs,
+				},
+			});
+
+			return { status: "fertig", templateId, criteriaCount: criteriaArray.length };
+		} catch (error) {
+			await failRun(ctx as any, run._id, error);
+			throw error;
+		}
+	},
+});
+
+/**
+ * Check a single offer against all criteria in the template
+ */
+export const checkOfferAgainstCriteria = action({
+	args: {
+		projectId: v.id("projects"),
+		offerId: v.id("offers"),
+	},
+	handler: async (ctx, args) => {
+		const identity = await getIdentityOrThrow(ctx);
+		const project = (await ctx.runQuery(
+			internal.analysis.getProjectForAnalysis,
+			{ projectId: args.projectId },
+		)) as Doc<"projects"> | null;
+
+		if (!project || project.orgId !== identity.orgId) {
+			throw new ConvexError("Projekt nicht gefunden.");
+		}
+
+		if (!project.templateId) {
+			throw new ConvexError("Kein Template für dieses Projekt vorhanden.");
+		}
+
+		const template = (await ctx.runQuery(
+			internal.analysis.getTemplateForAnalysis,
+			{ templateId: project.templateId },
+		)) as Doc<"templates"> | null;
+
+		if (!template || template.orgId !== identity.orgId) {
+			throw new ConvexError("Template nicht gefunden.");
+		}
+
+		// Get offer
+		const offer = (await ctx.runQuery(internal.analysis.getOfferForAnalysis, {
+			offerId: args.offerId,
+		})) as any;
+
+		if (!offer || offer.orgId !== identity.orgId) {
+			throw new ConvexError("Angebot nicht gefunden.");
+		}
+
+		if (!offer.documentId) {
+			throw new ConvexError("Kein Dokument für dieses Angebot hochgeladen.");
+		}
+
+		// Get offer document pages
+		const docPageIds = (await ctx.runQuery(
+			internal.analysis.getDocPageIdsForDocument,
+			{ documentId: offer.documentId },
+		)) as Id<"docPages">[];
+
+		if (docPageIds.length === 0) {
+			throw new ConvexError("Keine Dokumentseiten im Angebot gefunden.");
+		}
+
+		const run = await acquireRun(ctx as any, project._id, identity.orgId, "offer_check");
+		const pages = await fetchDocPages(ctx as any, docPageIds, identity.orgId, project._id);
+
+		if (pages.length === 0) {
+			throw new ConvexError("Keine Dokumentseiten gefunden.");
+		}
+
+		let totalPromptTokens = 0;
+		let totalCompletionTokens = 0;
+		let totalLatency = 0;
+		let provider = run.provider;
+		let model = run.model;
+
+		try {
+			// Check each criterion
+			for (const criterion of template.criteria) {
+				const { result, usage, latencyMs, meta } = await checkOfferCriterion(
+					pages,
+					criterion,
+				);
+
+				totalPromptTokens += usage.promptTokens ?? 0;
+				totalCompletionTokens += usage.completionTokens ?? 0;
+				totalLatency += latencyMs;
+				provider = meta.provider;
+				model = meta.model;
+
+				// Store result
+				await ctx.runMutation(internal.analysis.storeOfferCriterionResult, {
+					projectId: project._id,
+					offerId: args.offerId,
+					runId: run._id,
+					criterionKey: criterion.key,
+					criterionTitle: criterion.title,
+					required: criterion.required,
+					weight: criterion.weight,
+					status: result.status,
+					comment: result.comment ?? undefined,
+					citations: result.citations,
+					confidence: result.confidence,
+					provider: meta.provider,
+					model: meta.model,
+					orgId: identity.orgId,
+				});
+			}
+
+			// Mark run as finished
+			await ctx.runMutation(internal.analysis.finishOfferCheckRun, {
+				runId: run._id,
+				offerId: args.offerId,
+				telemetry: {
+					provider,
+					model,
+					promptTokens: totalPromptTokens || undefined,
+					completionTokens: totalCompletionTokens || undefined,
+					latencyMs: totalLatency,
+				},
+			});
+
+			return { status: "fertig", criteriaChecked: template.criteria.length };
+		} catch (error) {
+			await failRun(ctx as any, run._id, error);
+			throw error;
+		}
+	},
+});
+
+async function analysePflichtenheft(
+	pages: Array<{ page: number; text: string }>,
+) {
+	const systemPrompt = `Du bist ein deutscher KI-Assistent zur Analyse von Pflichtenheften. Deine Aufgabe ist es, aus dem vorliegenden Dokument alle Muss-Kriterien und Kann-Kriterien zu extrahieren.
+
+Vorgaben:
+- Antworte **nur auf Deutsch**.
+- Gib **exakt ein einziges JSON-Objekt** gemäß der vorgegebenen Struktur aus.
+- Muss-Kriterien sind obligatorisch und müssen erfüllt werden (z.B. "muss", "erforderlich", "zwingend").
+- Kann-Kriterien sind optional oder wünschenswert (z.B. "kann", "sollte", "wünschenswert").
+- Extrahiere nur explizit genannte Kriterien aus dem Dokument.
+
+## Output Format
+{
+  "mussCriteria": [
+    {
+      "title": string, // Kurzer Titel des Kriteriums
+      "description": string | null, // Detaillierte Beschreibung falls vorhanden
+      "hints": string | null // Zusätzliche Hinweise oder Kontext
+    }
+  ],
+  "kannCriteria": [
+    {
+      "title": string,
+      "description": string | null,
+      "hints": string | null
+    }
+  ]
+}`;
+
+	const pagesText = pages
+		.map((page) => `Seite ${page.page}:\n${page.text}`)
+		.join("\n\n");
+
+	const userPrompt = `Analysiere das folgende Pflichtenheft und extrahiere alle Muss-Kriterien und Kann-Kriterien:\n\n${pagesText}`;
+
+	const start = Date.now();
+	const { text, usage, provider, model } = await callLlm({
+		systemPrompt,
+		userPrompt,
+		temperature: 0.1,
+	});
+	const latencyMs = Date.now() - start;
+
+	const parsed = tryParseJson(text);
+	const result = pflichtenheftExtractionSchema.parse(parsed);
+
+	return {
+		result,
+		usage,
+		latencyMs,
+		meta: { provider, model },
+	};
+}
+
+async function checkOfferCriterion(
+	pages: Array<{ page: number; text: string }>,
+	criterion: {
+		key: string;
+		title: string;
+		description?: string;
+		hints?: string;
+		required: boolean;
+	},
+) {
+	const systemPrompt = `Du bist ein deutscher KI-Assistent zur Prüfung von Angeboten gegen definierte Kriterien. Deine Aufgabe ist es, ein Angebot gegen ein spezifisches Kriterium zu prüfen und zu bewerten, ob das Kriterium erfüllt ist.
+
+Vorgaben:
+- Antworte **nur auf Deutsch**.
+- Gib **exakt ein einziges JSON-Objekt** gemäß der vorgegebenen Struktur aus.
+- Status-Optionen:
+  - "erfuellt": Das Kriterium ist vollständig erfüllt
+  - "nicht_erfuellt": Das Kriterium ist nicht erfüllt
+  - "teilweise": Das Kriterium ist teilweise erfüllt
+  - "unklar": Aus dem Dokument geht nicht hervor, ob das Kriterium erfüllt ist
+- Zitiere relevante Stellen aus dem Dokument als Beleg.
+- Gib eine Confidence-Bewertung von 0-100 an.
+
+## Output Format
+{
+  "status": "erfuellt" | "nicht_erfuellt" | "teilweise" | "unklar",
+  "comment": string | null, // Begründung der Bewertung
+  "citations": [
+    {
+      "page": number,
+      "quote": string
+    }
+  ],
+  "confidence": number | null // 0-100
+}`;
+
+	const pagesText = pages
+		.map((page) => `Seite ${page.page}:\n${page.text}`)
+		.join("\n\n");
+
+	const criterionText = `
+Kriterium: ${criterion.title}
+${criterion.description ? `Beschreibung: ${criterion.description}` : ""}
+${criterion.hints ? `Hinweise: ${criterion.hints}` : ""}
+Typ: ${criterion.required ? "Muss-Kriterium" : "Kann-Kriterium"}
+`;
+
+	const userPrompt = `Prüfe das folgende Angebot gegen dieses Kriterium:\n\n${criterionText}\n\nAngebot:\n\n${pagesText}`;
+
+	const start = Date.now();
+	const { text, usage, provider, model } = await callLlm({
+		systemPrompt,
+		userPrompt,
+		temperature: 0.1,
+	});
+	const latencyMs = Date.now() - start;
+
+	const parsed = tryParseJson(text);
+	const result = offerCheckResultSchema.parse(parsed);
+
+	return {
+		result,
+		usage,
+		latencyMs,
+		meta: { provider, model },
+	};
+}
+
+
+// Internal mutations for Offerten-Vergleich
+
+export const createTemplateFromExtraction = internalMutation({
+	args: {
+		projectId: v.id("projects"),
+		orgId: v.string(),
+		createdBy: v.string(),
+		name: v.string(),
+		description: v.string(),
+		language: v.string(),
+		version: v.string(),
+		criteria: v.any(),
+	},
+	handler: async (ctx, args) => {
+		const now = Date.now();
+		const templateId = await ctx.db.insert("templates", {
+			name: args.name,
+			description: args.description,
+			language: args.language,
+			version: args.version,
+			visibleOrgWide: false,
+			criteria: args.criteria,
+			orgId: args.orgId,
+			createdBy: args.createdBy,
+			createdAt: now,
+			updatedAt: now,
+		});
+
+		// Update project to reference this template
+		await ctx.db.patch(args.projectId, {
+			templateId,
+		});
+
+		return templateId;
+	},
+});
+
+export const finishPflichtenheftRun = internalMutation({
+	args: {
+		runId: v.id("analysisRuns"),
+		projectId: v.id("projects"),
+		templateId: v.id("templates"),
+		telemetry: v.object({
+			provider: v.string(),
+			model: v.string(),
+			promptTokens: v.optional(v.number()),
+			completionTokens: v.optional(v.number()),
+			latencyMs: v.number(),
+		}),
+	},
+	handler: async (ctx, args) => {
+		const now = Date.now();
+		await ctx.db.patch(args.runId, {
+			status: "fertig",
+			finishedAt: now,
+			templateSnapshotId: args.templateId,
+			provider: args.telemetry.provider,
+			model: args.telemetry.model,
+			promptTokens: args.telemetry.promptTokens,
+			completionTokens: args.telemetry.completionTokens,
+			latencyMs: args.telemetry.latencyMs,
+		});
+	},
+});
+
+export const getOfferForAnalysis = internalQuery({
+	args: {
+		offerId: v.id("offers"),
+	},
+	handler: async (ctx, { offerId }) => {
+		return await ctx.db.get(offerId);
+	},
+});
+
+export const getDocPageIdsForDocument = internalQuery({
+	args: {
+		documentId: v.id("documents"),
+	},
+	handler: async (ctx, { documentId }) => {
+		const pages = await ctx.db
+			.query("docPages")
+			.withIndex("by_documentId", (q) => q.eq("documentId", documentId))
+			.collect();
+		return pages.map((p) => p._id);
+	},
+});
+
+export const storeOfferCriterionResult = internalMutation({
+	args: {
+		projectId: v.id("projects"),
+		offerId: v.id("offers"),
+		runId: v.id("analysisRuns"),
+		criterionKey: v.string(),
+		criterionTitle: v.string(),
+		required: v.boolean(),
+		weight: v.number(),
+		status: v.union(
+			v.literal("erfuellt"),
+			v.literal("nicht_erfuellt"),
+			v.literal("teilweise"),
+			v.literal("unklar"),
+		),
+		comment: v.optional(v.string()),
+		citations: v.any(),
+		confidence: v.optional(v.number()),
+		provider: v.string(),
+		model: v.string(),
+		orgId: v.string(),
+	},
+	handler: async (ctx, args) => {
+		const now = Date.now();
+		await ctx.db.insert("offerCriteriaResults", {
+			projectId: args.projectId,
+			offerId: args.offerId,
+			runId: args.runId,
+			criterionKey: args.criterionKey,
+			criterionTitle: args.criterionTitle,
+			required: args.required,
+			weight: args.weight,
+			status: args.status,
+			comment: args.comment,
+			citations: args.citations,
+			confidence: args.confidence,
+			provider: args.provider,
+			model: args.model,
+			checkedAt: now,
+			orgId: args.orgId,
+			createdAt: now,
+			updatedAt: now,
+		});
+	},
+});
+
+export const finishOfferCheckRun = internalMutation({
+	args: {
+		runId: v.id("analysisRuns"),
+		offerId: v.id("offers"),
+		telemetry: v.object({
+			provider: v.string(),
+			model: v.string(),
+			promptTokens: v.optional(v.number()),
+			completionTokens: v.optional(v.number()),
+			latencyMs: v.number(),
+		}),
+	},
+	handler: async (ctx, args) => {
+		const now = Date.now();
+		await ctx.db.patch(args.runId, {
+			status: "fertig",
+			finishedAt: now,
+			provider: args.telemetry.provider,
+			model: args.telemetry.model,
+			promptTokens: args.telemetry.promptTokens,
+			completionTokens: args.telemetry.completionTokens,
+			latencyMs: args.telemetry.latencyMs,
+		});
+
+		// Update offers latest run status
+		await ctx.db.patch(args.offerId, {
+			latestRunId: args.runId,
+			latestStatus: "fertig",
+			updatedAt: now,
+		});
+	},
+});

@@ -133,3 +133,72 @@ export const criteriaItemJsonSchema = {
   },
   required: ["status", "comment", "answer", "citations", "score"],
 } as const;
+
+// Pflichtenheft extraction schemas
+export const pflichtenheftCriterionSchema = z.object({
+    title: z.string().min(1),
+    description: z.string().nullable().optional(),
+    hints: z.string().nullable().optional(),
+});
+
+export const pflichtenheftExtractionSchema = z.object({
+    mussCriteria: z.array(pflichtenheftCriterionSchema),
+    kannCriteria: z.array(pflichtenheftCriterionSchema),
+});
+
+export const pflichtenheftExtractionJsonSchema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+        mussCriteria: {
+            type: "array",
+            items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                    title: { type: "string" },
+                    description: { type: ["string", "null"] },
+                    hints: { type: ["string", "null"] },
+                },
+                required: ["title", "description", "hints"],
+            },
+        },
+        kannCriteria: {
+            type: "array",
+            items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                    title: { type: "string" },
+                    description: { type: ["string", "null"] },
+                    hints: { type: ["string", "null"] },
+                },
+                required: ["title", "description", "hints"],
+            },
+        },
+    },
+    required: ["mussCriteria", "kannCriteria"],
+} as const;
+
+// Offer check schemas
+export const offerCheckResultSchema = z.object({
+    status: z.enum(["erfuellt", "nicht_erfuellt", "teilweise", "unklar"]),
+    comment: z.string().nullable().optional(),
+    citations: z.array(citationSchema),
+    confidence: z.number().min(0).max(100).optional(),
+});
+
+export const offerCheckResultJsonSchema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+        status: { enum: ["erfuellt", "nicht_erfuellt", "teilweise", "unklar"], type: "string" },
+        comment: { type: ["string", "null"] },
+        citations: {
+            type: "array",
+            items: citationJsonSchema,
+        },
+        confidence: { type: ["number", "null"] },
+    },
+    required: ["status", "comment", "citations", "confidence"],
+} as const;

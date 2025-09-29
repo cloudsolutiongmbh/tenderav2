@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TodosRouteImport } from './routes/todos'
 import { Route as TemplatesRouteImport } from './routes/templates'
 import { Route as ProjekteRouteImport } from './routes/projekte'
 import { Route as ProfilRouteImport } from './routes/profil'
@@ -24,11 +23,6 @@ import { Route as ProjekteIdKommentareRouteImport } from './routes/projekte.$id.
 import { Route as ProjekteIdExportRouteImport } from './routes/projekte.$id.export'
 import { Route as ProjekteIdDokumenteRouteImport } from './routes/projekte.$id.dokumente'
 
-const TodosRoute = TodosRouteImport.update({
-  id: '/todos',
-  path: '/todos',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
@@ -102,7 +96,6 @@ export interface FileRoutesByFullPath {
   '/profil': typeof ProfilRoute
   '/projekte': typeof ProjekteRouteWithChildren
   '/templates': typeof TemplatesRouteWithChildren
-  '/todos': typeof TodosRoute
   '/share/$token': typeof ShareTokenRoute
   '/templates/$id': typeof TemplatesIdRoute
   '/projekte/$id/dokumente': typeof ProjekteIdDokumenteRoute
@@ -118,7 +111,6 @@ export interface FileRoutesByTo {
   '/profil': typeof ProfilRoute
   '/projekte': typeof ProjekteRouteWithChildren
   '/templates': typeof TemplatesRouteWithChildren
-  '/todos': typeof TodosRoute
   '/share/$token': typeof ShareTokenRoute
   '/templates/$id': typeof TemplatesIdRoute
   '/projekte/$id/dokumente': typeof ProjekteIdDokumenteRoute
@@ -135,7 +127,6 @@ export interface FileRoutesById {
   '/profil': typeof ProfilRoute
   '/projekte': typeof ProjekteRouteWithChildren
   '/templates': typeof TemplatesRouteWithChildren
-  '/todos': typeof TodosRoute
   '/share/$token': typeof ShareTokenRoute
   '/templates/$id': typeof TemplatesIdRoute
   '/projekte/$id/dokumente': typeof ProjekteIdDokumenteRoute
@@ -153,7 +144,6 @@ export interface FileRouteTypes {
     | '/profil'
     | '/projekte'
     | '/templates'
-    | '/todos'
     | '/share/$token'
     | '/templates/$id'
     | '/projekte/$id/dokumente'
@@ -169,7 +159,6 @@ export interface FileRouteTypes {
     | '/profil'
     | '/projekte'
     | '/templates'
-    | '/todos'
     | '/share/$token'
     | '/templates/$id'
     | '/projekte/$id/dokumente'
@@ -185,7 +174,6 @@ export interface FileRouteTypes {
     | '/profil'
     | '/projekte'
     | '/templates'
-    | '/todos'
     | '/share/$token'
     | '/templates/$id'
     | '/projekte/$id/dokumente'
@@ -202,19 +190,11 @@ export interface RootRouteChildren {
   ProfilRoute: typeof ProfilRoute
   ProjekteRoute: typeof ProjekteRouteWithChildren
   TemplatesRoute: typeof TemplatesRouteWithChildren
-  TodosRoute: typeof TodosRoute
   ShareTokenRoute: typeof ShareTokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/todos': {
-      id: '/todos'
-      path: '/todos'
-      fullPath: '/todos'
-      preLoaderRoute: typeof TodosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/templates': {
       id: '/templates'
       path: '/templates'
@@ -348,7 +328,6 @@ const rootRouteChildren: RootRouteChildren = {
   ProfilRoute: ProfilRoute,
   ProjekteRoute: ProjekteRouteWithChildren,
   TemplatesRoute: TemplatesRouteWithChildren,
-  TodosRoute: TodosRoute,
   ShareTokenRoute: ShareTokenRoute,
 }
 export const routeTree = rootRouteImport

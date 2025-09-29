@@ -26,6 +26,10 @@ export const create = mutation({
 		name: v.string(),
 		customer: v.string(),
 		tags: v.array(v.string()),
+		projectType: v.optional(v.union(
+			v.literal("standard"),
+			v.literal("offerten"),
+		)),
 		templateId: v.optional(v.id("templates")),
 	},
 	handler: async (ctx, args) => {
@@ -44,6 +48,7 @@ export const create = mutation({
 			name: args.name,
 			customer: args.customer,
 			tags: args.tags,
+			projectType: args.projectType ?? "standard",
 			templateId,
 			latestRunId: undefined,
 			orgId: identity.orgId,
@@ -225,6 +230,23 @@ export const remove = mutation({
             .collect();
         for (const comment of comments) {
             await ctx.db.delete(comment._id);
+        }
+
+        // Delete offers and their criteria results
+        const offers = await ctx.db
+            .query("offers")
+            .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .collect();
+        for (const offer of offers) {
+            // Delete offer criteria results
+            const offerResults = await ctx.db
+                .query("offerCriteriaResults")
+                .withIndex("by_offerId", (q) => q.eq("offerId", offer._id))
+                .collect();
+            for (const result of offerResults) {
+                await ctx.db.delete(result._id);
+            }
+            await ctx.db.delete(offer._id);
         }
 
         // Delete analysis results and runs

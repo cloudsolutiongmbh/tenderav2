@@ -9,9 +9,9 @@ export const Route = createFileRoute("/")({
 function Home() {
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col items-center justify-center gap-6 px-4 py-10 text-center">
-      <h1 className="text-3xl font-semibold">tendera</h1>
+      <h1 className="text-3xl font-semibold">tendera – Ausschreibungen im Griff</h1>
       <p className="text-muted-foreground">
-        Schlankes B2B SaaS-Template. Auth, Organisationen & Dark Mode inklusive.
+        Analysieren Sie Vergabeunterlagen automatisch, vergleichen Sie Kriterien und teilen Sie Ergebnisse sicher im Team.
       </p>
       <SignedOut>
         <SignInButton mode="modal">
@@ -31,4 +31,3 @@ function Home() {
     </div>
   );
 }
-

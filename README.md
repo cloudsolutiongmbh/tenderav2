@@ -105,6 +105,31 @@ tenderav2/
 
 ## 🚀 Getting Started
 
+### Quickstart
+
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
+2. **Copy environment templates**
+   ```bash
+   cp apps/web/.env.example apps/web/.env
+   # Create packages/backend/.env.local and paste the backend snippet below
+   ```
+3. **Configure keys**
+   - Clerk: enable Organisations, create a `convex` JWT template and copy the publishable key + issuer domain
+   - Convex: run `npm run dev:server` once to bootstrap the deployment and `.env.local`
+   - LLM: set `LLM_PROVIDER`, `LLM_MODEL`, and matching API key (OpenAI or Anthropic)
+4. **Start the Convex backend**
+   ```bash
+   npm run dev:server
+   ```
+5. **Start the web app** (new terminal)
+   ```bash
+   npm run dev:web
+   ```
+6. Visit [http://localhost:3001](http://localhost:3001) and sign in with Clerk.
+
 ### Prerequisites
 
 - **Node.js** 20+ and **npm** 10+
@@ -133,7 +158,7 @@ tenderav2/
    ```env
    VITE_CONVEX_URL=https://your-deployment.convex.cloud
    VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
-   MAX_UPLOAD_MB=200
+   VITE_MAX_UPLOAD_MB=200
    ```
 
    **Backend** (`packages/backend/.env.local`):
@@ -165,19 +190,18 @@ tenderav2/
 
 5. **Set up Convex**
    ```bash
-   npx convex dev
+   npm run dev:server
    ```
-   This will:
-   - Create a Convex deployment
-   - Generate `.env.local` with deployment URL
-   - Deploy the schema and functions
-   - Start watching for changes
+   This wraps `convex dev` and will:
+   - Create a Convex deployment (on first run)
+   - Generate/refresh `packages/backend/.env.local` with deployment details
+   - Deploy the schema and watch for changes
 
-6. **Run the application**
+6. **Run the web application** (in a separate terminal while the backend keeps running)
    ```bash
    npm run dev:web
    ```
-   Open [http://localhost:3001](http://localhost:3001)
+   Then open [http://localhost:3001](http://localhost:3001).
 
 ---
 
@@ -257,16 +281,20 @@ All items include **page citations** with quotes from source documents.
 
 ```bash
 # Development
-npm run dev                # Run all packages with Turborepo
-npm run dev:web            # Run only web app (port 3001)
-npm run dev:convex         # Run Convex backend in watch mode
+npm run dev                # Run web + backend via Turborepo
+npm run dev:web            # Run only the web app (port 3001)
+npm run dev:server         # Run Convex backend in watch mode
+npm run dev:e2e            # Start mocked backend + web app for E2E runs
 
 # Build
-npm run build              # Build all packages
-npm run build:web          # Build web app only
+npm run build              # Build all packages (Turbo)
 
 # Type Checking
 npm run check-types        # TypeScript validation across all packages
+
+# Tests
+npm run test:unit          # Vitest suite
+npm run test:e2e           # Playwright suite (expects dev:e2e stack)
 
 # Convex
 npx convex dev             # Start Convex in development mode

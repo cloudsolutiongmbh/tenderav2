@@ -69,6 +69,10 @@ export default defineSchema({
 		name: v.string(),
 		customer: v.string(),
 		tags: v.array(v.string()),
+		projectType: v.optional(v.union(
+			v.literal("standard"),
+			v.literal("offerten"),
+		)),
 		templateId: v.optional(v.id("templates")),
 		latestRunId: v.optional(v.id("analysisRuns")),
 		orgId: v.string(),
@@ -100,11 +104,17 @@ export default defineSchema({
 		storageId: v.id("_storage"),
 		pageCount: v.optional(v.number()),
 		textExtracted: v.boolean(),
+		role: v.optional(v.union(
+			v.literal("pflichtenheft"),
+			v.literal("offer"),
+			v.literal("support"),
+		)),
 		orgId: v.string(),
 		createdAt: v.number(),
 		updatedAt: v.number(),
 	})
 		.index("by_projectId", ["projectId"])
+		.index("by_projectId_role", ["projectId", "role"])
 		.index("by_orgId", ["orgId"]),
 	docPages: defineTable({
 		documentId: v.id("documents"),
@@ -146,7 +156,12 @@ export default defineSchema({
 		.index("by_visibility", ["visibleOrgWide"]),
 	analysisRuns: defineTable({
 		projectId: v.id("projects"),
-		type: v.union(v.literal("standard"), v.literal("criteria")),
+		type: v.union(
+			v.literal("standard"),
+			v.literal("criteria"),
+			v.literal("pflichtenheft_extract"),
+			v.literal("offer_check"),
+		),
 		status: v.union(
 			v.literal("wartet"),
 			v.literal("läuft"),
@@ -158,6 +173,8 @@ export default defineSchema({
 		startedAt: v.optional(v.number()),
 		finishedAt: v.optional(v.number()),
 		resultId: v.optional(v.id("analysisResults")),
+		offerId: v.optional(v.id("offers")),
+		templateSnapshotId: v.optional(v.id("templates")),
 		provider: v.string(),
 		model: v.string(),
 		promptTokens: v.optional(v.number()),
@@ -192,4 +209,53 @@ export default defineSchema({
 	})
 		.index("by_token", ["token"])
 		.index("by_projectId", ["projectId"]),
+	offers: defineTable({
+		projectId: v.id("projects"),
+		anbieterName: v.string(),
+		documentId: v.optional(v.id("documents")),
+		notes: v.optional(v.string()),
+		latestRunId: v.optional(v.id("analysisRuns")),
+		latestStatus: v.optional(
+			v.union(
+				v.literal("wartet"),
+				v.literal("läuft"),
+				v.literal("fertig"),
+				v.literal("fehler"),
+			),
+		),
+		createdBy: v.string(),
+		orgId: v.string(),
+		createdAt: v.number(),
+		updatedAt: v.number(),
+	})
+		.index("by_projectId", ["projectId"])
+		.index("by_orgId", ["orgId"]),
+	offerCriteriaResults: defineTable({
+		projectId: v.id("projects"),
+		offerId: v.id("offers"),
+		runId: v.id("analysisRuns"),
+		criterionKey: v.string(),
+		criterionTitle: v.string(),
+		required: v.boolean(),
+		weight: v.number(),
+		status: v.union(
+			v.literal("erfuellt"),
+			v.literal("nicht_erfuellt"),
+			v.literal("teilweise"),
+			v.literal("unklar"),
+		),
+		comment: v.optional(v.string()),
+		citations: v.array(citationSchema),
+		confidence: v.optional(v.number()),
+		provider: v.optional(v.string()),
+		model: v.optional(v.string()),
+		checkedAt: v.number(),
+		orgId: v.string(),
+		createdAt: v.number(),
+		updatedAt: v.number(),
+	})
+		.index("by_offerId", ["offerId"])
+		.index("by_projectId", ["projectId"])
+		.index("by_projectId_offerId", ["projectId", "offerId"])
+		.index("by_runId", ["runId"]),
 });

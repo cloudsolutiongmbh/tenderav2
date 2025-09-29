@@ -22,6 +22,8 @@ import type * as documents from "../documents.js";
 import type * as extract from "../extract.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as llm from "../llm.js";
+import type * as offerCriteria from "../offerCriteria.js";
+import type * as offers from "../offers.js";
 import type * as privateData from "../privateData.js";
 import type * as projects from "../projects.js";
 import type * as shares from "../shares.js";
@@ -47,6 +49,8 @@ declare const fullApi: ApiFromModules<{
   extract: typeof extract;
   healthCheck: typeof healthCheck;
   llm: typeof llm;
+  offerCriteria: typeof offerCriteria;
+  offers: typeof offers;
   privateData: typeof privateData;
   projects: typeof projects;
   shares: typeof shares;
