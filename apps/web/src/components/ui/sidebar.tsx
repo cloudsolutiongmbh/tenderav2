@@ -21,7 +21,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarContext.Provider value={{ open, setOpen, toggle }}>
-      <div className="flex h-svh w-full overflow-hidden">
+      <div className="flex h-svh w-full overflow-hidden print:h-auto print:overflow-visible">
         {children}
       </div>
     </SidebarContext.Provider>
@@ -39,7 +39,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
   return (
     <aside
       className={
-        "flex h-full shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 " +
+        "flex h-full shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 print:hidden " +
         (open ? "w-64" : "w-16")
       }
     >

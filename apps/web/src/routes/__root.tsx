@@ -51,8 +51,8 @@ function RootComponent() {
             >
                 <SidebarProvider>
                     <AppSidebar />
-                    <main className="flex-1 overflow-y-auto">
-                        <div className="p-3">
+                    <main className="flex-1 overflow-y-auto print:overflow-visible print:h-auto">
+                        <div className="p-3 print:p-0">
                             {isFetching ? <Loader /> : <Outlet />}
                         </div>
                     </main>

@@ -46,14 +46,14 @@ export function ProjectSectionLayout({
 	contentClassName,
 }: ProjectSectionLayoutProps) {
 	return (
-		<div className={cn("mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10", className)}>
-			<Card className="shadow-sm">
+		<div className={cn("mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 print:max-w-none print:px-12 print:py-8", className)}>
+			<Card className="shadow-sm print:border-none print:shadow-none print:bg-transparent">
 				<CardHeader className="gap-4">
 					<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
 						<div className="space-y-3">
 							<Link
 								to="/projekte"
-								className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+								className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground print:hidden"
 								preload="intent"
 							>
 								<ChevronLeft className="h-4 w-4" aria-hidden />
@@ -71,12 +71,12 @@ export function ProjectSectionLayout({
 								) : null}
 							</div>
 						</div>
-					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end print:hidden">
 						{statusBadge}
 						{actions}
 					</div>
 				</div>
-					<nav className="flex flex-wrap gap-2 border-t pt-3">
+					<nav className="flex flex-wrap gap-2 border-t pt-3 print:hidden">
 						{projectNavItems.map((item) => {
 							const isActive = item.id === section.id;
 							return (

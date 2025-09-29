@@ -22,6 +22,9 @@ import { Route as ProjekteIdKriterienRouteImport } from './routes/projekte.$id.k
 import { Route as ProjekteIdKommentareRouteImport } from './routes/projekte.$id.kommentare'
 import { Route as ProjekteIdExportRouteImport } from './routes/projekte.$id.export'
 import { Route as ProjekteIdDokumenteRouteImport } from './routes/projekte.$id.dokumente'
+import { Route as ProjekteIdOffertenIndexRouteImport } from './routes/projekte.$id.offerten.index'
+import { Route as ProjekteIdOffertenSetupRouteImport } from './routes/projekte.$id.offerten.setup'
+import { Route as ProjekteIdOffertenOfferIdRouteImport } from './routes/projekte.$id.offerten.$offerId'
 
 const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
@@ -88,6 +91,22 @@ const ProjekteIdDokumenteRoute = ProjekteIdDokumenteRouteImport.update({
   path: '/$id/dokumente',
   getParentRoute: () => ProjekteRoute,
 } as any)
+const ProjekteIdOffertenIndexRoute = ProjekteIdOffertenIndexRouteImport.update({
+  id: '/$id/offerten/',
+  path: '/$id/offerten/',
+  getParentRoute: () => ProjekteRoute,
+} as any)
+const ProjekteIdOffertenSetupRoute = ProjekteIdOffertenSetupRouteImport.update({
+  id: '/$id/offerten/setup',
+  path: '/$id/offerten/setup',
+  getParentRoute: () => ProjekteRoute,
+} as any)
+const ProjekteIdOffertenOfferIdRoute =
+  ProjekteIdOffertenOfferIdRouteImport.update({
+    id: '/$id/offerten/$offerId',
+    path: '/$id/offerten/$offerId',
+    getParentRoute: () => ProjekteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -103,6 +122,9 @@ export interface FileRoutesByFullPath {
   '/projekte/$id/kommentare': typeof ProjekteIdKommentareRoute
   '/projekte/$id/kriterien': typeof ProjekteIdKriterienRoute
   '/projekte/$id/standard': typeof ProjekteIdStandardRoute
+  '/projekte/$id/offerten/$offerId': typeof ProjekteIdOffertenOfferIdRoute
+  '/projekte/$id/offerten/setup': typeof ProjekteIdOffertenSetupRoute
+  '/projekte/$id/offerten': typeof ProjekteIdOffertenIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +140,9 @@ export interface FileRoutesByTo {
   '/projekte/$id/kommentare': typeof ProjekteIdKommentareRoute
   '/projekte/$id/kriterien': typeof ProjekteIdKriterienRoute
   '/projekte/$id/standard': typeof ProjekteIdStandardRoute
+  '/projekte/$id/offerten/$offerId': typeof ProjekteIdOffertenOfferIdRoute
+  '/projekte/$id/offerten/setup': typeof ProjekteIdOffertenSetupRoute
+  '/projekte/$id/offerten': typeof ProjekteIdOffertenIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +159,9 @@ export interface FileRoutesById {
   '/projekte/$id/kommentare': typeof ProjekteIdKommentareRoute
   '/projekte/$id/kriterien': typeof ProjekteIdKriterienRoute
   '/projekte/$id/standard': typeof ProjekteIdStandardRoute
+  '/projekte/$id/offerten/$offerId': typeof ProjekteIdOffertenOfferIdRoute
+  '/projekte/$id/offerten/setup': typeof ProjekteIdOffertenSetupRoute
+  '/projekte/$id/offerten/': typeof ProjekteIdOffertenIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +179,9 @@ export interface FileRouteTypes {
     | '/projekte/$id/kommentare'
     | '/projekte/$id/kriterien'
     | '/projekte/$id/standard'
+    | '/projekte/$id/offerten/$offerId'
+    | '/projekte/$id/offerten/setup'
+    | '/projekte/$id/offerten'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -166,6 +197,9 @@ export interface FileRouteTypes {
     | '/projekte/$id/kommentare'
     | '/projekte/$id/kriterien'
     | '/projekte/$id/standard'
+    | '/projekte/$id/offerten/$offerId'
+    | '/projekte/$id/offerten/setup'
+    | '/projekte/$id/offerten'
   id:
     | '__root__'
     | '/'
@@ -181,6 +215,9 @@ export interface FileRouteTypes {
     | '/projekte/$id/kommentare'
     | '/projekte/$id/kriterien'
     | '/projekte/$id/standard'
+    | '/projekte/$id/offerten/$offerId'
+    | '/projekte/$id/offerten/setup'
+    | '/projekte/$id/offerten/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -286,6 +323,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjekteIdDokumenteRouteImport
       parentRoute: typeof ProjekteRoute
     }
+    '/projekte/$id/offerten/': {
+      id: '/projekte/$id/offerten/'
+      path: '/$id/offerten'
+      fullPath: '/projekte/$id/offerten'
+      preLoaderRoute: typeof ProjekteIdOffertenIndexRouteImport
+      parentRoute: typeof ProjekteRoute
+    }
+    '/projekte/$id/offerten/setup': {
+      id: '/projekte/$id/offerten/setup'
+      path: '/$id/offerten/setup'
+      fullPath: '/projekte/$id/offerten/setup'
+      preLoaderRoute: typeof ProjekteIdOffertenSetupRouteImport
+      parentRoute: typeof ProjekteRoute
+    }
+    '/projekte/$id/offerten/$offerId': {
+      id: '/projekte/$id/offerten/$offerId'
+      path: '/$id/offerten/$offerId'
+      fullPath: '/projekte/$id/offerten/$offerId'
+      preLoaderRoute: typeof ProjekteIdOffertenOfferIdRouteImport
+      parentRoute: typeof ProjekteRoute
+    }
   }
 }
 
@@ -295,6 +353,9 @@ interface ProjekteRouteChildren {
   ProjekteIdKommentareRoute: typeof ProjekteIdKommentareRoute
   ProjekteIdKriterienRoute: typeof ProjekteIdKriterienRoute
   ProjekteIdStandardRoute: typeof ProjekteIdStandardRoute
+  ProjekteIdOffertenOfferIdRoute: typeof ProjekteIdOffertenOfferIdRoute
+  ProjekteIdOffertenSetupRoute: typeof ProjekteIdOffertenSetupRoute
+  ProjekteIdOffertenIndexRoute: typeof ProjekteIdOffertenIndexRoute
 }
 
 const ProjekteRouteChildren: ProjekteRouteChildren = {
@@ -303,6 +364,9 @@ const ProjekteRouteChildren: ProjekteRouteChildren = {
   ProjekteIdKommentareRoute: ProjekteIdKommentareRoute,
   ProjekteIdKriterienRoute: ProjekteIdKriterienRoute,
   ProjekteIdStandardRoute: ProjekteIdStandardRoute,
+  ProjekteIdOffertenOfferIdRoute: ProjekteIdOffertenOfferIdRoute,
+  ProjekteIdOffertenSetupRoute: ProjekteIdOffertenSetupRoute,
+  ProjekteIdOffertenIndexRoute: ProjekteIdOffertenIndexRoute,
 }
 
 const ProjekteRouteWithChildren = ProjekteRoute._addFileChildren(

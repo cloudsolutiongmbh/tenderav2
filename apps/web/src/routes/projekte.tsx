@@ -42,6 +42,7 @@ interface ListedProject {
 		name: string;
 		customer: string;
 		tags: string[];
+		projectType?: "standard" | "offerten";
 		createdAt: number;
 	};
 	runs?: {
@@ -185,10 +186,12 @@ function ProjektePage() {
 							getLastActivity(project.createdAt, runs),
 						);
 						const tagLine = project.tags.length > 0 ? project.tags.join(", ") : "Keine Tags";
+						const isOfferten = project.projectType === "offerten";
+						const mainRoute = isOfferten ? "/projekte/$id/offerten" : "/projekte/$id/standard";
 
 						return (
 							<Link
-								to="/projekte/$id/standard"
+								to={mainRoute as any}
 								params={{ id: project._id }}
 								key={project._id}
 								className="block"
@@ -282,10 +285,12 @@ function ProjektePage() {
 							getLastActivity(project.createdAt, runs),
 						);
 						const tagLine = project.tags.length > 0 ? project.tags.join(", ") : "Keine Tags";
+						const isOfferten = project.projectType === "offerten";
+						const mainRoute = isOfferten ? "/projekte/$id/offerten" : "/projekte/$id/standard";
 
 						return (
 							<Link
-								to="/projekte/$id/standard"
+								to={mainRoute as any}
 								params={{ id: project._id }}
 								key={project._id}
 								className="block"
@@ -369,6 +374,7 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 	const [name, setName] = useState("");
 	const [customer, setCustomer] = useState("");
 	const [tags, setTags] = useState("");
+	const [projectType, setProjectType] = useState<"standard" | "offerten">("standard");
 	const [templateId, setTemplateId] = useState<string>("");
 
 	const templateOptions = useMemo(() => templates, [templates]);
@@ -386,12 +392,14 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 				name,
 				customer,
 				tags: normalizedTags,
+				projectType,
 				templateId: templateId ? (templateId as any) : undefined,
 			});
 
 			setName("");
 			setCustomer("");
 			setTags("");
+			setProjectType("standard");
 			setTemplateId("");
 			toast.success("Projekt angelegt.");
 			onSuccess();
@@ -421,18 +429,36 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 				value={tags}
 				onChange={(event) => setTags(event.target.value)}
 			/>
-			<select
-				className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-				value={templateId}
-				onChange={(event) => setTemplateId(event.target.value)}
-			>
-				<option value="">Optionales Template auswählen</option>
-				{templateOptions.map((template) => (
-					<option key={template._id} value={template._id}>
-						{template.name}
-					</option>
-				))}
-			</select>
+			<div className="space-y-2">
+				<label className="text-sm font-medium">Projekt-Typ</label>
+				<select
+					className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
+					value={projectType}
+					onChange={(event) => setProjectType(event.target.value as "standard" | "offerten")}
+				>
+					<option value="standard">Standard-Analyse</option>
+					<option value="offerten">Offerten-Vergleich</option>
+				</select>
+				<p className="text-xs text-muted-foreground">
+					{projectType === "standard"
+						? "Analysiere ein einzelnes Dokument mit Standard- und Kriterien-Analyse."
+						: "Vergleiche mehrere Angebote gegen ein Pflichtenheft."}
+				</p>
+			</div>
+			{projectType === "standard" && (
+				<select
+					className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
+					value={templateId}
+					onChange={(event) => setTemplateId(event.target.value)}
+				>
+					<option value="">Optionales Template auswählen</option>
+					{templateOptions.map((template) => (
+						<option key={template._id} value={template._id}>
+							{template.name}
+						</option>
+					))}
+				</select>
+			)}
 			<DialogFooter>
 				<DialogClose asChild>
 					<Button type="button" variant="outline" disabled={isSubmitting}>
