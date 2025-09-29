@@ -5,6 +5,8 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
 import { api } from "@tendera/backend/convex/_generated/api";
+import { Loader2, Trash2 } from "lucide-react";
+
 import { UploadDropzone } from "@/components/upload-dropzone";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -225,6 +227,21 @@ function ProjectDocumentsPage() {
 		}
 	};
 
+	const standardStatus = standardRun?.run?.status ?? "wartet";
+	const criteriaStatus = criteriaRun?.run?.status ?? "wartet";
+	const headerStatuses = (
+		<div className="flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground">
+			<span className="flex items-center gap-2">
+				<span>Standard</span>
+				<StatusBadge status={standardStatus} />
+			</span>
+			<span className="flex items-center gap-2">
+				<span>Kriterien</span>
+				<StatusBadge status={criteriaStatus} />
+			</span>
+		</div>
+	);
+
 	return (
 		<ProjectSectionLayout
 			projectId={projectId}
@@ -234,17 +251,19 @@ function ProjectDocumentsPage() {
 				id: "dokumente",
 				title: "Dokumente",
 				description:
-					"Upload und Verarbeitung der Angebotsunterlagen. Nach dem Upload werden die Texte lokal extrahiert und an Convex übertragen.",
+					"Laden Sie Ihre Ausschreibungs- oder Angebotsunterlagen hoch. Die Texte werden automatisch verarbeitet.",
 			}}
-			className="max-w-5xl"
+			statusBadge={headerStatuses}
 			actions={
 				<Button
-					variant="destructive"
-					size="sm"
+					variant="ghost"
+					size="icon"
 					onClick={handleDeleteProject}
 					disabled={isDeleting}
+					title="Projekt löschen"
+					aria-label="Projekt löschen"
 				>
-					{isDeleting ? "Lösche …" : "Projekt löschen"}
+					{isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
 				</Button>
 			}
 		>

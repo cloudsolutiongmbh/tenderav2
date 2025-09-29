@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
+
+import { Loader2, Trash2 } from "lucide-react";
 
 import { api } from "@tendera/backend/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -35,6 +37,7 @@ export const Route = createFileRoute("/projekte/$id/kommentare")({
 
 function ProjectCommentsPage() {
 	const { id: projectId } = Route.useParams();
+	const navigate = useNavigate();
 	const auth = useOrgAuth();
 	const project = useQuery(
 		api.projects.get,
@@ -64,6 +67,7 @@ function ProjectCommentsPage() {
 	);
 
 	const addComment = useMutation(api.comments.add);
+	const removeProject = useMutation(api.projects.remove);
 
 	const milestoneOptions = useMemo<MilestoneOption[]>(() => {
 		const result = standard?.result;
@@ -92,6 +96,7 @@ function ProjectCommentsPage() {
 		content: "",
 	});
 	const [isSubmitting, setSubmitting] = useState(false);
+	const [isDeleting, setDeleting] = useState(false);
 
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
@@ -146,6 +151,23 @@ function ProjectCommentsPage() {
 		}
 	};
 
+	const handleDeleteProject = async () => {
+		const ok = window.confirm(
+			"Dieses Projekt endgültig löschen? Alle Dokumente, Seiten und Analyse-Läufe werden entfernt.",
+		);
+		if (!ok) return;
+		setDeleting(true);
+		try {
+			await removeProject({ projectId: projectId as any });
+			toast.success("Projekt gelöscht.");
+			navigate({ to: "/projekte" });
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Projekt konnte nicht gelöscht werden.");
+		} finally {
+			setDeleting(false);
+		}
+	};
+
 	return (
 		<ProjectSectionLayout
 			projectId={projectId}
@@ -156,6 +178,18 @@ function ProjectCommentsPage() {
 				title: "Kommentare",
 				description: "Diskussionen zu Meilensteinen oder Kriterien dieses Projekts.",
 			}}
+			actions={
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={handleDeleteProject}
+					disabled={isDeleting}
+					title="Projekt löschen"
+					aria-label="Projekt löschen"
+				>
+					{isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+				</Button>
+			}
 		>
 			<Card>
 				<CardHeader>

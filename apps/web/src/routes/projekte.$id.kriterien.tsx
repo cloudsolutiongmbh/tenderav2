@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { api } from "@tendera/backend/convex/_generated/api";
 import { CriteriaDetail, CriteriaList } from "@/components/criteria-panel";
 import type { CriteriaDetailData, CriteriaListItem } from "@/components/criteria-panel";
+import { Loader2, Trash2 } from "lucide-react";
+
 import { StatusBadge, type AnalysisStatus } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,7 +212,7 @@ function ProjectCriteriaPage() {
 			section={{
 				id: "kriterien",
 				title: "Kriterien-Analyse",
-				description: "Vergleich der Angebotsunterlagen gegen das hinterlegte Template.",
+				description: "Prüfung Ihrer Dokumente anhand individueller Anforderungen und Kriterien.",
 			}}
 			statusBadge={<StatusBadge status={runSummary?.status ?? "wartet"} />}
 			actions={
@@ -219,12 +221,14 @@ function ProjectCriteriaPage() {
 						Analyse starten
 					</Button>
 					<Button
-						variant="destructive"
-						size="sm"
+						variant="ghost"
+						size="icon"
 						onClick={handleDeleteProject}
 						disabled={isDeleting}
+						title="Projekt löschen"
+						aria-label="Projekt löschen"
 					>
-						{isDeleting ? "Lösche …" : "Projekt löschen"}
+						{isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
 					</Button>
 				</div>
 			}

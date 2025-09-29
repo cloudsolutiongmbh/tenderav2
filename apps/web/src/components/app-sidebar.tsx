@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, FolderKanban, FileText, User2, Building2, ChevronLeft } from "lucide-react";
+import { Home, FolderKanban, FileText, User2, Building2, ChevronLeft, Heart } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -67,6 +67,19 @@ export function AppSidebar() {
             <Button className="w-full" variant="outline">Anmelden</Button>
           </SignInButton>
         </SignedOut>
+        <div className="flex items-center justify-center gap-1 px-2 py-3 text-xs text-muted-foreground">
+          <span>Made with</span>
+          <Heart className="h-3 w-3 fill-red-500 text-red-500" />
+          <span>by</span>
+          <a
+            href="https://cloud-solution.ch"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-foreground hover:underline"
+          >
+            Cloud Solution GmbH
+          </a>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

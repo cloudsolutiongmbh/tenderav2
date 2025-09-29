@@ -71,39 +71,33 @@ export function ProjectSectionLayout({
 								) : null}
 							</div>
 						</div>
-						<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-							{statusBadge}
-							{actions}
-						</div>
+					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+						{statusBadge}
+						{actions}
 					</div>
-					<div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
-						<span className="text-sm font-medium text-muted-foreground">
-							Bereich:
-							<span className="ml-2 text-foreground">{section.title}</span>
-						</span>
-						<nav className="flex flex-wrap gap-2">
-							{projectNavItems.map((item) => {
-								const isActive = item.id === section.id;
-								return (
-									<Link
-										key={item.id}
-										to={item.to}
-										params={{ id: projectId }}
-										preload="intent"
-										aria-current={isActive ? "page" : undefined}
-										className={cn(
-											"rounded-full border px-3 py-1 text-sm transition",
-											isActive
-												? "border-primary bg-primary text-primary-foreground"
-												: "border-input bg-background text-muted-foreground hover:text-foreground",
-										)}
-									>
-										{item.label}
-									</Link>
-								);
-							})}
-						</nav>
-					</div>
+				</div>
+					<nav className="flex flex-wrap gap-2 border-t pt-3">
+						{projectNavItems.map((item) => {
+							const isActive = item.id === section.id;
+							return (
+								<Link
+									key={item.id}
+									to={item.to}
+									params={{ id: projectId }}
+									preload="intent"
+									aria-current={isActive ? "page" : undefined}
+									className={cn(
+										"rounded-full border px-3 py-1 text-sm transition",
+										isActive
+											? "border-primary bg-primary text-primary-foreground"
+											: "border-input bg-background text-muted-foreground hover:text-foreground",
+									)}
+								>
+									{item.label}
+								</Link>
+							);
+						})}
+					</nav>
 				</CardHeader>
 				{headerContent ? <CardContent className="text-sm text-muted-foreground">{headerContent}</CardContent> : null}
 			</Card>

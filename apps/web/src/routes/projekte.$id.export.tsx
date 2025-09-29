@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
+
+import { Loader2, Trash2 } from "lucide-react";
 
 import { api } from "@tendera/backend/convex/_generated/api";
 import {
@@ -14,6 +16,7 @@ import {
 } from "@/components/analysis-cards";
 import { ShareLink } from "@/components/share-link";
 import { PdfExportButton } from "@/components/pdf-export-button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
@@ -53,6 +56,7 @@ export const Route = createFileRoute("/projekte/$id/export")({
 
 function ProjectExportPage() {
 	const { id: projectId } = Route.useParams();
+	const navigate = useNavigate();
 	const auth = useOrgAuth();
 	const project = useQuery(
 		api.projects.get,
@@ -78,8 +82,10 @@ function ProjectExportPage() {
 	);
 
 	const createShare = useMutation(api.shares.create);
+	const removeProject = useMutation(api.projects.remove);
 	const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
 	const [isCreatingShare, setCreatingShare] = useState(false);
+	const [isDeleting, setDeleting] = useState(false);
 
 	const projectMeta = project?.project;
 	const standardResult = useMemo<StandardResultShape | null>(() => {
@@ -127,6 +133,23 @@ function ProjectExportPage() {
 		}
 	};
 
+	const handleDeleteProject = async () => {
+		const ok = window.confirm(
+			"Dieses Projekt endgültig löschen? Alle Dokumente, Seiten und Analyse-Läufe werden entfernt.",
+		);
+		if (!ok) return;
+		setDeleting(true);
+		try {
+			await removeProject({ projectId: projectId as any });
+			toast.success("Projekt gelöscht.");
+			navigate({ to: "/projekte" });
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Projekt konnte nicht gelöscht werden.");
+		} finally {
+			setDeleting(false);
+		}
+	};
+
 	return (
 		<ProjectSectionLayout
 			projectId={projectId}
@@ -136,21 +159,25 @@ function ProjectExportPage() {
 				id: "export",
 				title: "Export",
 				description:
-					"Kombinierter Bericht für Standard- und Kriterien-Analyse. Zum Export auf „Als PDF exportieren“ klicken.",
+					"Vollständiger Bericht mit allen Analyseergebnissen. Exportieren Sie als PDF oder teilen Sie einen Link.",
 			}}
 			className="print:bg-white"
-			actions={<PdfExportButton disabled={isLoading} />}
-			headerContent={
-				projectMeta ? (
-					<div className="space-y-1">
-						<p className="font-medium text-foreground">{projectMeta.name}</p>
-						<p>
-							Kunde/Behörde: {projectMeta.customer ?? "–"}
-							{projectMeta.tags.length > 0 ? ` · Tags: ${projectMeta.tags.join(", ")}` : ""}
-						</p>
-					</div>
-				) : null
+			actions={
+				<div className="flex items-center gap-2">
+					<PdfExportButton disabled={isLoading} />
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={handleDeleteProject}
+						disabled={isDeleting}
+						title="Projekt löschen"
+						aria-label="Projekt löschen"
+					>
+						{isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+					</Button>
+				</div>
 			}
+			headerContent={null}
 			contentClassName="print:bg-white"
 		>
 			<section className="space-y-6">

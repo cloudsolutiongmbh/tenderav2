@@ -377,9 +377,6 @@
 * [ ] Review ENV usage: ensure **no server secrets** leak to client.
 * [ ] README update: quickstart for tendera (Clerk, Convex, ENV, run commands).
 
-**Acceptance:**
-
-* App demoable end‑to‑end for a 30–50 page PDF within the performance budget (first results < 60s, full 3–5 min, excluding OCR).
 
 ---
 

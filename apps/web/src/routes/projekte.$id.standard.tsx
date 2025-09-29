@@ -12,6 +12,8 @@ import {
 	RequirementsCard,
 	SummaryCard,
 } from "@/components/analysis-cards";
+import { Loader2, Trash2 } from "lucide-react";
+
 import { StatusBadge, type AnalysisStatus } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { AuthStateNotice } from "@/components/auth-state-notice";
@@ -166,14 +168,21 @@ function ProjectStandardPage() {
 				id: "standard",
 				title: "Standard-Analyse",
 				description:
-					"Diese Ansicht zeigt den aktuellen Stand der Standard-Analyse. Ohne Ergebnis werden Platzhalter angezeigt.",
+					"Automatisch extrahierte Zusammenfassung, Meilensteine, Anforderungen und wichtige Informationen aus Ihren Dokumenten.",
 			}}
-				statusBadge={<StatusBadge status={runSummary?.status ?? "wartet"} />}
-				actions={
-					<Button variant="destructive" size="sm" onClick={handleDeleteProject} disabled={isDeleting}>
-						{isDeleting ? "Lösche …" : "Projekt löschen"}
-					</Button>
-				}
+			statusBadge={<StatusBadge status={runSummary?.status ?? "wartet"} />}
+			actions={
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={handleDeleteProject}
+					disabled={isDeleting}
+					title="Projekt löschen"
+					aria-label="Projekt löschen"
+				>
+					{isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+				</Button>
+			}
 			headerContent={
 				runSummary?.error || runSummary?.status === "läuft" || runSummary?.status === "wartet"
 					? runSummary.error
