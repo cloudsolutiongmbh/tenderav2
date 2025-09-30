@@ -109,15 +109,15 @@ tenderav2/
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| **[DOCS_INDEX.md](./DOCS_INDEX.md)** | 📖 Complete documentation index | All |
-| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | System architecture and design | Developers, Architects |
-| **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** | Database schema with ERD | Backend Developers |
-| **[API_REFERENCE.md](./API_REFERENCE.md)** | Backend API documentation | Frontend Developers |
-| **[LLM_INTEGRATION.md](./LLM_INTEGRATION.md)** | LLM prompts and strategies | AI Engineers |
-| **[SECURITY_AND_ISSUES.md](./SECURITY_AND_ISSUES.md)** | ⚠️ Security model + known issues | Security, Management |
-| **[SETUP_AND_DEPLOYMENT.md](./SETUP_AND_DEPLOYMENT.md)** | Setup and deployment guide | Developers, DevOps |
+| **[DOCS_INDEX.md](./docs/DOCS_INDEX.md)** | 📖 Complete documentation index | All |
+| **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)** | System architecture and design | Developers, Architects |
+| **[DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md)** | Database schema with ERD | Backend Developers |
+| **[API_REFERENCE.md](./docs/API_REFERENCE.md)** | Backend API documentation | Frontend Developers |
+| **[LLM_INTEGRATION.md](./docs/LLM_INTEGRATION.md)** | LLM prompts and strategies | AI Engineers |
+| **[SECURITY_AND_ISSUES.md](./docs/SECURITY_AND_ISSUES.md)** | ⚠️ Security model + known issues | Security, Management |
+| **[SETUP_AND_DEPLOYMENT.md](./docs/SETUP_AND_DEPLOYMENT.md)** | Setup and deployment guide | Developers, DevOps |
 
-**⚠️ For External Code Reviewers:** Start with [DOCS_INDEX.md](./DOCS_INDEX.md), then review [SECURITY_AND_ISSUES.md](./SECURITY_AND_ISSUES.md) for critical issues.
+**⚠️ For External Code Reviewers:** Start with [DOCS_INDEX.md](./docs/DOCS_INDEX.md), then review [SECURITY_AND_ISSUES.md](./docs/SECURITY_AND_ISSUES.md) for critical issues.
 
 ---
 

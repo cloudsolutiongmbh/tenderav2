@@ -14,7 +14,7 @@ This index provides quick access to all documentation for the Tendera codebase. 
 ## 🎯 Quick Start Guides
 
 **For New Developers:**
-1. Start with [README.md](./README.md) - Project overview and quick start
+1. Start with [README.md](../README.md) - Project overview and quick start
 2. Follow [SETUP_AND_DEPLOYMENT.md](./SETUP_AND_DEPLOYMENT.md) - Local development setup
 3. Review [ARCHITECTURE.md](./ARCHITECTURE.md) - System architecture
 
@@ -25,16 +25,16 @@ This index provides quick access to all documentation for the Tendera codebase. 
 4. Check [API_REFERENCE.md](./API_REFERENCE.md) - Backend API documentation
 
 **For Product/Project Managers:**
-1. [README.md](./README.md) - What is Tendera?
-2. [tasks.md](./tasks.md) - Development phases and roadmap
-3. [MILESTONE_OFFERTEN_VERGLEICH.md](./MILESTONE_OFFERTEN_VERGLEICH.md) - Offer comparison feature
-4. [issues.md](./issues.md) - Known issues summary
+1. [README.md](../README.md) - What is Tendera?
+2. [tasks.md](../tasks.md) - Development phases and roadmap
+3. [MILESTONE_OFFERTEN_VERGLEICH.md](../MILESTONE_OFFERTEN_VERGLEICH.md) - Offer comparison feature
+4. [issues.md](../issues.md) - Known issues summary
 
 ---
 
 ## 📖 Core Documentation
 
-### [README.md](./README.md)
+### [README.md](../README.md)
 **Audience:** All users
 **Purpose:** Project overview, quick start, and feature list
 
@@ -188,7 +188,7 @@ npm run dev:web       # Terminal 2
 
 ## 📋 Planning and Project Management
 
-### [tasks.md](./tasks.md)
+### [tasks.md](../tasks.md)
 **Audience:** Developers, Project Managers
 **Purpose:** Development roadmap and task tracking
 
@@ -205,7 +205,7 @@ npm run dev:web       # Terminal 2
 
 ---
 
-### [MILESTONE_OFFERTEN_VERGLEICH.md](./MILESTONE_OFFERTEN_VERGLEICH.md)
+### [MILESTONE_OFFERTEN_VERGLEICH.md](../MILESTONE_OFFERTEN_VERGLEICH.md)
 **Audience:** Product Managers, Developers
 **Purpose:** Offer comparison feature specification
 
@@ -220,7 +220,7 @@ npm run dev:web       # Terminal 2
 
 ---
 
-### [issues.md](./issues.md)
+### [issues.md](../issues.md)
 **Audience:** All team members
 **Purpose:** Known issues and bug tracking
 
@@ -237,7 +237,7 @@ npm run dev:web       # Terminal 2
 
 ## 📝 Supporting Documents
 
-### [PRD.txt](./PRD.txt)
+### [PRD.txt](../PRD.txt)
 **Audience:** Product Managers, Stakeholders
 **Purpose:** Original product requirements document
 
@@ -249,7 +249,7 @@ npm run dev:web       # Terminal 2
 
 ---
 
-### [problem.md](./problem.md)
+### [problem.md](../problem.md)
 **Audience:** Management, Stakeholders
 **Purpose:** Business problem and solution analysis
 
@@ -311,8 +311,8 @@ offers.ts                 # Offer comparison
 | LLM prompt templates | [LLM_INTEGRATION.md](./LLM_INTEGRATION.md) |
 | Security vulnerabilities | [SECURITY_AND_ISSUES.md](./SECURITY_AND_ISSUES.md) |
 | System architecture | [ARCHITECTURE.md](./ARCHITECTURE.md) |
-| Development phases | [tasks.md](./tasks.md) |
-| Known bugs | [issues.md](./issues.md) |
+| Development phases | [tasks.md](../tasks.md) |
+| Known bugs | [issues.md](../issues.md) |
 
 ---
 
@@ -320,7 +320,7 @@ offers.ts                 # Offer comparison
 
 ### Adding a New Feature
 
-1. **Plan:** Add to [tasks.md](./tasks.md)
+1. **Plan:** Add to [tasks.md](../tasks.md)
 2. **Design:** Update [ARCHITECTURE.md](./ARCHITECTURE.md) if architectural changes
 3. **Schema:** Update [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) if new tables/fields
 4. **API:** Document new endpoints in [API_REFERENCE.md](./API_REFERENCE.md)
@@ -330,7 +330,7 @@ offers.ts                 # Offer comparison
 ### Debugging an Issue
 
 1. **Reproduce:** Follow [SETUP_AND_DEPLOYMENT.md](./SETUP_AND_DEPLOYMENT.md) setup
-2. **Check Known Issues:** Review [SECURITY_AND_ISSUES.md](./SECURITY_AND_ISSUES.md) and [issues.md](./issues.md)
+2. **Check Known Issues:** Review [SECURITY_AND_ISSUES.md](./SECURITY_AND_ISSUES.md) and [issues.md](../issues.md)
 3. **Logs:** Check Convex dashboard (see [SETUP_AND_DEPLOYMENT.md](./SETUP_AND_DEPLOYMENT.md) troubleshooting)
 4. **Schema:** Verify data model in [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)
 5. **API:** Check function implementation via [API_REFERENCE.md](./API_REFERENCE.md)
