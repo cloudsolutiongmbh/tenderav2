@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, FolderKanban, FileText, User2, Building2, ChevronLeft, Heart } from "lucide-react";
+import { FolderKanban, FileText, User2, Building2, ChevronLeft, Heart, HelpCircle } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,9 +19,9 @@ import { SignedIn, SignedOut, SignInButton } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 
 const items = [
-  { title: "Startseite", to: "/", icon: Home },
   { title: "Projekte", to: "/projekte", icon: FolderKanban },
   { title: "Templates", to: "/templates", icon: FileText },
+  { title: "FAQ", to: "/faq", icon: HelpCircle },
   { title: "Profil", to: "/profil", icon: User2 },
   { title: "Organisation", to: "/organisation", icon: Building2 },
 ] as const;
@@ -41,7 +41,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
-                const active = pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to));
+                const active = pathname === item.to || pathname.startsWith(item.to);
                 const Icon = item.icon;
                 return (
                   <SidebarMenuItem key={item.to}>
