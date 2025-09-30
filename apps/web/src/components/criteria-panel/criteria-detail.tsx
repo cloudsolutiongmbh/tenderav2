@@ -12,6 +12,7 @@ export interface CriteriaDetailData {
 	title: string;
 	description?: string;
 	hints?: string;
+	sourcePages?: number[];
 	status: "gefunden" | "nicht_gefunden" | "teilweise" | "unbekannt";
 	comment?: string;
 	answer?: string;
@@ -47,6 +48,11 @@ export function CriteriaDetail({ criterion }: CriteriaDetailProps) {
 				) : null}
 				{criterion.hints ? (
 					<p className="text-xs text-muted-foreground">Hinweise: {criterion.hints}</p>
+				) : null}
+				{criterion.sourcePages && criterion.sourcePages.length > 0 ? (
+					<p className="text-xs text-muted-foreground">
+						Fundstelle im Pflichtenheft: {formatPages(criterion.sourcePages)}
+					</p>
 				) : null}
 			</CardHeader>
 			<CardContent className="space-y-5 text-sm">
@@ -104,4 +110,17 @@ function mapToAnalysisStatus(status: CriteriaDetailData["status"]) {
 		case "unbekannt":
 			return "fehler" as const;
 	}
+}
+
+function formatPages(pages: number[]) {
+	const uniqueSorted = Array.from(new Set(pages)).sort((a, b) => a - b);
+	const labels = uniqueSorted.map((page) => `Seite ${page}`);
+	if (labels.length <= 1) {
+		return labels[0] ?? "";
+	}
+	if (labels.length === 2) {
+		return `${labels[0]} und ${labels[1]}`;
+	}
+	const last = labels[labels.length - 1];
+	return `${labels.slice(0, -1).join(", ")}, und ${last}`;
 }

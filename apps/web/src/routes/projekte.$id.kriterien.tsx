@@ -64,6 +64,16 @@ function ProjectCriteriaPage() {
 			: "skip",
 	);
 
+	const templateCriteriaMap = useMemo(() => {
+		const map = new Map<string, any>();
+		if (templateDoc) {
+			for (const criterion of templateDoc.criteria) {
+				map.set(criterion.key, criterion);
+			}
+		}
+		return map;
+	}, [templateDoc]);
+
     const startAnalysis = useMutation(api.projects.startAnalysis);
     const runCriteriaForProject = useAction(api.analysis.runCriteriaForProject);
     const removeProject = useMutation(api.projects.remove);
@@ -82,11 +92,16 @@ function ProjectCriteriaPage() {
 	const computedCriteria = useMemo<CriteriaDetailData[]>(() => {
 		const result = criteriaResult?.result;
 		if (isCriteriaResult(result)) {
-			return result.items.map((item) => ({
-				...item,
-				status: mapCriteriaStatus(item.status),
-				citations: item.citations ?? [],
-			}));
+			return result.items.map((item) => {
+				const templateCriterion = templateCriteriaMap.get(item.criterionId);
+				return {
+					...item,
+					status: mapCriteriaStatus(item.status),
+					citations: item.citations ?? [],
+					sourcePages: templateCriterion?.sourcePages ?? [],
+					weight: item.weight ?? templateCriterion?.weight,
+				};
+			});
 		}
 		if (templateDoc) {
 			return templateDoc.criteria.map((criterion) => ({
@@ -100,10 +115,11 @@ function ProjectCriteriaPage() {
 				score: undefined,
 				weight: criterion.weight,
 				citations: [],
+				sourcePages: criterion.sourcePages ?? [],
 			}));
 		}
 		return placeholderCriteria;
-	}, [criteriaResult, templateDoc]);
+	}, [criteriaResult, templateDoc, templateCriteriaMap]);
 
 	const items: CriteriaListItem[] = useMemo(
 		() =>
@@ -289,6 +305,7 @@ const placeholderCriteria: CriteriaDetailData[] = [
 		comment:
 			"Die Anforderungen werden erfüllt. Es liegt ein Minergie-P Zertifikat sowie ein Monitoring-Konzept vor.",
 		citations: [{ page: 12, quote: "Kapitel Nachhaltigkeit beschreibt das Konzept ausführlich." }],
+		sourcePages: [12],
 	},
 ];
 

@@ -51,9 +51,11 @@ export function MetadataCard({ metadata = [], isLoading }: MetadataCardProps) {
 						))}
 					</dl>
 				) : (
-					<p className="text-sm text-muted-foreground">
-						Noch keine Metadaten vorhanden.
-					</p>
+					<div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
+						<p className="text-xs text-muted-foreground">
+							Noch keine Metadaten vorhanden. Starte die Analyse unter "Dokumente".
+						</p>
+					</div>
 				)}
 			</CardContent>
 		</Card>

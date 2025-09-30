@@ -17,6 +17,12 @@ type LatestRunByType = {
 	criteria?: LatestRunSummary;
 };
 
+const PROJECT_TYPE_VALUES = ["standard", "offerten"] as const;
+const projectTypeValidator = v.union(
+	v.literal(PROJECT_TYPE_VALUES[0]),
+	v.literal(PROJECT_TYPE_VALUES[1]),
+);
+
 const MAX_ACTIVE_RUNS_PER_ORG = Number.parseInt(
 	process.env.CONVEX_MAX_ACTIVE_RUNS_PER_ORG ?? "1",
 );
@@ -26,10 +32,7 @@ export const create = mutation({
 		name: v.string(),
 		customer: v.string(),
 		tags: v.array(v.string()),
-		projectType: v.optional(v.union(
-			v.literal("standard"),
-			v.literal("offerten"),
-		)),
+		projectType: v.optional(projectTypeValidator),
 		templateId: v.optional(v.id("templates")),
 	},
 	handler: async (ctx, args) => {
@@ -48,7 +51,7 @@ export const create = mutation({
 			name: args.name,
 			customer: args.customer,
 			tags: args.tags,
-			projectType: args.projectType ?? "standard",
+			projectType: args.projectType ?? PROJECT_TYPE_VALUES[0],
 			templateId,
 			latestRunId: undefined,
 			orgId: identity.orgId,

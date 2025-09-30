@@ -23,9 +23,14 @@ export function SummaryCard({ summary, isLoading }: SummaryCardProps) {
 				) : summary ? (
 					<p className="whitespace-pre-wrap text-sm leading-relaxed">{summary}</p>
 				) : (
-					<p className="text-sm text-muted-foreground">
-						Sobald eine Analyse abgeschlossen ist, erscheint hier die Zusammenfassung.
-					</p>
+					<div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center">
+						<p className="text-sm font-medium text-foreground">
+							Keine Analyse vorhanden
+						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Gehe zu "Dokumente", um Dateien hochzuladen und die Analyse zu starten.
+						</p>
+					</div>
 				)}
 			</CardContent>
 		</Card>

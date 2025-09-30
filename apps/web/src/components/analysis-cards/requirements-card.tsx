@@ -59,9 +59,11 @@ export function RequirementsCard({
 						))}
 					</ul>
 				) : (
-					<p className="text-sm text-muted-foreground">
-						Noch keine Anforderungen vorhanden.
-					</p>
+					<div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
+						<p className="text-xs text-muted-foreground">
+							Noch keine Anforderungen vorhanden. Starte die Analyse unter "Dokumente".
+						</p>
+					</div>
 				)}
 			</CardContent>
 		</Card>

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getIdentityOrThrow } from "./helpers";
+import { getIdentityOrThrow } from "./auth";
 
 export const create = mutation({
 	args: {
@@ -23,7 +23,7 @@ export const create = mutation({
 			projectId: args.projectId,
 			anbieterName: args.anbieterName,
 			notes: args.notes,
-			createdBy: identity.subject,
+			createdBy: identity.userId,
 			orgId,
 			createdAt: now,
 			updatedAt: now,

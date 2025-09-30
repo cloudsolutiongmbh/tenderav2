@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, CheckCircle2, Circle, CircleDot } from "lucide-react";
 
 import { api } from "@tendera/backend/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,11 @@ function OffertenIndexPage() {
 		auth.authReady ? { projectId: projectId as any } : "skip",
 	);
 
+	const documents = useQuery(
+		api.documents.listByProject,
+		auth.authReady ? { projectId: projectId as any } : "skip",
+	);
+
 	const metrics = useQuery(
 		api.offers.computeMetrics,
 		auth.authReady ? { projectId: projectId as any } : "skip",
@@ -64,6 +69,63 @@ function OffertenIndexPage() {
 	}
 
 	const hasTemplate = Boolean(project?.project.templateId);
+	const pflichtenheft = useMemo(() => {
+		const docs = documents ?? [];
+		const byRole = docs.find((doc) => doc.role === "pflichtenheft");
+		if (byRole) {
+			return byRole;
+		}
+		if (docs.length === 1) {
+			return docs[0];
+		}
+		return undefined;
+	}, [documents]);
+	const pflichtenheftExtracted = Boolean(pflichtenheft?.textExtracted);
+	const offersCount = offers?.length ?? 0;
+	const stepIcons = {
+		done: <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden />,
+		current: <CircleDot className="h-4 w-4 text-primary" aria-hidden />,
+		pending: <Circle className="h-4 w-4 text-muted-foreground" aria-hidden />,
+	} as const;
+
+	const setupSteps = [
+		{
+			id: "upload",
+			status: pflichtenheft ? "done" : "current",
+			title: "Pflichtenheft hochladen",
+			description: pflichtenheft
+				? `Bereit: ${pflichtenheft.filename}`
+				: "Lade das Pflichtenheft hoch oder ziehe es direkt im Setup in die Upload-Zone.",
+		},
+		{
+			id: "extract",
+			status: hasTemplate
+				? "done"
+				: pflichtenheft
+					? pflichtenheftExtracted
+						? "current"
+						: "pending"
+					: "pending",
+			title: "Kriterien extrahieren",
+			description: hasTemplate
+				? "Template erstellt."
+				: pflichtenheft
+					? pflichtenheftExtracted
+						? "Starte die Extraktion im Setup, sobald der Upload vollständig ist."
+						: "Das Pflichtenheft wird noch verarbeitet."
+					: "Aktiviert sich automatisch nach dem Upload.",
+		},
+		{
+			id: "offers",
+			status: offersCount > 0 ? "done" : hasTemplate ? "current" : "pending",
+			title: "Angebote vergleichen",
+			description: hasTemplate
+				? offersCount > 0
+					? `${offersCount} Angebote erfasst.`
+					: "Füge nun Angebote hinzu und starte den Vergleich."
+				: "Verfügbar nach der Kriterien-Extraktion.",
+		},
+	] as const;
 
 	return (
 		<ProjectSectionLayout
@@ -100,18 +162,38 @@ function OffertenIndexPage() {
 		>
 			<div className="space-y-6">
 				{!hasTemplate && (
-					<Card className="border-amber-200 bg-amber-50">
-						<CardContent className="py-4">
-							<p className="text-sm text-amber-900">
-								⚠️ Noch kein Template vorhanden. Bitte zuerst das Setup abschließen.
-							</p>
-							<Link
-								to="/projekte/$id/offerten/setup"
-								params={{ id: projectId }}
-								className="mt-2 inline-block text-sm font-medium text-amber-900 underline"
-							>
-								Zum Setup
-							</Link>
+					<Card className="border-primary/40 bg-primary/5">
+						<CardHeader>
+							<CardTitle>Setup ausstehend</CardTitle>
+							<CardDescription>
+								Schliesse die folgenden Schritte ab, um Angebote zu vergleichen.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-3">
+							{setupSteps.map((step) => (
+								<div
+									key={step.id}
+									className="flex items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-3"
+								>
+									<span className="mt-1">{stepIcons[step.status]}</span>
+									<div className="space-y-1">
+										<p className="text-sm font-medium">{step.title}</p>
+										<p className="text-xs text-muted-foreground">{step.description}</p>
+									</div>
+								</div>
+							))}
+							<div className="flex flex-wrap gap-2 pt-1">
+								<Button size="sm" asChild>
+									<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
+										Setup öffnen
+									</Link>
+								</Button>
+								<Button size="sm" variant="outline" asChild>
+									<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
+										Dokumente
+									</Link>
+								</Button>
+							</div>
 						</CardContent>
 					</Card>
 				)}

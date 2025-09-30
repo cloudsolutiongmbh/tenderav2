@@ -5,6 +5,7 @@ interface Project {
 	name: string;
 	customer: string;
 	tags: string[];
+	projectType?: "standard" | "offerten";
 	templateId?: string;
 	latestRunId?: string;
 	orgId: string;
@@ -396,6 +397,7 @@ class MockConvexBackend {
 					name: args.name,
 					customer: args.customer,
 					tags: args.tags ?? [],
+					projectType: args.projectType ?? "standard",
 					templateId: args.templateId,
 					latestRunId: undefined,
 					orgId: ORG_ID,
@@ -437,6 +439,7 @@ class MockConvexBackend {
 					storageId: args.storageId,
 					pageCount: undefined,
 					textExtracted: false,
+					role: args.role,
 					orgId: ORG_ID,
 					createdAt: now,
 					updatedAt: now,

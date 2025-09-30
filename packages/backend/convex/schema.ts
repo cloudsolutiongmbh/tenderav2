@@ -7,6 +7,7 @@ const citationSchema = v.object({
 	quote: v.string(),
 });
 
+const PROJECT_TYPE_VALUES = ["standard", "offerten"] as const;
 const standardAnalysisSchema = v.object({
 	summary: v.union(v.string(), v.null()),
 	milestones: v.array(
@@ -69,10 +70,12 @@ export default defineSchema({
 		name: v.string(),
 		customer: v.string(),
 		tags: v.array(v.string()),
-		projectType: v.optional(v.union(
-			v.literal("standard"),
-			v.literal("offerten"),
-		)),
+		projectType: v.optional(
+			v.union(
+				v.literal(PROJECT_TYPE_VALUES[0]),
+				v.literal(PROJECT_TYPE_VALUES[1]),
+			),
+		),
 		templateId: v.optional(v.id("templates")),
 		latestRunId: v.optional(v.id("analysisRuns")),
 		orgId: v.string(),
@@ -144,6 +147,7 @@ export default defineSchema({
 				weight: v.number(),
 				required: v.boolean(),
 				keywords: v.optional(v.array(v.string())),
+				sourcePages: v.optional(v.array(v.number())),
 			}),
 		),
 		orgId: v.string(),

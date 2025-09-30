@@ -62,35 +62,6 @@ interface RunSummary {
 	error?: string | null;
 }
 
-const placeholder: StandardResult = {
-	summary:
-		"Sobald eine Analyse vorliegt, erscheint hier die komprimierte Zusammenfassung der Ausschreibung.",
-	milestones: [
-		{
-			title: "Abgabe Angebot",
-			date: "2024-03-15",
-			citation: { page: 5, quote: "Abgabefrist ist der 15. März 2024" },
-		},
-	],
-	requirements: [
-		{
-			title: "Minergie-P Standard",
-			category: "Technisch",
-			notes: "Gebäudehülle gemäss SIA 380",
-			citation: { page: 12, quote: "Gebäude muss Minergie-P erfüllen" },
-		},
-	],
-	openQuestions: [
-		{
-			question: "Gibt es Vorgaben für die Möblierung?",
-			citation: { page: 18, quote: "Möblierung optional" },
-		},
-	],
-	metadata: [
-		{ label: "Ausschreibungsnummer", value: "ZH-2024-001" },
-		{ label: "Vergabestelle", value: "Stadt Winterthur" },
-	],
-};
 
 export const Route = createFileRoute("/projekte/$id/standard")({
 	component: ProjectStandardPage,
@@ -198,25 +169,25 @@ function ProjectStandardPage() {
 			<section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
 				<div className="space-y-6">
 					<SummaryCard
-						summary={standardResult?.summary ?? placeholder.summary}
+						summary={standardResult?.summary}
 						isLoading={isLoading}
 					/>
 					<MilestonesCard
-						milestones={standardResult?.milestones ?? placeholder.milestones}
+						milestones={standardResult?.milestones ?? []}
 						isLoading={isLoading}
 					/>
 					<RequirementsCard
-						requirements={standardResult?.requirements ?? placeholder.requirements}
+						requirements={standardResult?.requirements ?? []}
 						isLoading={isLoading}
 					/>
 				</div>
 				<div className="space-y-6">
 					<QuestionsCard
-						questions={standardResult?.openQuestions ?? placeholder.openQuestions}
+						questions={standardResult?.openQuestions ?? []}
 						isLoading={isLoading}
 					/>
 					<MetadataCard
-						metadata={standardResult?.metadata ?? placeholder.metadata}
+						metadata={standardResult?.metadata ?? []}
 						isLoading={isLoading}
 					/>
 				</div>

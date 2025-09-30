@@ -139,6 +139,7 @@ export const pflichtenheftCriterionSchema = z.object({
     title: z.string().min(1),
     description: z.string().nullable().optional(),
     hints: z.string().nullable().optional(),
+    pages: z.array(z.number().int().min(1)).min(1),
 });
 
 export const pflichtenheftExtractionSchema = z.object({
@@ -159,8 +160,13 @@ export const pflichtenheftExtractionJsonSchema = {
                     title: { type: "string" },
                     description: { type: ["string", "null"] },
                     hints: { type: ["string", "null"] },
+                    pages: {
+                        type: "array",
+                        items: { type: "number" },
+                        minItems: 1,
+                    },
                 },
-                required: ["title", "description", "hints"],
+                required: ["title", "description", "hints", "pages"],
             },
         },
         kannCriteria: {
@@ -172,8 +178,13 @@ export const pflichtenheftExtractionJsonSchema = {
                     title: { type: "string" },
                     description: { type: ["string", "null"] },
                     hints: { type: ["string", "null"] },
+                    pages: {
+                        type: "array",
+                        items: { type: "number" },
+                        minItems: 1,
+                    },
                 },
-                required: ["title", "description", "hints"],
+                required: ["title", "description", "hints", "pages"],
             },
         },
     },

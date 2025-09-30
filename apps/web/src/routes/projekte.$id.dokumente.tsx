@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
 import { api } from "@tendera/backend/convex/_generated/api";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2, Circle, CircleDot } from "lucide-react";
 
 import { UploadDropzone } from "@/components/upload-dropzone";
 import { StatusBadge } from "@/components/status-badge";
@@ -15,6 +15,7 @@ import { extractDocumentPages } from "@/lib/extract-text";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
+import { cn } from "@/lib/utils";
 
 const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "200", 10);
 
@@ -49,33 +50,50 @@ function ProjectDocumentsPage() {
 			}
 			: "skip",
 	);
-	const criteriaRun = useQuery(
-		api.analysis.getLatest,
-		auth.authReady
-			? {
-				projectId: projectId as any,
-				type: "criteria",
-			}
-			: "skip",
+const criteriaRun = useQuery(
+	api.analysis.getLatest,
+	auth.authReady
+		? {
+			projectId: projectId as any,
+			type: "criteria",
+		}
+		: "skip",
+);
+	const extractionStatus = useQuery(
+		api.analysis.getPflichtenheftExtractionStatus,
+		auth.authReady ? { projectId: projectId as any } : "skip",
 	);
 
-    const createUploadUrl = useMutation(api.documents.createUploadUrl);
+	const createUploadUrl = useMutation(api.documents.createUploadUrl);
 	const attachDocument = useMutation(api.documents.attach);
 	const bulkInsertPages = useMutation(api.docPages.bulkInsert);
 	const markDocumentExtracted = useMutation(api.documents.markExtracted);
-    const startAnalysis = useMutation(api.projects.startAnalysis);
-    const removeProject = useMutation(api.projects.remove);
-    const runStandardForProject = useAction(api.analysis.runStandardForProject);
-    const runCriteriaForProject = useAction(api.analysis.runCriteriaForProject);
+	const startAnalysis = useMutation(api.projects.startAnalysis);
+	const removeProject = useMutation(api.projects.remove);
+	const runStandardForProject = useAction(api.analysis.runStandardForProject);
+const runCriteriaForProject = useAction(api.analysis.runCriteriaForProject);
+const extractPflichtenheft = useAction(api.analysis.extractPflichtenheftCriteria);
 
-	const [uploads, setUploads] = useState<UploadStateItem[]>([]);
-    const [isStartingStandard, setStartingStandard] = useState(false);
-    const [isStartingCriteria, setStartingCriteria] = useState(false);
-    const [isDeleting, setDeleting] = useState(false);
+const [uploads, setUploads] = useState<UploadStateItem[]>([]);
+const [isStartingStandard, setStartingStandard] = useState(false);
+const [isStartingCriteria, setStartingCriteria] = useState(false);
+const [isDeleting, setDeleting] = useState(false);
+const [isExtractingPflichtenheft, setExtractingPflichtenheft] = useState(false);
+	const extractionRunStatus = extractionStatus?.run?.status ?? null;
+	const extractionRunError = extractionStatus?.run?.error ?? null;
+	const isExtractionRunActive = extractionRunStatus === "wartet" || extractionRunStatus === "läuft";
 
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
 	}
+
+const isOffertenProject = project?.project.projectType === "offerten";
+const pflichtenheftDoc = useMemo(
+	() => (documents ?? []).find((doc) => doc.role === "pflichtenheft"),
+	[documents],
+);
+const hasTemplate = Boolean(project?.project.templateId);
+const pflichtenheftExtracted = Boolean(pflichtenheftDoc?.textExtracted);
 
 	const hasExtractedPages = useMemo(
 		() => (documents ?? []).some((doc) => doc.textExtracted && (doc.pageCount ?? 0) > 0),
@@ -85,18 +103,24 @@ function ProjectDocumentsPage() {
 		() => (documents ?? []).reduce((sum, doc) => sum + doc.size, 0),
 		[documents],
 	);
-	const hasTemplate = Boolean(project?.project.templateId);
-
 	const standardHint = !hasExtractedPages
 		? "Mindestens eine extrahierte Seite erforderlich."
 		: undefined;
-	const criteriaHint = !hasTemplate
-		? "Template im Projekt erforderlich."
-		: !hasExtractedPages
-			? "Mindestens eine extrahierte Seite erforderlich."
-			: undefined;
+const criteriaHint = !hasTemplate
+	? "Template im Projekt erforderlich."
+	: !hasExtractedPages
+		? "Mindestens eine extrahierte Seite erforderlich."
+		: undefined;
+
+	useEffect(() => {
+		if (!isExtractionRunActive) {
+			setExtractingPflichtenheft(false);
+		}
+	}, [isExtractionRunActive]);
 
 	const handleFilesAccepted = async (files: File[]) => {
+		const shouldAssignPflichtenheft = isOffertenProject && !pflichtenheftDoc;
+		let assignedPflichtenheft = false;
 		for (const file of files) {
 			setUploads((previous) => [
 				...previous,
@@ -124,12 +148,14 @@ function ProjectDocumentsPage() {
 					),
 				);
 
+				const role = shouldAssignPflichtenheft && !assignedPflichtenheft ? "pflichtenheft" : undefined;
 				const attached = await attachDocument({
 					projectId: projectId as any,
 					filename: file.name,
 					mimeType: file.type || "application/octet-stream",
 					size: file.size,
 					storageId: json.storageId as any,
+					role: role as any,
 				});
 
 				const pages = await extractDocumentPages(file);
@@ -152,7 +178,12 @@ function ProjectDocumentsPage() {
 						item.name === file.name ? { ...item, status: "done" } : item,
 					),
 				);
-				toast.success(`${file.name} verarbeitet.`);
+				if (role === "pflichtenheft") {
+					assignedPflichtenheft = true;
+					toast.success(`${file.name} als Pflichtenheft verarbeitet.`);
+				} else {
+					toast.success(`${file.name} verarbeitet.`);
+				}
 			} catch (error) {
 				console.error(error);
 				setUploads((prev) =>
@@ -225,6 +256,38 @@ function ProjectDocumentsPage() {
 		}
 	};
 
+const handleExtractPflichtenheft = async () => {
+		if (isExtractionRunActive) {
+			toast.info("Die Extraktion läuft bereits.");
+			return;
+		}
+		if (!pflichtenheftDoc) {
+			toast.error("Bitte zuerst ein Pflichtenheft hochladen.");
+			return;
+		}
+		if (!pflichtenheftDoc.textExtracted) {
+			toast.error("Das Pflichtenheft wird noch verarbeitet. Bitte später erneut versuchen.");
+			return;
+		}
+		setExtractingPflichtenheft(true);
+		try {
+			const result = await extractPflichtenheft({ projectId: projectId as any });
+			if (result?.criteriaCount) {
+				toast.success(`Kriterien extrahiert (${result.criteriaCount}).`);
+			} else {
+				toast.success("Kriterien extrahiert.");
+			}
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Kriterien konnten nicht extrahiert werden.",
+			);
+		} finally {
+			setExtractingPflichtenheft(false);
+		}
+	};
+
 	const standardStatus = standardRun?.run?.status ?? "wartet";
 	const criteriaStatus = criteriaRun?.run?.status ?? "wartet";
 	const headerStatuses = (
@@ -265,7 +328,26 @@ function ProjectDocumentsPage() {
 				</Button>
 			}
 		>
-			<Card>
+			<div className="space-y-6">
+				{isOffertenProject ? (
+					<OffertenDocumentsGuide
+						pflichtenheftName={pflichtenheftDoc?.filename ?? null}
+							pflichtenheftExtracted={pflichtenheftExtracted}
+							hasTemplate={hasTemplate}
+							onExtract={handleExtractPflichtenheft}
+							extracting={isExtractingPflichtenheft || isExtractionRunActive}
+							runStatus={extractionRunStatus}
+							runError={extractionRunError}
+							onGoToOfferten={() =>
+							navigate({
+								to: "/projekte/$id/offerten",
+								params: { id: projectId },
+							})
+						}
+					/>
+				) : null}
+
+				<Card>
 				<CardHeader>
 					<CardTitle>Dokumente</CardTitle>
 				</CardHeader>
@@ -313,8 +395,15 @@ function ProjectDocumentsPage() {
 									className="rounded-lg border border-border/60 p-3"
 								>
 									<div className="flex flex-wrap items-center justify-between gap-3">
-										<div>
-											<p className="font-medium">{doc.filename}</p>
+										<div className="space-y-1">
+											<div className="flex items-center gap-2">
+												<p className="font-medium">{doc.filename}</p>
+												{doc.role === "pflichtenheft" ? (
+													<span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+														Pflichtenheft
+													</span>
+												) : null}
+											</div>
 											<p className="text-xs text-muted-foreground">
 												{formatFileSize(doc.size)} · {doc.pageCount ?? 0} Seiten · hochgeladen am {formatDate(doc.createdAt)}
 											</p>
@@ -356,7 +445,133 @@ function ProjectDocumentsPage() {
 					/>
 				</CardContent>
 			</Card>
+
+			</div>
 		</ProjectSectionLayout>
+	);
+}
+
+interface OffertenDocumentsGuideProps {
+	pflichtenheftName: string | null;
+	pflichtenheftExtracted: boolean;
+	hasTemplate: boolean;
+	onExtract: () => void;
+	extracting: boolean;
+	onGoToOfferten: () => void;
+	runStatus: "wartet" | "läuft" | "fertig" | "fehler" | null;
+	runError?: string | null;
+}
+
+function OffertenDocumentsGuide({
+	pflichtenheftName,
+	pflichtenheftExtracted,
+	hasTemplate,
+	onExtract,
+	extracting,
+	onGoToOfferten,
+	runStatus,
+	runError,
+}: OffertenDocumentsGuideProps) {
+	const stepOneStatus = pflichtenheftName ? "done" : "current";
+	const stepTwoStatus = hasTemplate ? "done" : pflichtenheftName ? "current" : "pending";
+	const stepThreeStatus = hasTemplate ? "done" : "pending";
+	const isRunActive = runStatus === "wartet" || runStatus === "läuft";
+
+	return (
+		<Card className="border-primary/40 bg-primary/5">
+			<CardHeader>
+				<CardTitle>Offerten-Setup</CardTitle>
+				<CardDescription>
+					Folge den drei Schritten, um den Angebotsvergleich zu aktivieren.
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="space-y-4">
+				<OffertenSetupStep
+					status={stepOneStatus}
+					title="Pflichtenheft hochladen"
+					description={
+						pflichtenheftName
+							? `Bereit: ${pflichtenheftName}`
+							: "Lade das Pflichtenheft unterhalb über die Dokumenten-Upload-Zone hoch."
+					}
+				/>
+				<OffertenSetupStep
+					status={stepTwoStatus}
+					title="Kriterien extrahieren"
+					description={
+						hasTemplate
+							? "Erfolgreich: Template erstellt."
+							: pflichtenheftName
+								? pflichtenheftExtracted
+									? "Starte die automatische Extraktion, sobald das Pflichtenheft verarbeitet ist."
+									: "Pflichtenheft wird noch verarbeitet."
+								: "Der Extraktionsschritt wird aktiv, sobald ein Pflichtenheft vorhanden ist."
+					}
+						action={
+							!hasTemplate ? (
+								<Button
+									size="sm"
+									onClick={onExtract}
+									disabled={!pflichtenheftExtracted || extracting || isRunActive}
+								>
+									{extracting || isRunActive ? "Extrahiere …" : "Kriterien extrahieren"}
+								</Button>
+							) : null
+						}
+					/>
+					{isRunActive ? (
+						<p className="text-xs text-muted-foreground">
+							Die Extraktion läuft im Hintergrund. Du kannst später zum Vergleich zurückkehren.
+						</p>
+					) : null}
+					{!isRunActive && runError ? (
+						<p className="text-xs text-destructive">Fehler bei der Extraktion: {runError}</p>
+					) : null}
+				<OffertenSetupStep
+					status={stepThreeStatus}
+					title="Angebote vergleichen"
+					description="Sobald das Template bereit ist, kannst du Angebote erfassen und vergleichen."
+					action={
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={onGoToOfferten}
+							disabled={!hasTemplate}
+						>
+							Zum Vergleich
+						</Button>
+					}
+				/>
+			</CardContent>
+		</Card>
+	);
+}
+
+interface OffertenSetupStepProps {
+	status: "done" | "current" | "pending";
+	title: string;
+	description: string;
+	action?: ReactNode;
+}
+
+function OffertenSetupStep({ status, title, description, action }: OffertenSetupStepProps) {
+	const icon = {
+		done: <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden />,
+		current: <CircleDot className="h-4 w-4 text-primary" aria-hidden />,
+		pending: <Circle className="h-4 w-4 text-muted-foreground" aria-hidden />,
+	}[status];
+
+	return (
+		<div className="flex flex-col gap-2 rounded-lg border border-border/60 bg-background px-3 py-3 md:flex-row md:items-center md:justify-between">
+			<div className="flex items-start gap-3">
+				<span className="mt-1">{icon}</span>
+				<div className="space-y-1">
+					<p className={cn("text-sm font-medium", status === "pending" && "text-muted-foreground")}>{title}</p>
+					<p className="text-xs text-muted-foreground">{description}</p>
+				</div>
+			</div>
+			{action ? <div className="pt-1 md:pt-0">{action}</div> : null}
+		</div>
 	);
 }
 

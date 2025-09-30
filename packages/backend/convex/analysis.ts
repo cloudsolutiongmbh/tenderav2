@@ -55,7 +55,9 @@ export const runStandard = action({
 			throw new ConvexError("Keine Dokumentseiten zum Analysieren gefunden.");
 		}
 
-		const run = await acquireRun(ctx, project._id, identity.orgId, "standard");
+		const run = await acquireRun(ctx, project._id, identity.orgId, "standard", {
+			userId: identity.userId,
+		});
 		const chunks = chunkPages(pages, PAGES_PER_CHUNK);
 
 		let totalPromptTokens = 0;
@@ -128,7 +130,9 @@ export const runStandardForProject = action({
         console.log("[analysis] runStandardForProject: pages=", docPageIds.length, "project=", projectId);
 
         // Acquire or promote a queued run
-        const run = await acquireRun(ctx as any, project._id, identity.orgId, "standard");
+		const run = await acquireRun(ctx as any, project._id, identity.orgId, "standard", {
+			userId: identity.userId,
+		});
 
         const pages = await fetchDocPages(ctx as any, docPageIds, identity.orgId, project._id);
         const chunks = chunkPages(pages, PAGES_PER_CHUNK);
@@ -204,7 +208,9 @@ export const runCriteria = action({
 			throw new ConvexError("Keine Dokumentseiten zum Analysieren gefunden.");
 		}
 
-		const run = await acquireRun(ctx, project._id, identity.orgId, "criteria");
+		const run = await acquireRun(ctx, project._id, identity.orgId, "criteria", {
+			userId: identity.userId,
+		});
 		let totalPromptTokens = 0;
 		let totalCompletionTokens = 0;
 		let totalLatency = 0;
@@ -294,7 +300,9 @@ export const runCriteriaForProject = action({
         console.log("[analysis] runCriteriaForProject: pages=", docPageIds.length, "project=", projectId);
 
         // Acquire or promote a queued run
-        const run = await acquireRun(ctx as any, project._id, identity.orgId, "criteria");
+		const run = await acquireRun(ctx as any, project._id, identity.orgId, "criteria", {
+			userId: identity.userId,
+		});
 
         const pages = await fetchDocPages(ctx as any, docPageIds, identity.orgId, project._id);
         let totalPromptTokens = 0;
@@ -400,6 +408,49 @@ export const getLatest = query({
 			},
 			result,
 		};
+	},
+});
+
+export const getPflichtenheftExtractionStatus = query({
+	args: {
+		projectId: v.id("projects"),
+	},
+	handler: async (ctx, { projectId }) => {
+		const identity = await getIdentityOrThrow(ctx);
+		const project = await ctx.db.get(projectId);
+		if (!project || project.orgId !== identity.orgId) {
+			throw new ConvexError("Projekt nicht gefunden.");
+		}
+
+		const runs = await ctx.db
+			.query("analysisRuns")
+			.withIndex("by_projectId_type", (q) =>
+				q.eq("projectId", projectId).eq("type", "pflichtenheft_extract"),
+			)
+			.collect();
+
+		if (runs.length === 0) {
+			return { run: null } as const;
+		}
+
+		runs.sort((a, b) => b.createdAt - a.createdAt);
+		const latest = runs[0];
+
+		return {
+			run: {
+				_id: latest._id,
+				status: latest.status,
+				error: latest.error,
+				queuedAt: latest.queuedAt,
+				startedAt: latest.startedAt,
+				finishedAt: latest.finishedAt,
+				provider: latest.provider,
+				model: latest.model,
+				promptTokens: latest.promptTokens,
+				completionTokens: latest.completionTokens,
+				latencyMs: latest.latencyMs,
+		},
+		} as const;
 	},
 });
 
@@ -585,16 +636,24 @@ ${documentContext}`;
 	};
 }
 
+interface AcquireRunOptions {
+	userId: string;
+	offerId?: Id<"offers">;
+}
+
 async function acquireRun(
 	ctx: ActionCtx,
 	projectId: Id<"projects">,
 	orgId: string,
 	type: "standard" | "criteria" | "pflichtenheft_extract" | "offer_check",
+	options: AcquireRunOptions,
 ): Promise<Doc<"analysisRuns">> {
 	return (await ctx.runMutation(internal.analysis.acquireRunForAction, {
 		projectId,
 		orgId,
 		type,
+		userId: options.userId,
+		offerId: options.offerId,
 	})) as Doc<"analysisRuns">;
 }
 
@@ -709,14 +768,16 @@ export const acquireRunForAction = internalMutation({
 	args: {
 		projectId: v.id("projects"),
 		orgId: v.string(),
+		userId: v.string(),
 		type: v.union(
 			v.literal("standard"),
 			v.literal("criteria"),
 			v.literal("pflichtenheft_extract"),
 			v.literal("offer_check"),
 		),
+		offerId: v.optional(v.id("offers")),
 	},
-	handler: async (ctx, { projectId, orgId, type }) => {
+	handler: async (ctx, { projectId, orgId, userId, type, offerId }) => {
 		const runs = await ctx.db
 			.query("analysisRuns")
 			.withIndex("by_projectId_type", (q) =>
@@ -730,7 +791,41 @@ export const acquireRunForAction = internalMutation({
 			.sort((a, b) => a.createdAt - b.createdAt);
 
 		if (pending.length === 0) {
-			throw new ConvexError("Keine aktive Analyse für dieses Projekt gefunden.");
+			if (type === "standard" || type === "criteria") {
+				throw new ConvexError("Keine aktive Analyse für dieses Projekt gefunden.");
+			}
+
+			if (type === "offer_check" && !offerId) {
+				throw new ConvexError("Angebots-Analyse benötigt eine Angebots-ID.");
+			}
+
+			const now = Date.now();
+			const runId = await ctx.db.insert("analysisRuns", {
+				projectId,
+				type,
+				status: "läuft",
+				error: undefined,
+				queuedAt: now,
+				startedAt: now,
+				finishedAt: undefined,
+				resultId: undefined,
+				offerId: type === "offer_check" ? offerId ?? undefined : undefined,
+				templateSnapshotId: undefined,
+				provider: "PENDING",
+				model: "PENDING",
+				promptTokens: undefined,
+				completionTokens: undefined,
+				latencyMs: undefined,
+				orgId,
+				createdBy: userId,
+				createdAt: now,
+			});
+
+			const created = await ctx.db.get(runId);
+			if (!created) {
+				throw new ConvexError("Analyse konnte nicht gestartet werden.");
+			}
+			return created;
 		}
 
 		const current = pending[0];
@@ -975,7 +1070,7 @@ async function callLlmForJson({
 	let model = primary.model;
 
 	try {
-		const parsed = safeParseJson(primary.text);
+		const parsed = tryParseJson(primary.text);
 		return { parsed, usage, latencyMs, provider, model };
 	} catch (error) {
         const retry = await callLlm({
@@ -1005,7 +1100,7 @@ async function callLlmForJson({
 		provider = retry.provider;
 		model = retry.model;
 
-		const parsed = safeParseJson(retry.text);
+		const parsed = tryParseJson(retry.text);
 		return { parsed, usage, latencyMs, provider, model };
 	}
 }
@@ -1016,7 +1111,7 @@ function buildDocumentContext(pages: Array<{ page: number; text: string }>) {
 		.join("\n\n");
 }
 
-function safeParseJson(text: string): any {
+function tryParseJson(text: string): any {
   // Fast path
   try {
     return JSON.parse(text);
@@ -1085,7 +1180,9 @@ export const extractPflichtenheftCriteria = action({
 			throw new ConvexError("Keine Pflichtenheft-Dokumente zum Analysieren gefunden.");
 		}
 
-		const run = await acquireRun(ctx as any, project._id, identity.orgId, "pflichtenheft_extract");
+		const run = await acquireRun(ctx as any, project._id, identity.orgId, "pflichtenheft_extract", {
+			userId: identity.userId,
+		});
 		const pages = await fetchDocPages(ctx as any, docPageIds, identity.orgId, project._id);
 
 		if (pages.length === 0) {
@@ -1108,6 +1205,7 @@ export const extractPflichtenheftCriteria = action({
 
 			// Add Muss-Kriterien
 			result.mussCriteria.forEach((criterion, idx) => {
+				const pages = Array.from(new Set(criterion.pages)).sort((a, b) => a - b);
 				criteriaArray.push({
 					key: `MUSS_${idx + 1}`,
 					title: criterion.title,
@@ -1116,11 +1214,13 @@ export const extractPflichtenheftCriteria = action({
 					answerType: "boolean" as const,
 					weight: 100,
 					required: true,
+					sourcePages: pages,
 				});
 			});
 
 			// Add Kann-Kriterien
 			result.kannCriteria.forEach((criterion, idx) => {
+				const pages = Array.from(new Set(criterion.pages)).sort((a, b) => a - b);
 				criteriaArray.push({
 					key: `KANN_${idx + 1}`,
 					title: criterion.title,
@@ -1129,6 +1229,7 @@ export const extractPflichtenheftCriteria = action({
 					answerType: "boolean" as const,
 					weight: 50,
 					required: false,
+					sourcePages: pages,
 				});
 			});
 
@@ -1222,7 +1323,10 @@ export const checkOfferAgainstCriteria = action({
 			throw new ConvexError("Keine Dokumentseiten im Angebot gefunden.");
 		}
 
-		const run = await acquireRun(ctx as any, project._id, identity.orgId, "offer_check");
+		const run = await acquireRun(ctx as any, project._id, identity.orgId, "offer_check", {
+			userId: identity.userId,
+			offerId: args.offerId,
+		});
 		const pages = await fetchDocPages(ctx as any, docPageIds, identity.orgId, project._id);
 
 		if (pages.length === 0) {
@@ -1292,7 +1396,7 @@ export const checkOfferAgainstCriteria = action({
 async function analysePflichtenheft(
 	pages: Array<{ page: number; text: string }>,
 ) {
-	const systemPrompt = `Du bist ein deutscher KI-Assistent zur Analyse von Pflichtenheften. Deine Aufgabe ist es, aus dem vorliegenden Dokument alle Muss-Kriterien und Kann-Kriterien zu extrahieren.
+const systemPrompt = `Du bist ein deutscher KI-Assistent zur Analyse von Pflichtenheften. Deine Aufgabe ist es, aus dem vorliegenden Dokument alle Muss-Kriterien und Kann-Kriterien zu extrahieren.
 
 Vorgaben:
 - Antworte **nur auf Deutsch**.
@@ -1300,6 +1404,7 @@ Vorgaben:
 - Muss-Kriterien sind obligatorisch und müssen erfüllt werden (z.B. "muss", "erforderlich", "zwingend").
 - Kann-Kriterien sind optional oder wünschenswert (z.B. "kann", "sollte", "wünschenswert").
 - Extrahiere nur explizit genannte Kriterien aus dem Dokument.
+- Gib für jedes Kriterium das Feld "pages" an: eine Liste mit allen Seitenzahlen (1-basierte Nummerierung), auf denen das Kriterium im Dokument erwähnt wird.
 
 ## Output Format
 {
@@ -1307,14 +1412,16 @@ Vorgaben:
     {
       "title": string, // Kurzer Titel des Kriteriums
       "description": string | null, // Detaillierte Beschreibung falls vorhanden
-      "hints": string | null // Zusätzliche Hinweise oder Kontext
+      "hints": string | null, // Zusätzliche Hinweise oder Kontext
+      "pages": number[] // Liste der Seitenzahlen (min. ein Eintrag)
     }
   ],
   "kannCriteria": [
     {
       "title": string,
       "description": string | null,
-      "hints": string | null
+      "hints": string | null,
+      "pages": number[]
     }
   ]
 }`;

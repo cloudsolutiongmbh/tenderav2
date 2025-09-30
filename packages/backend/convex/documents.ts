@@ -7,6 +7,8 @@ const DEFAULT_MAX_UPLOAD_MB = 200;
 const maxUploadMb = Number.parseInt(process.env.MAX_UPLOAD_MB ?? `${DEFAULT_MAX_UPLOAD_MB}`);
 const MAX_UPLOAD_BYTES = (Number.isNaN(maxUploadMb) ? DEFAULT_MAX_UPLOAD_MB : maxUploadMb) * 1024 * 1024;
 
+const DOCUMENT_ROLE_VALUES = ["pflichtenheft", "offer", "support"] as const;
+
 export const createUploadUrl = mutation({
 	handler: async (ctx) => {
 		await getIdentityOrThrow(ctx);
@@ -21,6 +23,13 @@ export const attach = mutation({
 		mimeType: v.string(),
 		size: v.number(),
 		storageId: v.id("_storage"),
+		role: v.optional(
+			v.union(
+				v.literal(DOCUMENT_ROLE_VALUES[0]),
+				v.literal(DOCUMENT_ROLE_VALUES[1]),
+				v.literal(DOCUMENT_ROLE_VALUES[2]),
+			),
+		),
 	},
 	handler: async (ctx, args) => {
 		const identity = await getIdentityOrThrow(ctx);
@@ -48,6 +57,7 @@ export const attach = mutation({
 			storageId: args.storageId,
 			pageCount: undefined,
 			textExtracted: false,
+			role: args.role,
 			orgId: identity.orgId,
 			createdAt: now,
 			updatedAt: now,

@@ -23,6 +23,7 @@ interface EditableCriterion {
 	weight: string;
 	required: boolean;
 	keywords: string;
+	sourcePages: number[];
 }
 
 const ANSWER_TYPE_OPTIONS: Array<{ value: EditableCriterion["answerType"]; label: string }>
@@ -100,6 +101,7 @@ function TemplateDetailPage() {
 					weight: String(criterion.weight ?? 0),
 					required: criterion.required,
 					keywords: criterion.keywords?.join(", ") ?? "",
+					sourcePages: Array.isArray(criterion.sourcePages) ? criterion.sourcePages : [],
 				})),
 			);
 		} else if (isNew) {
@@ -188,6 +190,10 @@ function TemplateDetailPage() {
 				weight: clampedWeight,
 				required: criterion.required,
 				keywords: keywordList.length > 0 ? keywordList : undefined,
+				sourcePages:
+					criterion.sourcePages && criterion.sourcePages.length > 0
+						? criterion.sourcePages
+						: undefined,
 			};
 		});
 
@@ -439,6 +445,7 @@ function createEmptyCriterion(): EditableCriterion {
 		weight: "0",
 		required: false,
 		keywords: "",
+		sourcePages: [],
 	};
 }
 

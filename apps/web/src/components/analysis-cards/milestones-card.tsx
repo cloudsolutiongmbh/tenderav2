@@ -56,9 +56,11 @@ export function MilestonesCard({ milestones = [], isLoading }: MilestonesCardPro
 						))}
 					</ul>
 				) : (
-					<p className="text-sm text-muted-foreground">
-						Noch keine Meilensteine erfasst.
-					</p>
+					<div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
+						<p className="text-xs text-muted-foreground">
+							Noch keine Meilensteine erfasst. Starte die Analyse unter "Dokumente".
+						</p>
+					</div>
 				)}
 			</CardContent>
 		</Card>

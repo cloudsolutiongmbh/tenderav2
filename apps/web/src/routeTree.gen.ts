@@ -14,6 +14,7 @@ import { Route as ProjekteRouteImport } from './routes/projekte'
 import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as OrganisationRouteImport } from './routes/organisation'
 import { Route as HealthRouteImport } from './routes/health'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TemplatesIdRouteImport } from './routes/templates.$id'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
@@ -49,6 +50,11 @@ const OrganisationRoute = OrganisationRouteImport.update({
 const HealthRoute = HealthRouteImport.update({
   id: '/health',
   path: '/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -110,6 +116,7 @@ const ProjekteIdOffertenOfferIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/faq': typeof FaqRoute
   '/health': typeof HealthRoute
   '/organisation': typeof OrganisationRoute
   '/profil': typeof ProfilRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/faq': typeof FaqRoute
   '/health': typeof HealthRoute
   '/organisation': typeof OrganisationRoute
   '/profil': typeof ProfilRoute
@@ -147,6 +155,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/faq': typeof FaqRoute
   '/health': typeof HealthRoute
   '/organisation': typeof OrganisationRoute
   '/profil': typeof ProfilRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/faq'
     | '/health'
     | '/organisation'
     | '/profil'
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/faq'
     | '/health'
     | '/organisation'
     | '/profil'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/faq'
     | '/health'
     | '/organisation'
     | '/profil'
@@ -222,6 +234,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  FaqRoute: typeof FaqRoute
   HealthRoute: typeof HealthRoute
   OrganisationRoute: typeof OrganisationRoute
   ProfilRoute: typeof ProfilRoute
@@ -265,6 +278,13 @@ declare module '@tanstack/react-router' {
       path: '/health'
       fullPath: '/health'
       preLoaderRoute: typeof HealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -387,6 +407,7 @@ const TemplatesRouteWithChildren = TemplatesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  FaqRoute: FaqRoute,
   HealthRoute: HealthRoute,
   OrganisationRoute: OrganisationRoute,
   ProfilRoute: ProfilRoute,

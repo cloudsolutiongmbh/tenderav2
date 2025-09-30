@@ -43,9 +43,11 @@ export function QuestionsCard({ questions = [], isLoading }: QuestionsCardProps)
 						))}
 					</ul>
 				) : (
-					<p className="text-sm text-muted-foreground">
-						Derzeit liegen keine offenen Fragen vor.
-					</p>
+					<div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
+						<p className="text-xs text-muted-foreground">
+							Noch keine Fragen vorhanden. Starte die Analyse unter "Dokumente".
+						</p>
+					</div>
 				)}
 			</CardContent>
 		</Card>
