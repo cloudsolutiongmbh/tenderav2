@@ -375,14 +375,189 @@ interface NewProjectFormProps {
 
 function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 	const createProject = useMutation(api.projects.create);
+	const startAnalysis = useMutation(api.projects.startAnalysis);
+	const createUploadUrl = useMutation(api.documents.createUploadUrl);
+	const attachDocument = useMutation(api.documents.attach);
+	const bulkInsertPages = useMutation(api.docPages.bulkInsert);
+	const markDocumentExtracted = useMutation(api.documents.markExtracted);
+	const ensureOfferFromDocument = useMutation(api.offers.ensureFromDocument);
+	const runStandardForProject = useAction(api.analysis.runStandardForProject);
+	const runCriteriaForProject = useAction(api.analysis.runCriteriaForProject);
+	const extractPflichtenheftCriteria = useAction(api.analysis.extractPflichtenheftCriteria);
+
 	const [isSubmitting, setSubmitting] = useState(false);
 	const [name, setName] = useState("");
 	const [customer, setCustomer] = useState("");
 	const [tags, setTags] = useState("");
 	const [projectType, setProjectType] = useState<"standard" | "offerten">("standard");
 	const [templateId, setTemplateId] = useState<string>("");
+	const [standardFiles, setStandardFiles] = useState<File[]>([]);
+	const [pflichtenheftFile, setPflichtenheftFile] = useState<File | null>(null);
+	const [offerFiles, setOfferFiles] = useState<File[]>([]);
 
 	const templateOptions = useMemo(() => templates, [templates]);
+	const standardBytes = useMemo(
+		() => standardFiles.reduce((sum, file) => sum + file.size, 0),
+		[standardFiles],
+	);
+	const offerBytes = useMemo(
+		() => offerFiles.reduce((sum, file) => sum + file.size, 0),
+		[offerFiles],
+	);
+	const pflichtenheftBytes = pflichtenheftFile?.size ?? 0;
+
+	const handleProjectTypeChange = useCallback(
+		(event: React.ChangeEvent<HTMLSelectElement>) => {
+			const nextType = event.target.value as "standard" | "offerten";
+			setProjectType(nextType);
+			if (nextType === "standard") {
+				setPflichtenheftFile(null);
+				setOfferFiles([]);
+			} else {
+				setStandardFiles([]);
+			}
+		},
+		[],
+	);
+
+	const handleStandardAccepted = useCallback((files: File[]) => {
+		setStandardFiles((previous) => [...previous, ...files]);
+	}, []);
+
+	const handlePflichtenheftAccepted = useCallback((files: File[]) => {
+		const [file] = files;
+		if (file) {
+			setPflichtenheftFile(file);
+		}
+	}, []);
+
+	const handleOfferAccepted = useCallback((files: File[]) => {
+		setOfferFiles((previous) => [...previous, ...files]);
+	}, []);
+
+	const removeStandardFile = useCallback((index: number) => {
+		setStandardFiles((previous) => previous.filter((_, i) => i !== index));
+	}, []);
+
+	const removeOfferFile = useCallback((index: number) => {
+		setOfferFiles((previous) => previous.filter((_, i) => i !== index));
+	}, []);
+
+	const clearPflichtenheftFile = useCallback(() => {
+		setPflichtenheftFile(null);
+	}, []);
+
+	const uploadAndExtract = useCallback(
+		async (
+			projectId: string,
+			file: File,
+			options: { role?: "pflichtenheft" | "offer" | "support" } = {},
+		) => {
+			const uploadUrl = await createUploadUrl();
+			const response = await fetch(uploadUrl, {
+				method: "POST",
+				headers: {
+					"Content-Type": file.type || "application/octet-stream",
+				},
+				body: file,
+			});
+
+			const json = (await response.json()) as { storageId?: string };
+			if (!response.ok || !json.storageId) {
+				throw new Error("Upload fehlgeschlagen.");
+			}
+
+			const attached = await attachDocument({
+				projectId: projectId as any,
+				filename: file.name,
+				mimeType: file.type || "application/octet-stream",
+				size: file.size,
+				storageId: json.storageId as any,
+				role: options.role as any,
+			});
+
+			const pages = await extractDocumentPages(file);
+			if (pages.length > 0) {
+				await bulkInsertPages({
+					documentId: attached?._id as any,
+					pages: pages.map((page) => ({ page: page.page, text: page.text })),
+				});
+				await markDocumentExtracted({
+					documentId: attached?._id as any,
+					pageCount: pages.length,
+				});
+			} else {
+				await markDocumentExtracted({ documentId: attached?._id as any, pageCount: 0 });
+			}
+
+			return attached;
+		},
+		[attachDocument, bulkInsertPages, createUploadUrl, markDocumentExtracted],
+	);
+
+	const triggerAnalysis = useCallback(
+		async (projectId: string, type: "standard" | "criteria") => {
+			try {
+				const res = (await startAnalysis({ projectId: projectId as any, type })) as
+					| { status: "läuft" | "wartet"; runId: string }
+					| undefined;
+				const label = type === "standard" ? "Standard-Analyse" : "Kriterien-Analyse";
+				if (!res) {
+					return;
+				}
+				if (res.status === "läuft") {
+					if (type === "standard") {
+						await runStandardForProject({ projectId: projectId as any });
+					} else {
+						await runCriteriaForProject({ projectId: projectId as any });
+					}
+					toast.success(`${label} gestartet.`);
+				} else {
+					toast.info(`${label} wurde in die Warteschlange gestellt.`);
+				}
+			} catch (error) {
+				console.error(error);
+				toast.error(
+					error instanceof Error
+						? error.message
+						: "Analyse konnte nicht gestartet werden.",
+				);
+			}
+		},
+		[runCriteriaForProject, runStandardForProject, startAnalysis],
+	);
+
+	const triggerPflichtenheftExtraction = useCallback(
+		async (projectId: string) => {
+			try {
+				const result = await extractPflichtenheftCriteria({ projectId: projectId as any });
+				if (result?.criteriaCount) {
+					toast.success(`Kriterien extrahiert (${result.criteriaCount}).`);
+				} else {
+					toast.success("Kriterienextraktion gestartet.");
+				}
+			} catch (error) {
+				console.error(error);
+				toast.error(
+					error instanceof Error
+						? error.message
+						: "Kriterien konnten nicht extrahiert werden.",
+				);
+			}
+		},
+		[extractPflichtenheftCriteria],
+	);
+
+	const resetForm = useCallback(() => {
+		setName("");
+		setCustomer("");
+		setTags("");
+		setProjectType("standard");
+		setTemplateId("");
+		setStandardFiles([]);
+		setPflichtenheftFile(null);
+		setOfferFiles([]);
+	}, []);
 
 	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -393,22 +568,63 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 				.map((tag) => tag.trim())
 				.filter(Boolean);
 
-			await createProject({
+			const projectId = (await createProject({
 				name,
 				customer,
 				tags: normalizedTags,
 				projectType,
 				templateId: templateId ? (templateId as any) : undefined,
-			});
+			})) as string | undefined;
 
-			setName("");
-			setCustomer("");
-			setTags("");
-			setProjectType("standard");
-			setTemplateId("");
-			toast.success("Projekt angelegt.");
+			if (!projectId) {
+				throw new Error("Projekt konnte nicht erstellt werden.");
+			}
+
+			if (projectType === "standard" && standardFiles.length > 0) {
+				toast.info("Dokumente werden hochgeladen …");
+				for (const file of standardFiles) {
+					await uploadAndExtract(projectId, file);
+				}
+				await triggerAnalysis(projectId, "standard");
+				if (templateId) {
+					await triggerAnalysis(projectId, "criteria");
+				}
+			}
+
+			if (projectType === "offerten") {
+				if (pflichtenheftFile) {
+					toast.info("Pflichtenheft wird hochgeladen …");
+					await uploadAndExtract(projectId, pflichtenheftFile, { role: "pflichtenheft" });
+					await triggerPflichtenheftExtraction(projectId);
+				}
+				if (offerFiles.length > 0) {
+					toast.info("Angebotsdokumente werden hochgeladen …");
+					for (const file of offerFiles) {
+						const document = await uploadAndExtract(projectId, file, { role: "offer" });
+						if (document?._id) {
+							try {
+								await ensureOfferFromDocument({
+									projectId: projectId as any,
+									documentId: document._id as any,
+								});
+							} catch (error) {
+								console.error(error);
+								toast.error(
+									error instanceof Error
+										? error.message
+										: "Angebot konnte nicht erstellt werden.",
+								);
+							}
+						}
+					}
+				}
+			}
+
+			toast.success("Projekt angelegt. Alle Uploads abgeschlossen.");
+			resetForm();
 			onSuccess();
 		} catch (error) {
+			console.error(error);
 			toast.error(error instanceof Error ? error.message : "Projekt konnte nicht erstellt werden.");
 		} finally {
 			setSubmitting(false);
@@ -422,47 +638,153 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 				value={name}
 				onChange={(event) => setName(event.target.value)}
 				required
+				disabled={isSubmitting}
 			/>
 			<Input
 				placeholder="Kunde/Behörde"
 				value={customer}
 				onChange={(event) => setCustomer(event.target.value)}
 				required
+				disabled={isSubmitting}
 			/>
 			<Input
 				placeholder="Interne Tags (Komma-getrennt)"
 				value={tags}
 				onChange={(event) => setTags(event.target.value)}
+				disabled={isSubmitting}
 			/>
 			<div className="space-y-2">
 				<label className="text-sm font-medium">Projekt-Typ</label>
 				<select
 					className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
 					value={projectType}
-					onChange={(event) => setProjectType(event.target.value as "standard" | "offerten")}
+					onChange={handleProjectTypeChange}
+					disabled={isSubmitting}
 				>
 					<option value="standard">Standard-Analyse</option>
 					<option value="offerten">Offerten-Vergleich</option>
 				</select>
 				<p className="text-xs text-muted-foreground">
 					{projectType === "standard"
-						? "Analysiere ein einzelnes Dokument mit Standard- und Kriterien-Analyse."
-						: "Vergleiche mehrere Angebote gegen ein Pflichtenheft."}
+						? "Analysiere ein einzelnes Dokument mit Standard- und optionaler Kriterien-Analyse."
+						: "Vergleiche Angebote gegen ein Pflichtenheft. Du kannst Dokumente direkt hier hochladen."}
 				</p>
 			</div>
-			{projectType === "standard" && (
-				<select
-					className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-					value={templateId}
-					onChange={(event) => setTemplateId(event.target.value)}
-				>
-					<option value="">Optionalen Kriterienkatalog auswählen</option>
-					{templateOptions.map((template) => (
-						<option key={template._id} value={template._id}>
-							{template.name}
-						</option>
-					))}
-				</select>
+			{projectType === "standard" ? (
+				<div className="space-y-3">
+					<select
+						className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
+						value={templateId}
+						onChange={(event) => setTemplateId(event.target.value)}
+						disabled={isSubmitting}
+					>
+						<option value="">Optionalen Kriterienkatalog auswählen</option>
+						{templateOptions.map((template) => (
+							<option key={template._id} value={template._id}>
+								{template.name}
+							</option>
+						))}
+					</select>
+					<div className="space-y-2">
+						<p className="text-sm font-medium">Dokumente für die Analyse</p>
+						<UploadDropzone
+							onFilesAccepted={handleStandardAccepted}
+							currentTotalBytes={standardBytes}
+							maxTotalSizeMb={MAX_UPLOAD_MB}
+							disabled={isSubmitting}
+						/>
+						{standardFiles.length > 0 ? (
+							<ul className="space-y-1 text-sm">
+								{standardFiles.map((file, index) => (
+									<li
+										key={`${file.name}-${index}`}
+										className="flex items-center justify-between rounded-md border px-3 py-2"
+									>
+										<span className="truncate pr-3">{file.name}</span>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+											onClick={() => removeStandardFile(index)}
+											disabled={isSubmitting}
+										>
+											<X className="h-4 w-4" />
+										</Button>
+									</li>
+								))}
+							</ul>
+						) : (
+							<p className="text-xs text-muted-foreground">
+								Optional: Lade das Pflichtenheft oder die Ausschreibungsunterlagen direkt hoch.
+							</p>
+						)}
+					</div>
+				</div>
+			) : (
+				<div className="space-y-6">
+					<div className="space-y-2">
+						<p className="text-sm font-medium">Pflichtenheft (1 Datei)</p>
+						<UploadDropzone
+							onFilesAccepted={handlePflichtenheftAccepted}
+							currentTotalBytes={pflichtenheftBytes}
+							maxFiles={1}
+							maxTotalSizeMb={MAX_UPLOAD_MB}
+							disabled={isSubmitting}
+						/>
+						{pflichtenheftFile ? (
+							<div className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+								<span className="truncate pr-3">{pflichtenheftFile.name}</span>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									onClick={clearPflichtenheftFile}
+									disabled={isSubmitting}
+								>
+									<X className="h-4 w-4" />
+								</Button>
+							</div>
+						) : (
+							<p className="text-xs text-muted-foreground">
+								Empfehlung: Lade das Pflichtenheft direkt mit hoch, um die Kriterien automatisch zu extrahieren.
+							</p>
+						)}
+					</div>
+					<div className="space-y-2">
+						<p className="text-sm font-medium">Angebote (mehrere Dateien möglich)</p>
+						<UploadDropzone
+							onFilesAccepted={handleOfferAccepted}
+							currentTotalBytes={offerBytes}
+							maxTotalSizeMb={MAX_UPLOAD_MB}
+							disabled={isSubmitting}
+						/>
+						{offerFiles.length > 0 ? (
+							<ul className="space-y-1 text-sm">
+								{offerFiles.map((file, index) => (
+									<li
+										key={`${file.name}-${index}`}
+										className="flex items-center justify-between rounded-md border px-3 py-2"
+									>
+										<span className="truncate pr-3">{file.name}</span>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+											onClick={() => removeOfferFile(index)}
+											disabled={isSubmitting}
+										>
+											<X className="h-4 w-4" />
+										</Button>
+									</li>
+								))}
+							</ul>
+						) : (
+							<p className="text-xs text-muted-foreground">
+								Optional: Lade Angebotsunterlagen hoch, wir erstellen automatisch Angebotsdatensätze.
+							</p>
+						)}
+					</div>
+				</div>
 			)}
 			<DialogFooter>
 				<DialogClose asChild>

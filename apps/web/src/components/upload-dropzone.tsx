@@ -105,6 +105,7 @@ export function UploadDropzone({
 					Dateien hierher ziehen oder
 				</p>
 				<Button
+					type="button"
 					variant="outline"
 					size="sm"
 					onClick={openFileDialog}
