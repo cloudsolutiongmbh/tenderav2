@@ -36,15 +36,15 @@ export function MetadataCard({ metadata = [], isLoading }: MetadataCardProps) {
 						{metadata.map((item, index) => (
 							<div
 								key={`${item.label}-${index}`}
-								className="rounded-lg border border-border/60 p-3"
+								className="rounded-lg border border-border/60 p-3 break-words"
 							>
-								<dt className="text-xs uppercase text-muted-foreground">
+								<dt className="text-xs uppercase text-muted-foreground break-words">
 									{item.label}
 								</dt>
-								<dd className="mt-1 font-medium">{item.value}</dd>
+								<dd className="mt-1 font-medium break-words">{item.value}</dd>
 								{item.citation ? (
-									<p className="mt-2 text-xs text-muted-foreground">
-										Zitat (Seite {item.citation.page}): „{item.citation.quote}“
+									<p className="mt-2 text-xs text-muted-foreground break-words">
+										Zitat (Seite {item.citation.page}): „{item.citation.quote}"
 									</p>
 								) : null}
 							</div>
