@@ -531,9 +531,9 @@ Abbruchbedingung:
 Das auszugebende JSON-Objekt sieht wie folgt aus:
 {
 "summary": string | null, // Eine prägnante, neutrale und faktische Zusammenfassung des Projekts in 3-5 Sätzen. Konzentriere dich auf die wichtigsten Ziele, den Umfang, die Hauptanforderungen und den Zeitplan. Gib nur die Fakten aus dem Dokument wieder.
-"milestones": [ // Eine Liste der wichtigsten Termine und Fristen des Projekts.
+"milestones": [ // Eine Liste der wichtigsten projektbezogenen Termine und Fristen. WICHTIG: Extrahiere NUR Termine, die sich auf das Projekt selbst beziehen (z.B. Angebotsabgabe, Projektstart, Abgabefrist, Inbetriebnahme, Abnahme, wichtige Projektphasen). IGNORIERE Dokument-Metadaten wie "Dokument erstellt", "Dokument Version", "Erstellt am" oder ähnliche administrative Datumsangaben.
 {
-"title": string, // Der Name des Meilensteins (z.B. "Angebotsabgabe", "Projektstart").
+"title": string, // Der Name des Meilensteins (z.B. "Angebotsabgabe", "Projektstart", "Inbetriebnahme"). NIEMALS "Dokument erstellt" oder "Dokument Version".
 "date": string | null, // Das Datum des Meilensteins im Format "YYYY-MM-DD". Wenn nur ein Monat oder Jahr angegeben ist, verwende das Format "YYYY-MM" oder "YYYY".
 "citation": { "page": number, "quote": string } | null
 }

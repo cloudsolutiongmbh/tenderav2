@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
 import { api } from "@tendera/backend/convex/_generated/api";
@@ -10,6 +10,7 @@ import { AuthStateNotice } from "@/components/auth-state-notice";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { UploadDropzone } from "@/components/upload-dropzone";
 import {
 	Dialog,
 	DialogContent,
@@ -21,7 +22,11 @@ import {
 	DialogClose,
 } from "@/components/ui/dialog";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
-import { Grid3x3, List, Trash2, Search } from "lucide-react";
+import { Grid3x3, List, Trash2, Search, X } from "lucide-react";
+
+import { extractDocumentPages } from "@/lib/extract-text";
+
+const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "200", 10);
 
 interface TemplateOption {
 	_id: string;
@@ -158,7 +163,7 @@ function ProjektePage() {
 					<DialogHeader>
 						<DialogTitle>Neues Projekt anlegen</DialogTitle>
 						<DialogDescription>
-							Erfasse die Stammdaten. Dokumente und Analysen folgen im jeweiligen Projekt.
+							Erfasse Stammdaten und lade die ersten Dokumente direkt hoch – Analysen starten im Anschluss automatisch.
 						</DialogDescription>
 					</DialogHeader>
 					<NewProjectForm
