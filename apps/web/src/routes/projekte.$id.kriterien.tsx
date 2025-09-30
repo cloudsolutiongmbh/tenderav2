@@ -169,10 +169,10 @@ function ProjectCriteriaPage() {
 				projectId: projectId as any,
 				templateId: templateId ? (templateId as any) : undefined,
 			});
-			toast.success("Template aktualisiert.");
+			toast.success("Kriterienkatalog aktualisiert.");
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Template konnte nicht gespeichert werden.",
+				error instanceof Error ? error.message : "Kriterienkatalog konnte nicht gespeichert werden.",
 			);
 		} finally {
 			setAssigningTemplate(false);
@@ -181,7 +181,7 @@ function ProjectCriteriaPage() {
 
     const handleStart = async () => {
         if (!hasTemplate) {
-            toast.error("Bitte zuerst ein Template zuweisen.");
+            toast.error("Bitte zuerst einen Kriterienkatalog zuweisen.");
             return;
         }
         if (!hasPages) {
@@ -305,7 +305,7 @@ function ProjectCriteriaPage() {
 								Noch keine Kriterien vorhanden
 							</p>
 							<p className="mt-1 text-xs text-muted-foreground">
-								Weise ein Template zu oder starte eine Analyse, um Kriterien anzuzeigen.
+								Weise einen Kriterienkatalog zu oder starte eine Analyse, um Kriterien anzuzeigen.
 							</p>
 						</div>
 					) : activeCriterion ? (
@@ -361,19 +361,19 @@ function TemplateAssignmentCard({
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Template</CardTitle>
+				<CardTitle>Kriterienkatalog</CardTitle>
 				<CardDescription>
 					{currentTemplate
 						? `Aktuell: ${currentTemplate.name}${currentTemplate.version ? ` · ${currentTemplate.version}` : ""}`
-						: "Wähle ein Template, um die Kriterien-Analyse zu aktivieren."}
+						: "Wähle einen Kriterienkatalog, um die Kriterien-Analyse zu aktivieren."}
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
 				{isLoading ? (
-					<p className="text-sm text-muted-foreground">Lade Templates …</p>
+					<p className="text-sm text-muted-foreground">Lade Kriterienkataloge …</p>
 				) : templates.length === 0 ? (
 					<p className="text-sm text-muted-foreground">
-						Noch keine Templates vorhanden. Erstelle eines im Bereich „Templates“.
+						Noch keine Kriterienkataloge vorhanden. Erstelle einen im Bereich „Kriterienkataloge".
 					</p>
 				) : (
 					<form className="flex flex-col gap-3 sm:flex-row sm:items-center" onSubmit={handleSubmit}>
@@ -382,7 +382,7 @@ function TemplateAssignmentCard({
 							onChange={(event) => setSelected(event.target.value)}
 							className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
 						>
-							<option value="">Kein Template</option>
+							<option value="">Kein Katalog</option>
 							{templates.map((template) => (
 								<option key={template._id} value={template._id}>
 									{template.name}
@@ -391,7 +391,7 @@ function TemplateAssignmentCard({
 							))}
 						</select>
 						<Button type="submit" disabled={isAssigning}>
-							{isAssigning ? "Speichere …" : "Template speichern"}
+							{isAssigning ? "Speichere …" : "Katalog zuweisen"}
 						</Button>
 					</form>
 				)}

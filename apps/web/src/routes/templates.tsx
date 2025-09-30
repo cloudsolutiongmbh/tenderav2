@@ -74,14 +74,14 @@ function TemplatesPage() {
     }
 
     const handleDelete = async (templateId: string, templateName: string) => {
-        if (!confirm(`Template "${templateName}" wirklich löschen?`)) {
+        if (!confirm(`Kriterienkatalog "${templateName}" wirklich löschen?`)) {
             return;
         }
         try {
             await deleteTemplate({ templateId: templateId as any });
-            toast.success("Template gelöscht.");
+            toast.success("Kriterienkatalog gelöscht.");
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Template konnte nicht gelöscht werden.");
+            toast.error(error instanceof Error ? error.message : "Kriterienkatalog konnte nicht gelöscht werden.");
         }
     };
 
@@ -91,9 +91,9 @@ function TemplatesPage() {
                 <header className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <h1 className="text-3xl font-semibold">Templates</h1>
+                            <h1 className="text-3xl font-semibold">Kriterienkataloge</h1>
                             <p className="text-muted-foreground">
-                                Verwalte Kriterienkataloge für die Kriterien-Analyse.
+                                Verwalte wiederverwendbare Kriterienkataloge für die Analyse.
                             </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -116,14 +116,14 @@ function TemplatesPage() {
                                 </Button>
                             </div>
                             <DialogTrigger asChild>
-                                <Button disabled={!auth.authReady}>Neues Template</Button>
+                                <Button disabled={!auth.authReady}>Neuer Katalog</Button>
                             </DialogTrigger>
                         </div>
                     </div>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
-                            placeholder="Templates durchsuchen..."
+                            placeholder="Kriterienkataloge durchsuchen..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-9"
@@ -133,9 +133,9 @@ function TemplatesPage() {
 
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Neues Template anlegen</DialogTitle>
+                        <DialogTitle>Neuen Kriterienkatalog anlegen</DialogTitle>
                         <DialogDescription>
-                            Erfasse die Basisdaten. Kriterien kannst du später im Template ergänzen.
+                            Erfasse die Basisdaten. Kriterien kannst du später ergänzen.
                         </DialogDescription>
                     </DialogHeader>
                     <NewTemplateForm onSuccess={() => setDialogOpen(false)} />
@@ -145,12 +145,12 @@ function TemplatesPage() {
             <section className={viewMode === "board" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "flex flex-col gap-2"}>
                 {isLoading ? (
                     <Card>
-                        <CardContent className="py-6 text-sm text-muted-foreground">Lade Templates …</CardContent>
+                        <CardContent className="py-6 text-sm text-muted-foreground">Lade Kriterienkataloge …</CardContent>
                     </Card>
                 ) : (templates?.length ?? 0) === 0 ? (
                     <Card>
                         <CardContent className="py-6 text-sm text-muted-foreground">
-                            Noch keine Templates vorhanden. Lege ein neues Template an, um Kriterien zu definieren.
+                            Noch keine Kriterienkataloge vorhanden. Lege einen neuen Katalog an, um Kriterien zu definieren.
                         </CardContent>
                     </Card>
                 ) : viewMode === "board" ? (
@@ -196,7 +196,7 @@ function TemplatesPage() {
                                     }}
                                     className="w-full rounded-md border px-3 py-2 text-sm text-center transition-colors hover:bg-muted"
                                 >
-                                    Template bearbeiten
+                                    Katalog bearbeiten
                                 </button>
                             </CardContent>
                         </Card>
@@ -303,7 +303,7 @@ function NewTemplateForm({ onSuccess }: NewTemplateFormProps) {
                 criteria: [],
             });
 
-            toast.success("Template angelegt.");
+            toast.success("Kriterienkatalog angelegt.");
             setName("");
             setLanguage("Deutsch");
             setVersion("1.0");
@@ -311,7 +311,7 @@ function NewTemplateForm({ onSuccess }: NewTemplateFormProps) {
             setDescription("");
             onSuccess();
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Template konnte nicht erstellt werden.");
+            toast.error(error instanceof Error ? error.message : "Kriterienkatalog konnte nicht erstellt werden.");
         } finally {
             setSubmitting(false);
         }
@@ -356,7 +356,7 @@ function NewTemplateForm({ onSuccess }: NewTemplateFormProps) {
                     </Button>
                 </DialogClose>
                 <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Speichere …" : "Template anlegen"}
+                    {isSubmitting ? "Speichere …" : "Katalog anlegen"}
                 </Button>
             </DialogFooter>
         </form>

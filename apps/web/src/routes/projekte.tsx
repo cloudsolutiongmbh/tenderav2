@@ -451,7 +451,7 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 					value={templateId}
 					onChange={(event) => setTemplateId(event.target.value)}
 				>
-					<option value="">Optionales Template auswählen</option>
+					<option value="">Optionalen Kriterienkatalog auswählen</option>
 					{templateOptions.map((template) => (
 						<option key={template._id} value={template._id}>
 							{template.name}

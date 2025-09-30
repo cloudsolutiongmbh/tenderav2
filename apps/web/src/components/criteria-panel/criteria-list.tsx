@@ -30,35 +30,43 @@ const STATUS_CLASS: Record<CriteriaStatus, string> = {
 
 export function CriteriaList({ items, selectedId, onSelect }: CriteriaListProps) {
 	return (
-		<div className="rounded-xl border bg-card">
-			<ul className="divide-y">
-				{items.length === 0 ? (
-					<li className="p-4 text-sm text-muted-foreground">
-						Noch keine Kriterien vorhanden.
-					</li>
-				) : (
-					items.map((item) => {
+		<div className="rounded-xl border bg-card p-3">
+			{items.length === 0 ? (
+				<p className="rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
+					Noch keine Kriterien vorhanden.
+				</p>
+			) : (
+				<div className="grid gap-2">
+					{items.map((item) => {
 						const isActive = item.criterionId === selectedId;
 						return (
-							<li key={item.criterionId}>
-								<button
-									type="button"
-									onClick={() => onSelect?.(item.criterionId)}
+							<button
+								key={item.criterionId}
+								type="button"
+								onClick={() => onSelect?.(item.criterionId)}
+								className={cn(
+									"flex w-full items-start justify-between gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors",
+									isActive
+										? "border-primary bg-primary/10 shadow-sm"
+										: "border-transparent bg-background hover:border-border/60 hover:bg-muted/40",
+								)}
+							>
+								<span className="font-medium leading-snug text-foreground">
+									{item.title}
+								</span>
+								<span
 									className={cn(
-										"flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm transition-colors",
-										isActive ? "bg-primary/10" : "hover:bg-muted/60",
+										"shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold",
+										STATUS_CLASS[item.status],
 									)}
-								>
-									<span className="font-medium">{item.title}</span>
-									<span className={cn("rounded-full px-2 py-0.5 text-xs", STATUS_CLASS[item.status])}>
-										{STATUS_LABEL[item.status]}
-									</span>
-								</button>
-							</li>
+							>
+									{STATUS_LABEL[item.status]}
+								</span>
+							</button>
 						);
-					})
-				)}
-			</ul>
+					})}
+				</div>
+			)}
 		</div>
 	);
 }

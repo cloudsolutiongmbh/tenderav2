@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 
 const items = [
   { title: "Projekte", to: "/projekte", icon: FolderKanban },
-  { title: "Templates", to: "/templates", icon: FileText },
+  { title: "Kriterienkataloge", to: "/templates", icon: FileText },
   { title: "FAQ", to: "/faq", icon: HelpCircle },
   { title: "Profil", to: "/profil", icon: User2 },
   { title: "Organisation", to: "/organisation", icon: Building2 },

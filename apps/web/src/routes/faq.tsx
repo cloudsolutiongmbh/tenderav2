@@ -54,8 +54,8 @@ function FAQPage() {
 							<AccordionContent>
 								Gehe zu „Projekte" und klicke auf „Neues Projekt". Wähle einen
 								Namen, den Kunden und den Projekt-Typ (Standard-Analyse oder
-								Offerten-Vergleich). Bei Standard-Analysen kannst du optional ein
-								Template auswählen.
+								Offerten-Vergleich). Bei Standard-Analysen kannst du optional einen
+								Kriterienkatalog auswählen.
 							</AccordionContent>
 						</AccordionItem>
 
@@ -66,7 +66,7 @@ function FAQPage() {
 							</AccordionTrigger>
 							<AccordionContent>
 								<strong>Standard-Analyse:</strong> Analysiere ein einzelnes
-								Dokument nach vordefinierten Kriterien aus einem Template. Ideal
+								Dokument nach vordefinierten Kriterien aus einem Kriterienkatalog. Ideal
 								für die strukturierte Auswertung von Ausschreibungen.
 								<br />
 								<br />
@@ -91,14 +91,14 @@ function FAQPage() {
 					<Accordion type="single" collapsible className="w-full">
 						<AccordionItem value="standard-template">
 							<AccordionTrigger>
-								Was ist ein Template und wofür brauche ich es?
+								Was ist ein Kriterienkatalog und wofür brauche ich ihn?
 							</AccordionTrigger>
 							<AccordionContent>
-								Ein Template ist eine Sammlung von Fragen, die automatisch von der
-								KI beantwortet werden. Du kannst Templates für wiederkehrende
+								Ein Kriterienkatalog ist eine Sammlung von Fragen, die automatisch von der
+								KI beantwortet werden. Du kannst Kriterienkataloge für wiederkehrende
 								Analysen erstellen (z.B. immer die gleichen Kriterien für alle
-								IT-Ausschreibungen). Im Projekt wählst du dann einfach das
-								passende Template aus.
+								IT-Ausschreibungen). Im Projekt wählst du dann einfach den
+								passenden Kriterienkatalog aus.
 							</AccordionContent>
 						</AccordionItem>
 
@@ -119,7 +119,7 @@ function FAQPage() {
 							<AccordionContent>
 								Gehe im Projekt zu „Standard-Analyse" und klicke auf „Analyse
 								starten". Die KI durchsucht das Dokument und beantwortet alle
-								Fragen aus dem Template. Nach Abschluss siehst du die Ergebnisse
+								Fragen aus dem Kriterienkatalog. Nach Abschluss siehst du die Ergebnisse
 								mit Zitaten aus dem Dokument.
 							</AccordionContent>
 						</AccordionItem>
@@ -180,7 +180,7 @@ function FAQPage() {
 								klicke auf „Setup öffnen". Lade zuerst das Pflichtenheft hoch
 								(PDF, DOCX oder TXT). Sobald die Verarbeitung abgeschlossen ist,
 								klicke auf „Kriterien extrahieren". Die KI erstellt automatisch
-								ein Template mit allen gefundenen Muss- und Kann-Kriterien.
+								einen Kriterienkatalog mit allen gefundenen Muss- und Kann-Kriterien.
 							</AccordionContent>
 						</AccordionItem>
 
@@ -246,7 +246,7 @@ function FAQPage() {
 
 			<Card>
 				<CardHeader>
-					<CardTitle>Templates</CardTitle>
+					<CardTitle>Kriterienkataloge</CardTitle>
 					<CardDescription>
 						Fragenkataloge erstellen und wiederverwenden
 					</CardDescription>
@@ -255,34 +255,34 @@ function FAQPage() {
 					<Accordion type="single" collapsible className="w-full">
 						<AccordionItem value="template-create">
 							<AccordionTrigger>
-								Wie erstelle ich ein Template?
+								Wie erstelle ich einen Kriterienkatalog?
 							</AccordionTrigger>
 							<AccordionContent>
-								Gehe zu „Templates" und klicke auf „Neues Template". Gib einen
+								Gehe zu „Kriterienkataloge" und klicke auf „Neuer Katalog". Gib einen
 								Namen ein und füge Fragen hinzu. Jede Frage kann vom Typ
-								„Ja/Nein", „Text" oder „Zahl" sein. Templates kannst du in
+								„Ja/Nein", „Text" oder „Zahl" sein. Kriterienkataloge kannst du in
 								mehreren Standard-Analyse-Projekten wiederverwenden.
 							</AccordionContent>
 						</AccordionItem>
 
 						<AccordionItem value="template-auto">
 							<AccordionTrigger>
-								Kann ich Templates automatisch erstellen lassen?
+								Kann ich Kriterienkataloge automatisch erstellen lassen?
 							</AccordionTrigger>
 							<AccordionContent>
-								Ja! Im Offerten-Vergleich werden Templates automatisch erstellt,
+								Ja! Im Offerten-Vergleich werden Kriterienkataloge automatisch erstellt,
 								wenn du „Kriterien extrahieren" aus dem Pflichtenheft ausführst.
-								Die KI erkennt Muss- und Kann-Kriterien und erstellt daraus ein
-								vollständiges Template.
+								Die KI erkennt Muss- und Kann-Kriterien und erstellt daraus einen
+								vollständigen Kriterienkatalog.
 							</AccordionContent>
 						</AccordionItem>
 
 						<AccordionItem value="template-edit">
 							<AccordionTrigger>
-								Kann ich Templates nachträglich bearbeiten?
+								Kann ich Kriterienkataloge nachträglich bearbeiten?
 							</AccordionTrigger>
 							<AccordionContent>
-								Ja, du kannst Templates jederzeit öffnen, Fragen hinzufügen,
+								Ja, du kannst Kriterienkataloge jederzeit öffnen, Fragen hinzufügen,
 								bearbeiten oder löschen. Änderungen wirken sich auf zukünftige
 								Analysen aus, bereits durchgeführte Analysen bleiben unverändert.
 							</AccordionContent>
@@ -367,7 +367,7 @@ function FAQPage() {
 								Wie teile ich Projekte mit meinem Team?
 							</AccordionTrigger>
 							<AccordionContent>
-								Alle Projekte, Templates und Dokumente sind automatisch für alle
+								Alle Projekte, Kriterienkataloge und Dokumente sind automatisch für alle
 								Mitglieder deiner Organisation sichtbar. Du musst nichts manuell
 								teilen – jeder im Team kann sofort auf alle Inhalte zugreifen und
 								zusammenarbeiten.
@@ -391,7 +391,7 @@ function FAQPage() {
 							</AccordionTrigger>
 							<AccordionContent>
 								Eine Organisation ist dein Team-Workspace. Alle Projekte,
-								Templates und Dokumente gehören zur Organisation, nicht zu
+								Kriterienkataloge und Dokumente gehören zur Organisation, nicht zu
 								einzelnen Benutzern. So kann dein Team nahtlos zusammenarbeiten,
 								auch wenn Personen das Team verlassen.
 							</AccordionContent>
@@ -456,7 +456,7 @@ function FAQPage() {
 										eingescannten Bilder)
 									</li>
 									<li>
-										Formuliere Template-Fragen präzise und eindeutig
+										Formuliere Fragen im Kriterienkatalog präzise und eindeutig
 									</li>
 									<li>
 										Bei Offerten-Vergleichen: Stelle sicher, dass das
@@ -485,7 +485,7 @@ function FAQPage() {
 										gruppieren
 									</li>
 									<li>
-										Erstelle wiederverwendbare Templates für wiederkehrende
+										Erstelle wiederverwendbare Kriterienkataloge für wiederkehrende
 										Analysen
 									</li>
 									<li>
@@ -503,8 +503,8 @@ function FAQPage() {
 							<AccordionContent>
 								<strong>Für Standard-Analysen:</strong>
 								<ol className="mt-2 list-decimal space-y-1 pl-5">
-									<li>Template erstellen (einmalig)</li>
-									<li>Projekt mit Template anlegen</li>
+									<li>Kriterienkatalog erstellen (einmalig)</li>
+									<li>Projekt mit Kriterienkatalog anlegen</li>
 									<li>Dokument hochladen</li>
 									<li>Analyse starten</li>
 									<li>Ergebnisse prüfen und exportieren</li>

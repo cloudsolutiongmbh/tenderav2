@@ -39,7 +39,7 @@ export const Route = createFileRoute("/templates/$id")({
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
             <Card>
                 <CardHeader>
-                    <CardTitle>Template konnte nicht geladen werden</CardTitle>
+                    <CardTitle>Kriterienkatalog konnte nicht geladen werden</CardTitle>
                     <CardDescription>
                         {error instanceof Error ? error.message : String(error)}
                     </CardDescription>
@@ -113,15 +113,15 @@ function TemplateDetailPage() {
 
     const handleDelete = async () => {
         if (!hasExistingTemplate || !template?._id) return;
-        const ok = window.confirm("Dieses Template wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.");
+        const ok = window.confirm("Diesen Kriterienkatalog wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.");
         if (!ok) return;
         setDeleting(true);
         try {
             await removeTemplate({ templateId: template._id as any });
-            toast.success("Template gelöscht.");
+            toast.success("Kriterienkatalog gelöscht.");
             navigate({ to: "/templates" });
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Template konnte nicht gelöscht werden.");
+            toast.error(error instanceof Error ? error.message : "Kriterienkatalog konnte nicht gelöscht werden.");
         } finally {
             setDeleting(false);
         }
@@ -214,12 +214,12 @@ function TemplateDetailPage() {
 				criteria: normalizedCriteria,
 			});
 
-			toast.success("Template gespeichert.");
+			toast.success("Kriterienkatalog gespeichert.");
 			if (isNew) {
 				navigate({ to: "/templates/$id", params: { id: templateId as string } });
 			}
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "Template konnte nicht gespeichert werden.");
+			toast.error(error instanceof Error ? error.message : "Kriterienkatalog konnte nicht gespeichert werden.");
 		} finally {
 			setSaving(false);
 		}
@@ -230,8 +230,8 @@ function TemplateDetailPage() {
 			<div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
 				<Card>
 					<CardHeader>
-						<CardTitle>Template nicht gefunden</CardTitle>
-						<CardDescription>Dieses Template existiert nicht oder wurde gelöscht.</CardDescription>
+						<CardTitle>Kriterienkatalog nicht gefunden</CardTitle>
+						<CardDescription>Dieser Kriterienkatalog existiert nicht oder wurde gelöscht.</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<Link to="/templates" className="rounded-md border px-3 py-2 text-sm">
@@ -248,9 +248,9 @@ function TemplateDetailPage() {
             <Card>
                 <CardHeader className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <CardTitle>{isNew ? "Neues Template" : template?.name ?? "Template"}</CardTitle>
+                        <CardTitle>{isNew ? "Neuer Kriterienkatalog" : template?.name ?? "Kriterienkatalog"}</CardTitle>
                         <CardDescription>
-                            Verwalte Name, Sichtbarkeit und Kriterien dieses Templates.
+                            Verwalte Name, Sichtbarkeit und Kriterien dieses Kriterienkatalogs.
                         </CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
@@ -263,7 +263,7 @@ function TemplateDetailPage() {
                             onClick={handleDelete}
                             disabled={!hasExistingTemplate || isDeleting}
                         >
-                            {isDeleting ? "Lösche …" : "Template löschen"}
+                            {isDeleting ? "Lösche …" : "Katalog löschen"}
                         </Button>
                     </div>
                 </CardHeader>
@@ -427,7 +427,7 @@ function TemplateDetailPage() {
 
 				<div className="flex justify-end">
 					<Button type="submit" disabled={isSaving || isLoading}>
-						{isSaving ? "Speichere …" : "Template speichern"}
+						{isSaving ? "Speichere …" : "Katalog speichern"}
 					</Button>
 				</div>
 			</form>
