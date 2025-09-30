@@ -3,9 +3,11 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getIdentityOrThrow } from "./auth";
 import type { Id } from "./_generated/dataModel";
+import { randomFillSync } from "crypto";
 
 const DEFAULT_TTL_DAYS = 7;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MAX_TOKEN_GENERATION_ATTEMPTS = 10;
 
 export const create = mutation({
 	args: {
@@ -23,17 +25,22 @@ export const create = mutation({
 		const days = ttlDays && ttlDays > 0 ? ttlDays : DEFAULT_TTL_DAYS;
 		const expiresAt = now + days * MS_PER_DAY;
 
-		let token: string;
-		while (true) {
-			token = generateShareToken();
-			const existing = await ctx.db
-				.query("shares")
-				.withIndex("by_token", (q) => q.eq("token", token))
-				.first();
-			if (!existing) {
-				break;
+			let token: string | null = null;
+			for (let attempt = 0; attempt < MAX_TOKEN_GENERATION_ATTEMPTS; attempt++) {
+				const candidate = generateShareToken();
+				const existing = await ctx.db
+					.query("shares")
+					.withIndex("by_token", (q) => q.eq("token", candidate))
+					.first();
+				if (!existing) {
+					token = candidate;
+					break;
+				}
 			}
-		}
+
+			if (!token) {
+				throw new Error("Token-Generierung fehlgeschlagen nach mehreren Versuchen.");
+			}
 
 		await ctx.db.insert("shares", {
 			projectId,
@@ -150,7 +157,12 @@ function fillRandomBytes(bytes: Uint8Array) {
 		return;
 	}
 
-	for (let i = 0; i < bytes.length; i++) {
-		bytes[i] = Math.floor(Math.random() * 256);
+	if (typeof randomFillSync === "function") {
+		randomFillSync(bytes);
+		return;
 	}
+
+	throw new Error(
+		"Kryptographisch sichere Zufallszahlen nicht verfügbar - Token-Generierung abgebrochen.",
+	);
 }
