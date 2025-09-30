@@ -25,11 +25,13 @@ const standardAnalysisSchema = v.object({
 			citation: v.optional(v.union(citationSchema, v.null())),
 		}),
 	),
-	openQuestions: v.array(
-		v.object({
-			question: v.string(),
-			citation: v.optional(v.union(citationSchema, v.null())),
-		}),
+	openQuestions: v.optional(
+		v.array(
+			v.object({
+				question: v.string(),
+				citation: v.optional(v.union(citationSchema, v.null())),
+			}),
+		),
 	),
 	metadata: v.array(
 		v.object({
@@ -176,6 +178,7 @@ export default defineSchema({
 		queuedAt: v.number(),
 		startedAt: v.optional(v.number()),
 		finishedAt: v.optional(v.number()),
+		dispatchedAt: v.optional(v.number()),
 		resultId: v.optional(v.id("analysisResults")),
 		offerId: v.optional(v.id("offers")),
 		templateSnapshotId: v.optional(v.id("templates")),

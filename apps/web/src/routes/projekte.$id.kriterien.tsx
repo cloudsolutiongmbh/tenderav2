@@ -79,7 +79,7 @@ function ProjectCriteriaPage() {
     const removeProject = useMutation(api.projects.remove);
 	const setTemplate = useMutation(api.projects.setTemplate);
 
-	const runSummary = useMemo<RunSummary | null>(() => {
+    const runSummary = useMemo<RunSummary | null>(() => {
 		if (!criteriaResult?.run) {
 			return null;
 		}

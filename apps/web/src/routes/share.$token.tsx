@@ -21,7 +21,6 @@ interface StandardResultShape {
 	summary: string;
 	milestones: Array<{ title: string; date?: string; citation?: Citation }>;
 	requirements: Array<{ title: string; category?: string; notes?: string; citation?: Citation }>;
-	openQuestions: Array<{ question: string; citation?: Citation }>;
 	metadata: Array<{ label: string; value: string; citation?: Citation }>;
 }
 
@@ -177,7 +176,6 @@ function isStandardResult(value: unknown): value is StandardResultShape {
 		"milestones" in value &&
 		Array.isArray((value as StandardResultShape).milestones) &&
 		Array.isArray((value as StandardResultShape).requirements) &&
-		Array.isArray((value as StandardResultShape).openQuestions) &&
 		Array.isArray((value as StandardResultShape).metadata)
 	);
 }

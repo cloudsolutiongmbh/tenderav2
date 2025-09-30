@@ -94,10 +94,6 @@ interface StandardResultSection {
 		notes?: string;
 		citation?: { page: number; quote: string };
 	}>;
-	openQuestions: Array<{
-		question: string;
-		citation?: { page: number; quote: string };
-	}>;
 	metadata: Array<{
 		label: string;
 		value: string;
@@ -663,9 +659,6 @@ class MockConvexBackend {
 			requirements: [
 				{ title: "Referenzen", category: "Qualitativ", notes: "Mindestens zwei Referenzen", citation: citationPrimary },
 				{ title: "Sicherheitskonzept", category: "Organisatorisch", notes: "Konzept gemäss Ausschreibung", citation: citationSecondary },
-			],
-			openQuestions: [
-				{ question: "Ist eine Verlängerung der Frist möglich?", citation: citationPrimary },
 			],
 			metadata: [
 				{ label: "Vergabestelle", value: "Testkommune", citation: citationSecondary },

@@ -177,12 +177,6 @@ export const completeStandardRun = mutation({
 					citation: citationSecondary,
 				},
 			],
-			openQuestions: [
-				{
-					question: "Ist eine Verlängerung der Frist möglich?",
-					citation: citationPrimary,
-				},
-			],
 			metadata: [
 				{
 					label: "Vergabestelle",

@@ -37,11 +37,6 @@ interface StandardRequirement {
 	citation?: Citation;
 }
 
-interface StandardOpenQuestion {
-	question: string;
-	citation?: Citation;
-}
-
 interface StandardMetadataItem {
 	label: string;
 	value: string;
@@ -52,7 +47,6 @@ interface StandardResult {
 	summary: string;
 	milestones: StandardMilestone[];
 	requirements: StandardRequirement[];
-	openQuestions: StandardOpenQuestion[];
 	metadata: StandardMetadataItem[];
 }
 
@@ -83,6 +77,7 @@ function ProjectStandardPage() {
 			}
 			: "skip",
 	);
+	const runLatest = standard?.run;
 
 	const standardResult = useMemo<StandardResult | null>(() => {
 		const result = standard?.result;
@@ -200,7 +195,6 @@ function isStandardResult(value: unknown): value is StandardResult {
 		"milestones" in value &&
 		Array.isArray((value as StandardResult).milestones) &&
 		Array.isArray((value as StandardResult).requirements) &&
-		Array.isArray((value as StandardResult).openQuestions) &&
 		Array.isArray((value as StandardResult).metadata)
 	);
 }

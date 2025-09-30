@@ -2,6 +2,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getIdentityOrThrow } from "./auth";
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
 interface LatestRunSummary {
@@ -169,6 +170,10 @@ export const startAnalysis = mutation({
 		});
 
 		await ctx.db.patch(projectId, { latestRunId: runId });
+
+		await ctx.scheduler.runAfter(0, internal.analysis.kickQueue, {
+			orgId: identity.orgId,
+		});
 
 		return {
 			runId,

@@ -308,13 +308,13 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 					{offer.latestStatus && <StatusBadge status={offer.latestStatus} />}
 				</div>
 			</CardHeader>
-			<CardContent className="flex-1 space-y-4">
-				{metric && (
-					<div className="rounded-md bg-muted p-3">
-						<div className="flex items-baseline justify-between">
-							<span className="text-sm font-medium">Erfüllungsgrad</span>
-							<span className="text-2xl font-bold">{erfuellungsGrad}%</span>
-						</div>
+		<CardContent className="flex flex-1 flex-col gap-4">
+			{metric && (
+				<div className="rounded-md bg-muted p-3">
+					<div className="flex items-baseline justify-between">
+						<span className="text-sm font-medium">Erfüllungsgrad</span>
+						<span className="text-2xl font-bold">{erfuellungsGrad}%</span>
+					</div>
 						<div className="mt-2 flex gap-3 text-xs text-muted-foreground">
 							<span>✓ {metric.erfuellt}</span>
 							<span>~ {metric.teilweise}</span>
@@ -334,7 +334,7 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 					</p>
 				)}
 
-				<div className="flex flex-col gap-2">
+			<div className="mt-auto flex flex-col gap-2">
 					<Button
 						size="sm"
 						variant="outline"

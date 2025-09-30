@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 const projectNavItems = [
 	{ id: "standard", label: "Standard", to: "/projekte/$id/standard" },
 	{ id: "kriterien", label: "Kriterien", to: "/projekte/$id/kriterien" },
+	{ id: "offerten", label: "Offertenvergleich", to: "/projekte/$id/offerten" },
 	{ id: "dokumente", label: "Dokumente", to: "/projekte/$id/dokumente" },
 	{ id: "kommentare", label: "Kommentare", to: "/projekte/$id/kommentare" },
 	{ id: "export", label: "Export", to: "/projekte/$id/export" },
