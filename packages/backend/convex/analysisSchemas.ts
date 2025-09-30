@@ -22,12 +22,6 @@ export const standardResultSchema = z.object({
             citation: citationSchema.nullable().optional(),
         }),
     ),
-    openQuestions: z.array(
-        z.object({
-            question: z.string().min(1),
-            citation: citationSchema.nullable().optional(),
-        }),
-    ),
     metadata: z.array(
         z.object({
             label: z.string().min(1),
@@ -89,18 +83,6 @@ export const standardResultJsonSchema = {
         required: ["title", "category", "notes", "citation"],
       },
     },
-    openQuestions: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          question: { type: "string" },
-          citation: { anyOf: [citationJsonSchema, { type: "null" }] },
-        },
-        required: ["question", "citation"],
-      },
-    },
     metadata: {
       type: "array",
       items: {
@@ -115,7 +97,7 @@ export const standardResultJsonSchema = {
       },
     },
   },
-  required: ["summary", "milestones", "requirements", "openQuestions", "metadata"],
+  required: ["summary", "milestones", "requirements", "metadata"],
 } as const;
 
 export const criteriaItemJsonSchema = {

@@ -7,7 +7,6 @@ import { api } from "@tendera/backend/convex/_generated/api";
 import {
 	MetadataCard,
 	MilestonesCard,
-	QuestionsCard,
 	RequirementsCard,
 	SummaryCard,
 } from "@/components/analysis-cards";
@@ -122,7 +121,6 @@ function SharePage() {
 					<MetadataCard metadata={standardResult?.metadata ?? []} />
 				</div>
 				<RequirementsCard requirements={standardResult?.requirements ?? []} />
-				<QuestionsCard questions={standardResult?.openQuestions ?? []} />
 			</section>
 
 			<Card>

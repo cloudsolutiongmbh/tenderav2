@@ -385,10 +385,15 @@ export const getLatest = query({
 		const latest = runs[0];
 
 		let result = null;
-		if (latest.resultId) {
-			const stored = await ctx.db.get(latest.resultId);
+		// Surface the most recent completed result even if a newer run is queued or running.
+		for (const run of runs) {
+			if (!run.resultId) {
+				continue;
+			}
+			const stored = await ctx.db.get(run.resultId);
 			if (stored && stored.orgId === identity.orgId) {
 				result = args.type === "standard" ? stored.standard : stored.criteria;
+				break;
 			}
 		}
 
@@ -541,12 +546,6 @@ Das auszugebende JSON-Objekt sieht wie folgt aus:
   "citation": { "page": number, "quote": string } | null
 }
 ],
-"openQuestions": [ // Eine Liste von Fragen, die sich aus dem Dokument ergeben und für das Verständnis des Projekts geklärt werden müssen.
-{
-"question": string, // Die formulierte Frage.
-"citation": { "page": number, "quote": string } | null
-}
-],
 "metadata": [ // Eine Liste von Metadaten zum Projekt, wie z.B. Ansprechpartner, Auftraggeber, etc.
 {
 "label": string, // Die Bezeichnung des Metadatums (z.B. "Auftraggeber", "Ansprechpartner").
@@ -557,7 +556,7 @@ Das auszugebende JSON-Objekt sieht wie folgt aus:
 }
 Hinweise:
 - Alle Felder sind immer im Output enthalten. Falls keine passenden Inhalte vorliegen, ist das jeweilige Feld bzw. Objekt mit \`null\` zu belegen.
-- Arrays wie milestones, requirements, openQuestions und metadata können leer sein ([]), sind aber immer mit auszugeben.
+- Arrays wie milestones, requirements und metadata können leer sein ([]), sind aber immer mit auszugeben.
 - Nicht eindeutig belegbare Inhalte sind wegzulassen oder mit \`null\` zu kennzeichnen.
 - Bei unvollständigem oder fehlendem Kontext sind alle Felder gemäß oben zu behandeln und keine Fehlerhinweise oder Meldungen auszugeben.`;
 
@@ -676,17 +675,12 @@ function mergeStandardResults(results: z.infer<typeof standardResultSchema>[]) {
 		results.flatMap((r) => r.requirements),
 		(item) => `${item.title}-${item.category ?? ""}`,
 	);
-	const openQuestions = dedupeByKey(
-		results.flatMap((r) => r.openQuestions),
-		(item) => item.question,
-	);
 	const metadata = dedupeByKey(results.flatMap((r) => r.metadata), (item) => item.label);
 
 	return {
 		summary,
 		milestones,
 		requirements,
-		openQuestions,
 		metadata,
 	};
 }

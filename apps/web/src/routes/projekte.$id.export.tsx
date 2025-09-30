@@ -10,7 +10,6 @@ import { api } from "@tendera/backend/convex/_generated/api";
 import {
 	MetadataCard,
 	MilestonesCard,
-	QuestionsCard,
 	RequirementsCard,
 	SummaryCard,
 } from "@/components/analysis-cards";
@@ -199,10 +198,6 @@ function ProjectExportPage() {
 					requirements={standardResult?.requirements ?? []}
 					title="Wesentliche Anforderungen"
 					description="Fachliche und technische Anforderungen aus den Ausschreibungsunterlagen."
-					isLoading={isLoading}
-				/>
-				<QuestionsCard
-					questions={standardResult?.openQuestions ?? []}
 					isLoading={isLoading}
 				/>
 			</section>

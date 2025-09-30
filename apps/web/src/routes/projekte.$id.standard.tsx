@@ -8,7 +8,6 @@ import { api } from "@tendera/backend/convex/_generated/api";
 import {
 	MetadataCard,
 	MilestonesCard,
-	QuestionsCard,
 	RequirementsCard,
 	SummaryCard,
 } from "@/components/analysis-cards";
@@ -182,10 +181,6 @@ function ProjectStandardPage() {
 					/>
 				</div>
 				<div className="space-y-6">
-					<QuestionsCard
-						questions={standardResult?.openQuestions ?? []}
-						isLoading={isLoading}
-					/>
 					<MetadataCard
 						metadata={standardResult?.metadata ?? []}
 						isLoading={isLoading}
