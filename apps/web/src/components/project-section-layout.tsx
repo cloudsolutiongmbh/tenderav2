@@ -14,7 +14,11 @@ const projectNavItems = [
 	{ id: "export", label: "Export", to: "/projekte/$id/export" },
 ] as const;
 
-type ProjectSectionId = (typeof projectNavItems)[number]["id"];
+type ProjectSectionId =
+	| (typeof projectNavItems)[number]["id"]
+	| "offerten"
+	| "offerten-setup"
+	| "offer-detail";
 
 interface ProjectSectionLayoutProps {
 	projectId: string;

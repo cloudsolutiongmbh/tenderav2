@@ -83,11 +83,25 @@ const [isExtractingPflichtenheft, setExtractingPflichtenheft] = useState(false);
 	const extractionRunError = extractionStatus?.run?.error ?? null;
 	const isExtractionRunActive = extractionRunStatus === "wartet" || extractionRunStatus === "läuft";
 
+	useEffect(() => {
+		if (auth.orgStatus === "ready" && project?.project.projectType === "offerten") {
+			navigate({
+				to: "/projekte/$id/offerten/setup",
+				params: { id: projectId },
+				replace: true,
+			});
+		}
+	}, [auth.orgStatus, navigate, project?.project.projectType, projectId]);
+
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
 	}
 
 const isOffertenProject = project?.project.projectType === "offerten";
+
+	if (isOffertenProject) {
+		return null;
+	}
 const pflichtenheftDoc = useMemo(
 	() => (documents ?? []).find((doc) => doc.role === "pflichtenheft"),
 	[documents],

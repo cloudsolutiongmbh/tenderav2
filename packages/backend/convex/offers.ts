@@ -158,6 +158,64 @@ export const attachDocument = mutation({
 	},
 });
 
+export const ensureFromDocument = mutation({
+	args: {
+		projectId: v.id("projects"),
+		documentId: v.id("documents"),
+		anbieterName: v.optional(v.string()),
+	},
+	handler: async (ctx, args) => {
+		const identity = await getIdentityOrThrow(ctx);
+		const orgId = identity.orgId;
+
+		const project = await ctx.db.get(args.projectId);
+		if (!project || project.orgId !== orgId) {
+			throw new Error("Project not found or access denied");
+		}
+
+		const document = await ctx.db.get(args.documentId);
+		if (!document || document.orgId !== orgId) {
+			throw new Error("Document not found or access denied");
+		}
+		if (document.projectId !== args.projectId) {
+			throw new Error("Document does not belong to project");
+		}
+		if (document.role !== "offer") {
+			throw new Error("Document is not marked as offer");
+		}
+
+		const existing = await ctx.db
+			.query("offers")
+			.withIndex("by_projectId", (q) => q.eq("projectId", args.projectId))
+			.filter((q) => q.eq(q.field("documentId"), args.documentId))
+			.first();
+
+		if (existing) {
+			return { offerId: existing._id, created: false };
+		}
+
+		const now = Date.now();
+		const fallbackName = deriveNameFromFilename(document.filename);
+		const offerId = await ctx.db.insert("offers", {
+			projectId: args.projectId,
+			anbieterName: args.anbieterName?.trim() || fallbackName,
+			notes: undefined,
+			documentId: args.documentId,
+			orgId,
+			createdBy: identity.userId,
+			createdAt: now,
+			updatedAt: now,
+		});
+
+		return { offerId, created: true };
+	},
+});
+
+function deriveNameFromFilename(filename: string) {
+	const withoutExtension = filename.replace(/\.[^/.]+$/, "");
+	return withoutExtension.trim() || filename;
+}
+
 export const syncRunStatus = mutation({
 	args: {
 		offerId: v.id("offers"),

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "convex/react";
 
@@ -7,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
+import { CriteriaDetail, CriteriaList } from "@/components/criteria-panel";
+import type { CriteriaDetailData, CriteriaListItem } from "@/components/criteria-panel";
 
 export const Route = createFileRoute("/projekte/$id/offerten/$offerId")({
 	component: OfferDetailPage,
@@ -29,7 +31,7 @@ function OfferDetailPage() {
 	const results = useQuery(
 		api.offerCriteria.getByOffer,
 		auth.authReady ? { offerId: offerId as any } : "skip",
-	);
+	) as OfferCriterionResultRecord[] | undefined;
 
 	const metrics = useQuery(
 		api.offers.computeMetrics,
@@ -43,8 +45,80 @@ function OfferDetailPage() {
 	const metric = metrics?.find((m) => m.offerId === offerId);
 	const erfuellungsGrad = metric?.erfuellungsGrad ?? 0;
 
-	const mussCriteria = results?.filter((r) => r.required) ?? [];
-	const kannCriteria = results?.filter((r) => !r.required) ?? [];
+	const sortedResults = useMemo(() => {
+		const items = (results ?? []) as OfferCriterionResult[];
+		return [...items].sort((a, b) => {
+			if (a.required !== b.required) {
+				return a.required ? -1 : 1;
+			}
+			return (b.weight ?? 0) - (a.weight ?? 0);
+		});
+	}, [results]);
+
+	const listItems = useMemo<CriteriaListItem[]>(
+		() =>
+			sortedResults.map((item) => ({
+				criterionId: item.criterionKey,
+				title: item.criterionTitle,
+				status: mapStatusForBoard(item.status),
+			})),
+		[sortedResults],
+	);
+
+	const [selectedId, setSelectedId] = useState<string | undefined>(listItems[0]?.criterionId);
+
+	useEffect(() => {
+		if (listItems.length === 0) {
+			setSelectedId(undefined);
+			return;
+		}
+		if (!selectedId || !listItems.some((item) => item.criterionId === selectedId)) {
+			setSelectedId(listItems[0]?.criterionId);
+		}
+	}, [listItems, selectedId]);
+
+	const activeResult = useMemo<OfferCriterionResult | undefined>(() => {
+		if (sortedResults.length === 0) {
+			return undefined;
+		}
+		if (!selectedId) {
+			return sortedResults[0];
+		}
+		return sortedResults.find((item) => item.criterionKey === selectedId) ?? sortedResults[0];
+	}, [selectedId, sortedResults]);
+
+	const activeCriterion = useMemo<CriteriaDetailData | undefined>(() => {
+		if (!activeResult) {
+			return undefined;
+		}
+		return {
+			criterionId: activeResult.criterionKey,
+			title: activeResult.criterionTitle,
+			hints: activeResult.required ? "Muss-Kriterium" : "Kann-Kriterium",
+			sourcePages: activeResult.citations?.map((citation) => citation.page) ?? [],
+			status: mapStatusForBoard(activeResult.status),
+			comment: activeResult.comment ?? undefined,
+			answer: undefined,
+			score:
+				typeof activeResult.confidence === "number" ? Math.round(activeResult.confidence) : undefined,
+			weight: typeof activeResult.weight === "number" ? activeResult.weight : undefined,
+			citations:
+				activeResult.citations?.map((citation) => ({
+					page: citation.page,
+					quote: citation.quote,
+				})) ?? [],
+		};
+	}, [activeResult]);
+
+	const statusBreakdown = useMemo(() => {
+		return sortedResults.reduce(
+			(acc, item) => {
+				acc[item.status] = (acc[item.status] ?? 0) + 1;
+				return acc;
+			},
+			{ erfuellt: 0, teilweise: 0, nicht_erfuellt: 0, unklar: 0 } as Record<OfferStatus, number>,
+		);
+	}, [sortedResults]);
 
 	return (
 		<ProjectSectionLayout
@@ -96,42 +170,33 @@ function OfferDetailPage() {
 					</Card>
 				)}
 
-				{mussCriteria.length > 0 && (
-					<Card>
-						<CardHeader>
-							<CardTitle>Muss-Kriterien</CardTitle>
-							<CardDescription>
-								Obligatorische Anforderungen, die erfüllt sein müssen
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{mussCriteria.map((result) => (
-								<CriterionResultItem key={result.criterionKey} result={result} />
-							))}
-						</CardContent>
-					</Card>
-				)}
-
-				{kannCriteria.length > 0 && (
-					<Card>
-						<CardHeader>
-							<CardTitle>Kann-Kriterien</CardTitle>
-							<CardDescription>
-								Optionale oder wünschenswerte Anforderungen
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{kannCriteria.map((result) => (
-								<CriterionResultItem key={result.criterionKey} result={result} />
-							))}
-						</CardContent>
-					</Card>
-				)}
-
-				{results && results.length === 0 && (
+				{sortedResults.length === 0 ? (
 					<Card>
 						<CardContent className="py-8 text-center text-sm text-muted-foreground">
 							Noch keine Ergebnisse verfügbar. Starte die Prüfung im Offerten-Vergleich.
+						</CardContent>
+					</Card>
+				) : (
+					<Card>
+						<CardHeader>
+							<CardTitle>Kriterienbewertung</CardTitle>
+							<CardDescription>
+								Muss-Kriterien zuerst, danach nach Gewichtung sortiert.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-5">
+							<div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+								<StatusPill label="Erfüllt" tone="success" value={statusBreakdown.erfuellt} />
+								<StatusPill label="Teilweise" tone="warn" value={statusBreakdown.teilweise} />
+								<StatusPill label="Nicht erfüllt" tone="error" value={statusBreakdown.nicht_erfuellt} />
+								<StatusPill label="Unklar" tone="muted" value={statusBreakdown.unklar} />
+							</div>
+							<div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+								<div className="lg:sticky lg:top-28">
+									<CriteriaList items={listItems} selectedId={selectedId} onSelect={setSelectedId} />
+								</div>
+								<CriteriaDetail criterion={activeCriterion} />
+							</div>
 						</CardContent>
 					</Card>
 				)}
@@ -140,73 +205,62 @@ function OfferDetailPage() {
 	);
 }
 
-interface CriterionResultItemProps {
-	result: any;
+type OfferStatus = "erfuellt" | "teilweise" | "nicht_erfuellt" | "unklar";
+
+type OfferCriterionResult = {
+	criterionKey: string;
+	criterionTitle: string;
+	required: boolean;
+	status: OfferStatus;
+	comment?: string | null;
+	weight?: number | null;
+	citations?: { page: number; quote: string; documentId?: string }[];
+	confidence?: number | null;
+};
+
+type OfferCriterionResultRecord = OfferCriterionResult & {
+	_id: string;
+	offerId: string;
+	projectId: string;
+	runId: string;
+};
+
+function mapStatusForBoard(status: OfferStatus): CriteriaDetailData["status"] {
+	switch (status) {
+		case "erfuellt":
+			return "gefunden";
+		case "teilweise":
+			return "teilweise";
+		case "nicht_erfuellt":
+			return "nicht_gefunden";
+		case "unklar":
+		default:
+			return "unbekannt";
+	}
 }
 
-function CriterionResultItem({ result }: CriterionResultItemProps) {
-	const statusConfig = {
-		erfuellt: {
-			label: "Erfüllt",
-			className: "bg-green-100 text-green-900 border-green-200",
-		},
-		nicht_erfuellt: {
-			label: "Nicht erfüllt",
-			className: "bg-red-100 text-red-900 border-red-200",
-		},
-		teilweise: {
-			label: "Teilweise",
-			className: "bg-amber-100 text-amber-900 border-amber-200",
-		},
-		unklar: {
-			label: "Unklar",
-			className: "bg-gray-100 text-gray-900 border-gray-200",
-		},
-	};
-
-	const config = statusConfig[result.status as keyof typeof statusConfig] ?? statusConfig.unklar;
+function StatusPill({
+	label,
+	value,
+	tone,
+}: {
+	label: string;
+	value: number;
+	tone: "success" | "warn" | "error" | "muted";
+}) {
+	const toneClass = {
+		success: "bg-emerald-100 text-emerald-900",
+		warn: "bg-amber-100 text-amber-900",
+		error: "bg-rose-100 text-rose-900",
+		muted: "bg-muted text-muted-foreground",
+	}[tone];
 
 	return (
-		<div className="rounded-lg border p-4 space-y-3">
-			<div className="flex items-start justify-between gap-3">
-				<div className="flex-1">
-					<h3 className="font-semibold">{result.criterionTitle}</h3>
-				</div>
-				<span
-					className={`rounded-full px-3 py-1 text-xs font-medium ${config.className}`}
-				>
-					{config.label}
-				</span>
-			</div>
-
-			{result.comment && (
-				<div className="rounded-md bg-muted p-3">
-					<p className="text-sm">{result.comment}</p>
-				</div>
-			)}
-
-			{result.confidence !== null && result.confidence !== undefined && (
-				<div className="text-sm text-muted-foreground">
-					Konfidenz: {result.confidence}%
-				</div>
-			)}
-
-			{result.citations && result.citations.length > 0 && (
-				<div className="space-y-2">
-					<p className="text-sm font-medium">Fundstellen:</p>
-					<ul className="space-y-1">
-						{result.citations.map((citation: any, index: number) => (
-							<li
-								key={`${citation.page}-${index}`}
-								className="text-sm text-muted-foreground"
-							>
-								<span className="font-medium">Seite {citation.page}:</span> „
-								{citation.quote}"
-							</li>
-						))}
-					</ul>
-				</div>
-			)}
-		</div>
+		<span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium ${toneClass}`}>
+			{label}
+			<span className="rounded-full bg-background px-2 py-0.5 text-xs font-semibold text-foreground">
+				{value}
+			</span>
+		</span>
 	);
 }

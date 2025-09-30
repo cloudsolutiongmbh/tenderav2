@@ -118,7 +118,7 @@ function ProjectCriteriaPage() {
 				sourcePages: criterion.sourcePages ?? [],
 			}));
 		}
-		return placeholderCriteria;
+		return [];
 	}, [criteriaResult, templateDoc, templateCriteriaMap]);
 
 	const items: CriteriaListItem[] = useMemo(
@@ -131,13 +131,22 @@ function ProjectCriteriaPage() {
 		[computedCriteria],
 	);
 
+	const statusBreakdown = useMemo(() => {
+		return computedCriteria.reduce(
+			(acc, item) => {
+				acc[item.status] = (acc[item.status] ?? 0) + 1;
+				return acc;
+			},
+			{ gefunden: 0, teilweise: 0, nicht_gefunden: 0, unbekannt: 0 } as Record<CriteriaListItem["status"], number>,
+		);
+	}, [computedCriteria]);
+
 	const [selectedId, setSelectedId] = useState<string | undefined>(items[0]?.criterionId);
 	const activeCriterion = useMemo(() => {
-		const fallback = computedCriteria[0] ?? placeholderCriteria[0];
-		if (!selectedId) {
-			return fallback;
+		if (!selectedId && computedCriteria.length > 0) {
+			return computedCriteria[0];
 		}
-		return computedCriteria.find((item) => item.criterionId === selectedId) ?? fallback;
+		return computedCriteria.find((item) => item.criterionId === selectedId);
 	}, [computedCriteria, selectedId]);
 
 	const hasTemplate = Boolean(project?.project.templateId);
@@ -276,12 +285,39 @@ function ProjectCriteriaPage() {
 				</Card>
 			) : null}
 
-			<section className="grid gap-6 lg:grid-cols-[280px_1fr]">
-				<div className="lg:sticky lg:top-20">
-					<CriteriaList items={items} selectedId={selectedId} onSelect={setSelectedId} />
-				</div>
-				<CriteriaDetail criterion={activeCriterion} />
-			</section>
+			<Card>
+				<CardHeader>
+					<CardTitle>Kriterien</CardTitle>
+					<CardDescription>
+						Ergebnisse der Analyse – Muss-Kriterien zuerst, danach optionale Anforderungen.
+					</CardDescription>
+					<div className="flex flex-wrap gap-2 pt-3 text-xs text-muted-foreground">
+						<StatusPill label="Gefunden" tone="success" value={statusBreakdown.gefunden} />
+						<StatusPill label="Teilweise" tone="warn" value={statusBreakdown.teilweise} />
+						<StatusPill label="Nicht gefunden" tone="error" value={statusBreakdown.nicht_gefunden} />
+						<StatusPill label="Nicht bewertet" tone="muted" value={statusBreakdown.unbekannt} />
+					</div>
+				</CardHeader>
+				<CardContent>
+					{items.length === 0 ? (
+						<div className="rounded-lg border border-dashed border-border bg-muted/30 p-8 text-center">
+							<p className="text-sm font-medium text-foreground">
+								Noch keine Kriterien vorhanden
+							</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Weise ein Template zu oder starte eine Analyse, um Kriterien anzuzeigen.
+							</p>
+						</div>
+					) : activeCriterion ? (
+						<div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+							<div className="lg:sticky lg:top-28">
+								<CriteriaList items={items} selectedId={selectedId} onSelect={setSelectedId} />
+							</div>
+							<CriteriaDetail criterion={activeCriterion} />
+						</div>
+					) : null}
+				</CardContent>
+			</Card>
 		</ProjectSectionLayout>
 	);
 }
@@ -296,18 +332,6 @@ interface CriteriaResultPayload {
 	items: CriteriaResultItem[];
 }
 
-const placeholderCriteria: CriteriaDetailData[] = [
-	{
-		criterionId: "C1",
-		title: "Nachhaltigkeitskonzept",
-		status: "gefunden",
-		description: "Nachweis eines zertifizierten Energiekonzepts",
-		comment:
-			"Die Anforderungen werden erfüllt. Es liegt ein Minergie-P Zertifikat sowie ein Monitoring-Konzept vor.",
-		citations: [{ page: 12, quote: "Kapitel Nachhaltigkeit beschreibt das Konzept ausführlich." }],
-		sourcePages: [12],
-	},
-];
 
 function TemplateAssignmentCard({
 	isLoading,
@@ -387,4 +411,30 @@ function mapCriteriaStatus(
 	status: "gefunden" | "nicht_gefunden" | "teilweise" | "unbekannt" | undefined,
 ): "gefunden" | "nicht_gefunden" | "teilweise" | "unbekannt" {
 	return status ?? "unbekannt";
+}
+
+function StatusPill({
+	label,
+	value,
+	tone,
+}: {
+	label: string;
+	value: number;
+	tone: "success" | "warn" | "error" | "muted";
+}) {
+	const toneClass = {
+		success: "bg-emerald-100 text-emerald-900",
+		warn: "bg-amber-100 text-amber-900",
+		error: "bg-rose-100 text-rose-900",
+		muted: "bg-muted text-muted-foreground",
+	}[tone];
+
+	return (
+		<span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium ${toneClass}`}>
+			{label}
+			<span className="rounded-full bg-background px-2 py-0.5 text-xs font-semibold text-foreground">
+				{value}
+			</span>
+		</span>
+	);
 }

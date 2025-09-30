@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { Plus, Loader2, CheckCircle2, Circle, CircleDot } from "lucide-react";
+import { Loader2, CheckCircle2, Circle, CircleDot } from "lucide-react";
 
 import { api } from "@tendera/backend/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -13,17 +13,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/status-badge";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
@@ -62,8 +51,6 @@ function OffertenIndexPage() {
 		auth.authReady ? { projectId: projectId as any } : "skip",
 	);
 
-	const [isDialogOpen, setDialogOpen] = useState(false);
-
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
 	}
@@ -80,8 +67,19 @@ function OffertenIndexPage() {
 		}
 		return undefined;
 	}, [documents]);
+	const offerDocuments = useMemo(
+		() => (documents ?? []).filter((doc) => doc.role === "offer"),
+		[documents],
+	);
 	const pflichtenheftExtracted = Boolean(pflichtenheft?.textExtracted);
 	const offersCount = offers?.length ?? 0;
+	const documentsById = useMemo(() => {
+		const map = new Map<string, any>();
+		for (const doc of documents ?? []) {
+			map.set(doc._id, doc);
+		}
+		return map;
+	}, [documents]);
 	const stepIcons = {
 		done: <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden />,
 		current: <CircleDot className="h-4 w-4 text-primary" aria-hidden />,
@@ -116,8 +114,19 @@ function OffertenIndexPage() {
 					: "Aktiviert sich automatisch nach dem Upload.",
 		},
 		{
+			id: "documents",
+			status: offerDocuments.length > 0 ? "done" : hasTemplate ? "current" : "pending",
+			title: "Angebotsdokumente hochladen",
+			description:
+				offerDocuments.length > 0
+					? `${offerDocuments.length} Dokument${offerDocuments.length === 1 ? "" : "e"} vorbereitet.`
+					: hasTemplate
+						? "Lade die Angebote im Setup hoch – pro Datei wird ein Angebot angelegt."
+						: "Verfügbar nachdem Kriterien extrahiert wurden.",
+		},
+		{
 			id: "offers",
-			status: offersCount > 0 ? "done" : hasTemplate ? "current" : "pending",
+			status: offersCount > 0 ? "done" : offerDocuments.length > 0 ? "current" : "pending",
 			title: "Angebote vergleichen",
 			description: hasTemplate
 				? offersCount > 0
@@ -138,26 +147,11 @@ function OffertenIndexPage() {
 				description: `${offers?.length ?? 0} Angebote im Vergleich`,
 			}}
 			actions={
-				<Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-					<DialogTrigger asChild>
-						<Button size="sm" disabled={!hasTemplate}>
-							<Plus className="mr-2 h-4 w-4" />
-							Neues Angebot
-						</Button>
-					</DialogTrigger>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>Neues Angebot hinzufügen</DialogTitle>
-							<DialogDescription>
-								Erfasse den Anbieter-Namen. Dokumente können danach hochgeladen werden.
-							</DialogDescription>
-						</DialogHeader>
-						<NewOfferForm
-							projectId={projectId}
-							onSuccess={() => setDialogOpen(false)}
-						/>
-					</DialogContent>
-				</Dialog>
+				<Button size="sm" asChild>
+					<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
+						Dokumente hochladen
+					</Link>
+				</Button>
 			}
 		>
 			<div className="space-y-6">
@@ -201,22 +195,24 @@ function OffertenIndexPage() {
 				{offers && offers.length === 0 ? (
 					<Card>
 						<CardContent className="py-8 text-center text-sm text-muted-foreground">
-							Noch keine Angebote hinzugefügt. Klicke auf "Neues Angebot", um zu starten.
+							Noch keine Angebote verfügbar. Lade Angebotsdokumente im Setup hoch, um automatisch Angebote zu erstellen.
 						</CardContent>
 					</Card>
 				) : (
 					<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-						{offers?.map((offer) => {
-							const metric = metrics?.find((m) => m.offerId === offer._id);
-							return (
-								<OfferCard
-									key={offer._id}
-									offer={offer}
-									metric={metric}
-									projectId={projectId}
-								/>
-							);
-						})}
+					{offers?.map((offer) => {
+						const metric = metrics?.find((m) => m.offerId === offer._id);
+						const document = offer.documentId ? documentsById.get(offer.documentId) : undefined;
+						return (
+							<OfferCard
+								key={offer._id}
+								offer={offer}
+								metric={metric}
+								projectId={projectId}
+								document={document}
+							/>
+						);
+					})}
 					</div>
 				)}
 
@@ -242,9 +238,10 @@ interface OfferCardProps {
 	offer: any;
 	metric?: any;
 	projectId: string;
+	document?: any;
 }
 
-function OfferCard({ offer, metric, projectId }: OfferCardProps) {
+function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 	const checkOffer = useAction(api.analysis.checkOfferAgainstCriteria);
 	const deleteOffer = useMutation(api.offers.remove);
 	const [isChecking, setChecking] = useState(false);
@@ -327,7 +324,11 @@ function OfferCard({ offer, metric, projectId }: OfferCardProps) {
 					</div>
 				)}
 
-				{!offer.documentId && (
+				{document ? (
+					<p className="text-xs text-muted-foreground">
+						Dokument: {document.filename}
+					</p>
+				) : (
 					<p className="text-sm text-muted-foreground">
 						Noch kein Dokument hochgeladen.
 					</p>
@@ -369,69 +370,6 @@ function OfferCard({ offer, metric, projectId }: OfferCardProps) {
 				</div>
 			</CardContent>
 		</Card>
-	);
-}
-
-interface NewOfferFormProps {
-	projectId: string;
-	onSuccess: () => void;
-}
-
-function NewOfferForm({ projectId, onSuccess }: NewOfferFormProps) {
-	const createOffer = useMutation(api.offers.create);
-	const [isSubmitting, setSubmitting] = useState(false);
-	const [anbieterName, setAnbieterName] = useState("");
-	const [notes, setNotes] = useState("");
-
-	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		setSubmitting(true);
-		try {
-			await createOffer({
-				projectId: projectId as any,
-				anbieterName,
-				notes: notes || undefined,
-			});
-
-			setAnbieterName("");
-			setNotes("");
-			toast.success("Angebot hinzugefügt.");
-			onSuccess();
-		} catch (error) {
-			toast.error(
-				error instanceof Error
-					? error.message
-					: "Angebot konnte nicht erstellt werden.",
-			);
-		} finally {
-			setSubmitting(false);
-		}
-	};
-
-	return (
-		<form className="grid gap-4" onSubmit={handleSubmit}>
-			<Input
-				placeholder="Anbieter-Name (z.B. Firma XY AG)"
-				value={anbieterName}
-				onChange={(event) => setAnbieterName(event.target.value)}
-				required
-			/>
-			<Input
-				placeholder="Optionale Notizen"
-				value={notes}
-				onChange={(event) => setNotes(event.target.value)}
-			/>
-			<DialogFooter>
-				<DialogClose asChild>
-					<Button type="button" variant="outline" disabled={isSubmitting}>
-						Abbrechen
-					</Button>
-				</DialogClose>
-				<Button type="submit" disabled={isSubmitting}>
-					{isSubmitting ? "Speichere …" : "Angebot anlegen"}
-				</Button>
-			</DialogFooter>
-		</form>
 	);
 }
 

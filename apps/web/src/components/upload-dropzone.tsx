@@ -8,6 +8,7 @@ interface UploadDropzoneProps {
 	onFilesAccepted?: (files: File[]) => void;
 	disabled?: boolean;
 	currentTotalBytes?: number;
+	maxFiles?: number;
 }
 
 const DEFAULT_MAX_TOTAL_MB = 200;
@@ -17,6 +18,7 @@ export function UploadDropzone({
 	onFilesAccepted,
 	disabled = false,
 	currentTotalBytes = 0,
+	maxFiles,
 }: UploadDropzoneProps) {
 	const inputRef = useRef<HTMLInputElement | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -29,6 +31,14 @@ export function UploadDropzone({
 			}
 
 			const fileArray = Array.from(files);
+			if (typeof maxFiles === "number" && maxFiles > 0 && fileArray.length > maxFiles) {
+				setError(
+					maxFiles === 1
+						? "Bitte wähle genau eine Datei aus."
+						: `Maximal ${maxFiles} Dateien gleichzeitig auswählen.`,
+				);
+				return;
+			}
 			const totalBytes = fileArray.reduce((sum, file) => sum + file.size, 0);
 			const maxBytes = maxTotalSizeMb * 1024 * 1024;
 
@@ -86,7 +96,7 @@ export function UploadDropzone({
 				<input
 					ref={inputRef}
 					type="file"
-					multiple
+					multiple={maxFiles === undefined || maxFiles > 1}
 					accept=".pdf,.docx,.txt"
 					className="hidden"
 					onChange={handleInputChange}
