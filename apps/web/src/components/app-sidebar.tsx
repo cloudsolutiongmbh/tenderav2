@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { FolderKanban, FileText, User2, Building2, ChevronLeft, Heart, HelpCircle } from "lucide-react";
+import { FolderKanban, FileText, User2, Building2, ChevronLeft, Heart, HelpCircle, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,7 +15,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
-import { SignedIn, SignedOut, SignInButton } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignInButton, useClerk } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 
 const items = [
@@ -29,6 +29,8 @@ const items = [
 export function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { open } = useSidebar();
+  const { signOut } = useClerk();
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -65,6 +67,16 @@ export function AppSidebar() {
             <Button className="w-full" variant="outline">Anmelden</Button>
           </SignInButton>
         </SignedOut>
+        <SignedIn>
+          <Button
+            className="w-full justify-start"
+            variant="ghost"
+            onClick={() => signOut()}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            {open ? <span>Abmelden</span> : null}
+          </Button>
+        </SignedIn>
         <div className="flex items-center justify-center gap-1 px-2 py-3 text-xs text-muted-foreground">
           <span>Made with</span>
           <Heart className="h-3 w-3 fill-red-500 text-red-500" />
