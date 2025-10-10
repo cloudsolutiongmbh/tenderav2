@@ -78,7 +78,7 @@ added 1234 packages in 45s
 
 #### 3.1 Create Clerk Application
 
-1. Go to [clerk.com/dashboard](https://clerk.com/dashboard)
+1. Go to [dashboard.clerk.com](https://dashboard.clerk.com/)
 2. Click **"Create Application"**
 3. Name: `Tendera Dev` (or your preferred name)
 4. Enable **Organizations** feature
