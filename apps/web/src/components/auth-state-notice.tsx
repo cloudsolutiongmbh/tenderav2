@@ -1,3 +1,7 @@
+import { useEffect } from "react";
+
+import { useNavigate } from "@tanstack/react-router";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { OrgAuthStatus } from "@/hooks/useOrgAuth";
 
@@ -5,7 +9,7 @@ interface AuthStateNoticeProps {
 	status: OrgAuthStatus;
 }
 
-const MESSAGES: Record<Exclude<OrgAuthStatus, "ready">, { title: string; description: string }> = {
+const MESSAGES: Record<Extract<OrgAuthStatus, "loading" | "signedOut">, { title: string; description: string }> = {
 	loading: {
 		title: "Anmeldung wird geladen",
 		description: "Bitte einen Moment Geduld…",
@@ -14,14 +18,18 @@ const MESSAGES: Record<Exclude<OrgAuthStatus, "ready">, { title: string; descrip
 		title: "Anmeldung erforderlich",
 		description: "Melde dich bitte an, um diese Seite zu nutzen.",
 	},
-	missingOrg: {
-		title: "Organisation auswählen",
-		description: "Bitte wähle im Menü eine Organisation aus, bevor du fortfährst.",
-	},
 };
 
 export function AuthStateNotice({ status }: AuthStateNoticeProps) {
-	if (status === "ready") {
+	const navigate = useNavigate();
+
+	useEffect(() => {
+		if (status === "missingOrg") {
+			navigate({ to: "/onboarding", replace: true });
+		}
+	}, [navigate, status]);
+
+	if (status === "ready" || status === "missingOrg") {
 		return null;
 	}
 
@@ -37,9 +45,7 @@ export function AuthStateNotice({ status }: AuthStateNoticeProps) {
 				<CardContent className="text-sm text-muted-foreground">
 					{status === "signedOut"
 						? "Über die Schaltfläche oben rechts kannst du dich anmelden."
-						: status === "missingOrg"
-							? "Nutze das Organisations-Menü oben rechts, um eine Organisation zu aktivieren."
-							: "Ladevorgang läuft…"}
+						: "Ladevorgang läuft…"}
 				</CardContent>
 			</Card>
 		</div>

@@ -62,11 +62,15 @@ export function AppSidebar() {
         <SidebarSeparator />
       </SidebarContent>
       <SidebarFooter>
-        <SignedOut>
-          <SignInButton mode="modal">
-            <Button className="w-full" variant="outline">Anmelden</Button>
-          </SignInButton>
-        </SignedOut>
+		<SignedOut>
+			<SignInButton
+				mode="redirect"
+				forceRedirectUrl="/onboarding"
+				signUpForceRedirectUrl="/onboarding"
+			>
+				<Button className="w-full" variant="outline">Anmelden</Button>
+			</SignInButton>
+		</SignedOut>
         <SignedIn>
           <Button
             className="w-full justify-start"

@@ -20,15 +20,18 @@ function OrganisationRoute() {
         </section>
       </SignedIn>
 
-      <SignedOut>
-        <div className="flex flex-col items-center gap-3 py-16">
-          <p>Bitte anmelden, um Organisationen zu verwalten.</p>
-          <SignInButton mode="modal">
-            <Button>Anmelden</Button>
-          </SignInButton>
-        </div>
-      </SignedOut>
+		<SignedOut>
+			<div className="flex flex-col items-center gap-3 py-16">
+				<p>Bitte anmelden, um Organisationen zu verwalten.</p>
+				<SignInButton
+					mode="redirect"
+					forceRedirectUrl="/onboarding"
+					signUpForceRedirectUrl="/onboarding"
+				>
+					<Button>Anmelden</Button>
+				</SignInButton>
+			</div>
+		</SignedOut>
     </div>
   );
 }
-

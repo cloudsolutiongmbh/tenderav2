@@ -40,7 +40,11 @@ export default function Header() {
 				<div className="flex items-center gap-2">
 					<ModeToggle />
 					<SignedOut>
-						<SignInButton mode="modal">
+						<SignInButton
+							mode="redirect"
+							forceRedirectUrl="/onboarding"
+							signUpForceRedirectUrl="/onboarding"
+						>
 							<Button variant="secondary">Anmelden</Button>
 						</SignInButton>
 					</SignedOut>
