@@ -313,6 +313,9 @@
 | `promptTokens` | `number?` | Input tokens consumed |
 | `completionTokens` | `number?` | Output tokens generated |
 | `latencyMs` | `number?` | Total execution time |
+| `totalCount` | `number?` | Total criteria/jobs tracked (offer_check runs) |
+| `processedCount` | `number?` | Successfully completed jobs |
+| `failedCount` | `number?` | Jobs that failed permanently |
 | `orgId` | `string` | Organization ID |
 | `createdBy` | `string` | User ID who triggered |
 | `createdAt` | `number` | Creation timestamp |
@@ -321,6 +324,7 @@
 - `by_projectId`: `(projectId)` - For listing runs per project
 - `by_projectId_type`: `(projectId, type)` - For fetching specific run type
 - `by_orgId`: `(orgId)` - For backpressure management
+- `by_offerId_type`: `(offerId, type)` - For locating active offer_check runs
 
 **Business Rules:**
 - Status transitions: `wartet → läuft → fertig/fehler`
@@ -522,8 +526,51 @@
 
 **Business Rules:**
 - One result per (offer, criterion) pair per run
-- Results are immutable once created
+- Results are upserted when a job retries successfully
 - Cached criterion metadata for efficient queries
+
+---
+
+### `offerCriterionJobs`
+
+**Purpose:** Tracks per-criterion work units for offer_check runs (parallel processing + retries).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `_id` | `Id<"offerCriterionJobs">` | Auto-generated unique identifier |
+| `projectId` | `Id<"projects">` | Parent project |
+| `runId` | `Id<"analysisRuns">` | Owning offer_check run |
+| `offerId` | `Id<"offers">` | Offer under evaluation |
+| `criterionKey` | `string` | Criterion identifier |
+| `criterionTitle` | `string` | Cached title |
+| `criterionDescription` | `string?` | Cached description |
+| `criterionHints` | `string?` | Cached hints |
+| `required` | `boolean` | Muss-Flag |
+| `weight` | `number` | Criterion weight |
+| `keywords` | `string[]?` | Keyword list for page preselection |
+| `status` | `"pending" \| "processing" \| "done" \| "error"` | Worker state |
+| `attempts` | `number` | Number of attempts so far |
+| `errorCode` | `string?` | Error classifier (e.g., RATE_LIMIT) |
+| `errorMessage` | `string?` | Human-readable error |
+| `startedAt` | `number?` | Processing start timestamp |
+| `finishedAt` | `number?` | Completion timestamp |
+| `retryAfter` | `number?` | Earliest timestamp when job may be retried |
+| `orgId` | `string` | Organization ID |
+| `createdAt` | `number` | Creation timestamp |
+| `updatedAt` | `number` | Last update timestamp |
+
+**Indexes:**
+- `by_run`: `(runId)` - All jobs for a run
+- `by_run_status`: `(runId, status)` - Worker selection
+- `by_offer`: `(offerId)` - Jobs per offer
+- `by_offer_status`: `(offerId, status)` - Offer progress
+- `by_org_status`: `(orgId, status)` - Org-level concurrency control
+
+**Business Rules:**
+- Jobs are created once per criterion when a run starts (idempotent).
+- `status="processing"` implies the job is locked to a worker; stale jobs are recycled.
+- `retryAfter` gates exponential backoff for transient errors.
+- When `status="error"`, the owning run increments `failedCount` and the run finalizes with status `fehler`.
 
 ---
 

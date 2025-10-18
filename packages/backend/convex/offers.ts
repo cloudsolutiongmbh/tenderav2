@@ -265,10 +265,12 @@ export const computeMetrics = query({
 			.collect();
 
 		const metricsPromises = offers.map(async (offer) => {
-			const results = await ctx.db
-				.query("offerCriteriaResults")
-				.withIndex("by_offerId", (q) => q.eq("offerId", offer._id))
-				.collect();
+			const results = offer.latestRunId
+				? await ctx.db
+						.query("offerCriteriaResults")
+						.withIndex("by_runId", (q) => q.eq("runId", offer.latestRunId))
+						.collect()
+				: [];
 
 			let totalWeight = 0;
 			let achievedWeight = 0;

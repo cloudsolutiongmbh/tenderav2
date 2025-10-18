@@ -338,6 +338,25 @@ function buildDocumentContext(pages: Array<{ page: number; text: string }>) {
 
 **Note:** Criteria analysis uses **full document context** (not chunked) to ensure cross-page matching.
 
+### Offer Page Prioritisation
+
+For offer checks we build a ranked view of the offer document before calling the LLM:
+
+1. Collect keywords from the criterion title, description, hints, and explicit keyword list.
+2. Score each offer page by keyword frequency.
+3. Sort by score (desc) and surface the top `CONVEX_OFFER_PAGE_LIMIT` pages first.
+4. Append the remaining pages in natural order so the model still receives the complete document.
+5. If no page matches the keywords, the full document is forwarded unchanged.
+
+This keeps the most relevant evidence upfront while preserving recall and enabling the model to fall back to the rest of the document if our heuristic misses something.
+
+### Offer Job Concurrency
+
+- Each criterion becomes a job in `offerCriterionJobs`.
+- Background workers (`runOfferCriterionWorker`) process jobs in parallel, capped by `CONVEX_MAX_PARALLEL_OFFER_JOBS` (default **3**).
+- Jobs implement exponential backoff with a `retryAfter` timestamp and are retried up to `CONVEX_OFFER_JOB_MAX_ATTEMPTS`.
+- Stale jobs (`status="processing"` for longer than `CONVEX_OFFER_JOB_TIMEOUT_MS`) are recycled automatically.
+
 ---
 
 ## Offerten-Vergleich Prompts

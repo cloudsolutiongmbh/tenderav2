@@ -187,13 +187,17 @@ export default defineSchema({
 		promptTokens: v.optional(v.number()),
 		completionTokens: v.optional(v.number()),
 		latencyMs: v.optional(v.number()),
+		totalCount: v.optional(v.number()),
+		processedCount: v.optional(v.number()),
+		failedCount: v.optional(v.number()),
 		orgId: v.string(),
 		createdBy: v.string(),
 		createdAt: v.number(),
 	})
 		.index("by_projectId", ["projectId"])
 		.index("by_projectId_type", ["projectId", "type"])
-		.index("by_orgId", ["orgId"]),
+		.index("by_orgId", ["orgId"])
+		.index("by_offerId_type", ["offerId", "type"]),
 	analysisResults: defineTable({
 		projectId: v.id("projects"),
 		runId: v.id("analysisRuns"),
@@ -265,4 +269,36 @@ export default defineSchema({
 		.index("by_projectId", ["projectId"])
 		.index("by_projectId_offerId", ["projectId", "offerId"])
 		.index("by_runId", ["runId"]),
+	offerCriterionJobs: defineTable({
+		projectId: v.id("projects"),
+		runId: v.id("analysisRuns"),
+		offerId: v.id("offers"),
+		criterionKey: v.string(),
+		criterionTitle: v.string(),
+		criterionDescription: v.optional(v.string()),
+		criterionHints: v.optional(v.string()),
+		required: v.boolean(),
+		weight: v.number(),
+		keywords: v.optional(v.array(v.string())),
+		status: v.union(
+			v.literal("pending"),
+			v.literal("processing"),
+			v.literal("done"),
+			v.literal("error"),
+		),
+		attempts: v.number(),
+		errorCode: v.optional(v.string()),
+		errorMessage: v.optional(v.string()),
+		startedAt: v.optional(v.number()),
+		finishedAt: v.optional(v.number()),
+		retryAfter: v.optional(v.number()),
+		orgId: v.string(),
+		createdAt: v.number(),
+		updatedAt: v.number(),
+	})
+		.index("by_run", ["runId"])
+		.index("by_run_status", ["runId", "status"])
+		.index("by_offer", ["offerId"])
+		.index("by_offer_status", ["offerId", "status"])
+		.index("by_org_status", ["orgId", "status"]),
 });

@@ -124,8 +124,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/faq': typeof FaqRoute
   '/health': typeof HealthRoute
-  '/organisation': typeof OrganisationRoute
   '/onboarding': typeof OnboardingRoute
+  '/organisation': typeof OrganisationRoute
   '/profil': typeof ProfilRoute
   '/projekte': typeof ProjekteRouteWithChildren
   '/templates': typeof TemplatesRouteWithChildren
@@ -144,8 +144,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/faq': typeof FaqRoute
   '/health': typeof HealthRoute
-  '/organisation': typeof OrganisationRoute
   '/onboarding': typeof OnboardingRoute
+  '/organisation': typeof OrganisationRoute
   '/profil': typeof ProfilRoute
   '/projekte': typeof ProjekteRouteWithChildren
   '/templates': typeof TemplatesRouteWithChildren
@@ -165,8 +165,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/faq': typeof FaqRoute
   '/health': typeof HealthRoute
-  '/organisation': typeof OrganisationRoute
   '/onboarding': typeof OnboardingRoute
+  '/organisation': typeof OrganisationRoute
   '/profil': typeof ProfilRoute
   '/projekte': typeof ProjekteRouteWithChildren
   '/templates': typeof TemplatesRouteWithChildren
@@ -187,8 +187,8 @@ export interface FileRouteTypes {
     | '/'
     | '/faq'
     | '/health'
-    | '/organisation'
     | '/onboarding'
+    | '/organisation'
     | '/profil'
     | '/projekte'
     | '/templates'
@@ -207,8 +207,8 @@ export interface FileRouteTypes {
     | '/'
     | '/faq'
     | '/health'
-    | '/organisation'
     | '/onboarding'
+    | '/organisation'
     | '/profil'
     | '/projekte'
     | '/templates'
@@ -227,8 +227,8 @@ export interface FileRouteTypes {
     | '/'
     | '/faq'
     | '/health'
-    | '/organisation'
     | '/onboarding'
+    | '/organisation'
     | '/profil'
     | '/projekte'
     | '/templates'
@@ -248,8 +248,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   FaqRoute: typeof FaqRoute
   HealthRoute: typeof HealthRoute
-  OrganisationRoute: typeof OrganisationRoute
   OnboardingRoute: typeof OnboardingRoute
+  OrganisationRoute: typeof OrganisationRoute
   ProfilRoute: typeof ProfilRoute
   ProjekteRoute: typeof ProjekteRouteWithChildren
   TemplatesRoute: typeof TemplatesRouteWithChildren
@@ -429,8 +429,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   FaqRoute: FaqRoute,
   HealthRoute: HealthRoute,
-  OrganisationRoute: OrganisationRoute,
   OnboardingRoute: OnboardingRoute,
+  OrganisationRoute: OrganisationRoute,
   ProfilRoute: ProfilRoute,
   ProjekteRoute: ProjekteRouteWithChildren,
   TemplatesRoute: TemplatesRouteWithChildren,

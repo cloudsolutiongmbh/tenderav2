@@ -15,7 +15,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ModeToggle } from "@/components/mode-toggle";
-import { SignedIn, SignedOut, SignInButton, useClerk } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignInButton, useClerk, ClerkLoading, ClerkLoaded } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 
 const items = [
@@ -62,25 +62,34 @@ export function AppSidebar() {
         <SidebarSeparator />
       </SidebarContent>
       <SidebarFooter>
-		<SignedOut>
-			<SignInButton
-				mode="redirect"
-				forceRedirectUrl="/onboarding"
-				signUpForceRedirectUrl="/onboarding"
-			>
-				<Button className="w-full" variant="outline">Anmelden</Button>
-			</SignInButton>
-		</SignedOut>
-        <SignedIn>
-          <Button
-            className="w-full justify-start"
-            variant="ghost"
-            onClick={() => signOut()}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            {open ? <span>Abmelden</span> : null}
+        <ClerkLoading>
+          <Button className="w-full" variant="outline" asChild>
+            <Link to="/onboarding">Anmelden</Link>
           </Button>
-        </SignedIn>
+        </ClerkLoading>
+        <ClerkLoaded>
+          <SignedOut>
+            <SignInButton
+              mode="redirect"
+              forceRedirectUrl="/onboarding"
+              signUpForceRedirectUrl="/onboarding"
+            >
+              <Button className="w-full" variant="outline">
+                Anmelden
+              </Button>
+            </SignInButton>
+          </SignedOut>
+          <SignedIn>
+            <Button
+              className="w-full justify-start"
+              variant="ghost"
+              onClick={() => signOut()}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              {open ? <span>Abmelden</span> : null}
+            </Button>
+          </SignedIn>
+        </ClerkLoaded>
         <div className="flex items-center justify-center gap-1 px-2 py-3 text-xs text-muted-foreground">
           <span>Made with</span>
           <Heart className="h-3 w-3 fill-red-500 text-red-500" />

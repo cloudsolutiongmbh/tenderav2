@@ -18,6 +18,22 @@ import {
 } from "./analysisSchemas";
 
 const PAGES_PER_CHUNK = Number.parseInt(process.env.CONVEX_ANALYSIS_PAGES_PER_CHUNK ?? "10");
+const MAX_PARALLEL_OFFER_JOBS = Math.max(
+	1,
+	Number.parseInt(process.env.CONVEX_MAX_PARALLEL_OFFER_JOBS ?? "3"),
+);
+const OFFER_JOB_TIMEOUT_MS = Math.max(
+	30_000,
+	Number.parseInt(process.env.CONVEX_OFFER_JOB_TIMEOUT_MS ?? "120000"),
+);
+const OFFER_JOB_MAX_ATTEMPTS = Math.max(
+	1,
+	Number.parseInt(process.env.CONVEX_OFFER_JOB_MAX_ATTEMPTS ?? "3"),
+);
+const OFFER_PAGE_LIMIT = Math.max(
+	1,
+	Number.parseInt(process.env.CONVEX_OFFER_PAGE_LIMIT ?? "8"),
+);
 
 interface CriterionComputation {
 	key: string;
@@ -33,6 +49,16 @@ interface CriterionComputation {
 	answer?: string;
 	score?: number;
 	citations: Array<{ page: number; quote: string }>;
+}
+
+interface OfferCriterionSnapshot {
+	key: string;
+	title: string;
+	description: string | null;
+	hints: string | null;
+	required: boolean;
+	weight: number;
+	keywords: string[];
 }
 
 export const runStandard = action({
@@ -393,6 +419,40 @@ export const getLatest = query({
 	},
 });
 
+export const getOfferCheckProgress = query({
+	args: {
+		offerId: v.id("offers"),
+	},
+	handler: async (ctx, { offerId }) => {
+		const identity = await getIdentityOrThrow(ctx);
+		const offer = await ctx.db.get(offerId);
+		if (!offer || offer.orgId !== identity.orgId) {
+			throw new ConvexError("Angebot nicht gefunden.");
+		}
+
+		if (!offer.latestRunId) {
+			return { run: null as const };
+		}
+
+		const run = await ctx.db.get(offer.latestRunId);
+		if (!run || run.type !== "offer_check" || run.orgId !== identity.orgId) {
+			return { run: null as const };
+		}
+
+		return {
+			run: {
+				_id: run._id,
+				status: run.status,
+				processedCount: run.processedCount ?? 0,
+				failedCount: run.failedCount ?? 0,
+				totalCount: run.totalCount ?? 0,
+				startedAt: run.startedAt ?? null,
+				finishedAt: run.finishedAt ?? null,
+			},
+		} as const;
+	},
+});
+
 export const getPflichtenheftExtractionStatus = query({
 	args: {
 		projectId: v.id("projects"),
@@ -465,6 +525,69 @@ function chunkPages(
 	}
 
 	return chunks;
+}
+
+function selectOfferPagesForCriterion(
+	pages: Array<{ page: number; text: string }>,
+	criterion: OfferCriterionSnapshot,
+) {
+	const tokens = new Set<string>();
+	const pushTokens = (value: string | null) => {
+		if (!value) return;
+		const matches = value.toLowerCase().match(/[a-zäöüß0-9]+/g);
+		if (!matches) return;
+		for (const token of matches) {
+			if (token.length > 1) {
+				tokens.add(token);
+			}
+		}
+	};
+
+	pushTokens(criterion.title);
+	pushTokens(criterion.description);
+	pushTokens(criterion.hints);
+	for (const keyword of criterion.keywords) {
+		pushTokens(keyword);
+	}
+
+	if (tokens.size === 0) {
+		return [...pages];
+	}
+
+	const scored = pages.map((page) => {
+		const lower = page.text.toLowerCase();
+		let score = 0;
+		for (const token of tokens) {
+			const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+			const matches = lower.match(new RegExp(escaped, "g"));
+			if (matches) {
+				score += matches.length;
+			}
+		}
+		return { page, score };
+	});
+
+	const preferred = scored
+		.filter((entry) => entry.score > 0)
+		.sort((a, b) => {
+			if (b.score === a.score) {
+				return a.page.page - b.page.page;
+			}
+			return b.score - a.score;
+		})
+		.slice(0, OFFER_PAGE_LIMIT)
+		.map((entry) => entry.page);
+
+	if (preferred.length === 0) {
+		return [...pages];
+	}
+
+	const preferredPages = new Set(preferred.map((entry) => entry.page));
+	const remainder = pages
+		.filter((page) => !preferredPages.has(page.page))
+		.sort((a, b) => a.page - b.page);
+
+	return [...preferred, ...remainder];
 }
 
 async function analyseStandardChunk(
@@ -1169,6 +1292,209 @@ export const runCriteriaQueueWorker = internalAction({
     },
 });
 
+export const runOfferCriterionWorker = internalAction({
+    args: {
+        runId: v.id("analysisRuns"),
+    },
+    handler: async (ctx, { runId }) => {
+        const run = (await ctx.runQuery(internal.analysis.getRunForAnalysis, {
+            runId,
+        })) as Doc<"analysisRuns"> | null;
+
+        if (!run || run.type !== "offer_check") {
+            return;
+        }
+        if (run.status !== "läuft") {
+            return;
+        }
+
+        const { jobId } = (await ctx.runMutation(internal.analysis.claimOfferCriterionJob, {
+            runId,
+        })) as { jobId: Id<"offerCriterionJobs"> | null };
+
+        if (!jobId) {
+            const totalCount = run.totalCount ?? 0;
+            const processed = run.processedCount ?? 0;
+            const failed = run.failedCount ?? 0;
+            if (totalCount > 0 && processed + failed >= totalCount) {
+                const summary = await ctx.runQuery(internal.analysis.getOfferRunErrorSummary, {
+                    runId,
+                });
+                await ctx.runMutation(internal.analysis.completeOfferCheckRun, {
+                    runId,
+                    status: summary.hasFailures ? "fehler" : "fertig",
+                    errorMessage: summary.message,
+                });
+            }
+            return;
+        }
+
+        const job = (await ctx.runQuery(internal.analysis.getOfferCriterionJob, {
+            jobId,
+        })) as Doc<"offerCriterionJobs"> | null;
+
+        if (!job) {
+            return;
+        }
+
+        const offer = (await ctx.runQuery(internal.analysis.getOfferForAnalysis, {
+            offerId: job.offerId,
+        })) as Doc<"offers"> | null;
+
+        if (!offer || offer.orgId !== run.orgId) {
+            await ctx.runMutation(internal.analysis.markOfferJobFailed, {
+                jobId,
+                errorCode: "OFFER_NOT_FOUND",
+                errorMessage: "Angebot nicht gefunden oder ohne Berechtigung.",
+            });
+            await ctx.runMutation(internal.analysis.completeOfferCheckRun, {
+                runId,
+                status: "fehler",
+                errorMessage: "Angebot konnte nicht geladen werden.",
+            });
+            return;
+        }
+
+        if (!offer.documentId) {
+            await ctx.runMutation(internal.analysis.markOfferJobFailed, {
+                jobId,
+                errorCode: "NO_DOCUMENT",
+                errorMessage: "Kein Dokument für dieses Angebot vorhanden.",
+            });
+            const summary = await ctx.runQuery(internal.analysis.getOfferRunErrorSummary, {
+                runId,
+            });
+            await ctx.runMutation(internal.analysis.completeOfferCheckRun, {
+                runId,
+                status: "fehler",
+                errorMessage: summary.message ?? "Kein Angebotsdokument vorhanden.",
+            });
+            return;
+        }
+
+        try {
+            const docPageIds = (await ctx.runQuery(
+                internal.analysis.getDocPageIdsForDocument,
+                { documentId: offer.documentId },
+            )) as Id<"docPages">[];
+
+            const pages = await fetchDocPages(
+                ctx as any,
+                docPageIds,
+                run.orgId,
+                job.projectId as Id<"projects">,
+            );
+
+            const orderedPages = selectOfferPagesForCriterion(pages, {
+                key: job.criterionKey,
+                title: job.criterionTitle,
+                description: job.criterionDescription ?? null,
+                hints: job.criterionHints ?? null,
+                required: job.required,
+                weight: job.weight,
+                keywords: job.keywords ?? [],
+            });
+
+            const { result, usage, latencyMs, meta } = await checkOfferCriterion(
+                orderedPages,
+                {
+                    key: job.criterionKey,
+                    title: job.criterionTitle,
+                    description: job.criterionDescription ?? undefined,
+                    hints: job.criterionHints ?? undefined,
+                    required: job.required,
+                },
+            );
+
+            await ctx.runMutation(internal.analysis.upsertOfferCriterionResult, {
+                projectId: job.projectId,
+                offerId: job.offerId,
+                runId,
+                criterionKey: job.criterionKey,
+                criterionTitle: job.criterionTitle,
+                required: job.required,
+                weight: job.weight,
+                status: result.status,
+                comment: result.comment ?? undefined,
+                citations: result.citations,
+                confidence: result.confidence ?? undefined,
+                provider: meta.provider,
+                model: meta.model,
+                orgId: run.orgId,
+            });
+
+            const status = await ctx.runMutation(internal.analysis.markOfferJobDone, {
+                jobId,
+                usage,
+                latencyMs,
+                provider: meta.provider,
+                model: meta.model,
+            });
+
+            if (status.runId && status.isComplete) {
+                const summary = await ctx.runQuery(internal.analysis.getOfferRunErrorSummary, {
+                    runId,
+                });
+                await ctx.runMutation(internal.analysis.completeOfferCheckRun, {
+                    runId,
+                    status: summary.hasFailures ? "fehler" : "fertig",
+                    errorMessage: summary.message,
+                });
+            }
+
+            await ctx.scheduler.runAfter(0, internal.analysis.kickQueue, { orgId: run.orgId });
+        } catch (error) {
+            console.error("[analysis] runOfferCriterionWorker failed", {
+                runId,
+                jobId,
+                error,
+            });
+
+            const currentJob = (await ctx.runQuery(internal.analysis.getOfferCriterionJob, {
+                jobId,
+            })) as Doc<"offerCriterionJobs"> | null;
+
+            if (!currentJob) {
+                return;
+            }
+
+            const attempts = currentJob.attempts;
+            if (attempts < OFFER_JOB_MAX_ATTEMPTS) {
+                const baseDelay = 5000 * Math.pow(2, attempts);
+                const jitter = Math.floor(Math.random() * 1000);
+                const delay = baseDelay + jitter;
+                await ctx.runMutation(internal.analysis.resetOfferJobToPending, {
+                    jobId,
+                    retryAfter: Date.now() + delay,
+                });
+                await ctx.scheduler.runAfter(delay, internal.analysis.runOfferCriterionWorker, {
+                    runId,
+                });
+            } else {
+                const result = await ctx.runMutation(internal.analysis.markOfferJobFailed, {
+                    jobId,
+                    errorCode: "JOB_FAILED",
+                    errorMessage:
+                        error instanceof Error ? error.message : "Angebotsprüfung fehlgeschlagen.",
+                });
+
+                if (result.runId && result.isComplete) {
+                    const summary = await ctx.runQuery(internal.analysis.getOfferRunErrorSummary, {
+                        runId,
+                    });
+                    await ctx.runMutation(internal.analysis.completeOfferCheckRun, {
+                        runId,
+                        status: "fehler",
+                        errorMessage: summary.message,
+                    });
+                }
+            }
+
+            await ctx.scheduler.runAfter(0, internal.analysis.kickQueue, { orgId: run.orgId });
+        }
+    },
+});
+
 export const kickQueue = internalAction({
     args: {
         orgId: v.string(),
@@ -1176,6 +1502,34 @@ export const kickQueue = internalAction({
     handler: async (ctx, { orgId }) => {
         const runs = await ctx.runQuery(internal.analysis.listRunsByOrg, { orgId });
         if (runs.length === 0) {
+            return;
+        }
+
+        const offerRuns = runs.filter((run) => run.type === "offer_check");
+        const otherRuns = runs.filter((run) => run.type !== "offer_check");
+
+        if (offerRuns.length > 0) {
+            const { pending, processing } = await ctx.runQuery(
+                internal.analysis.countOfferJobsForOrg,
+                { orgId },
+            );
+            if (pending > 0) {
+                const available = Math.max(0, MAX_PARALLEL_OFFER_JOBS - processing);
+                if (available > 0) {
+                    const runIds = await ctx.runQuery(
+                        internal.analysis.listOfferRunsWithPendingJobs,
+                        { orgId, limit: available },
+                    );
+                    for (const runId of runIds) {
+                        await ctx.scheduler.runAfter(0, internal.analysis.runOfferCriterionWorker, {
+                            runId,
+                        });
+                    }
+                }
+            }
+        }
+
+        if (otherRuns.length === 0) {
             return;
         }
 
@@ -1212,15 +1566,15 @@ export const kickQueue = internalAction({
             }
         };
 
-        const pendingDispatch = runs.filter(
+        const pendingDispatch = otherRuns.filter(
             (run) => run.status === "läuft" && !run.dispatchedAt,
         );
         for (const run of pendingDispatch) {
             await dispatch(run);
         }
 
-        let activeCount = runs.filter((run) => run.status === "läuft").length;
-        const queued = runs
+        let activeCount = otherRuns.filter((run) => run.status === "läuft").length;
+        const queued = otherRuns
             .filter((run) => run.status === "wartet")
             .sort((a, b) => (a.queuedAt ?? 0) - (b.queuedAt ?? 0));
 
@@ -1246,6 +1600,7 @@ export const cleanStaleRuns = internalAction({
         const runs = await ctx.runQuery(internal.analysis.listRunsByOrg, { orgId });
         const stale = runs.filter(
             (run) =>
+                run.type !== "offer_check" &&
                 run.status === "läuft" &&
                 run.startedAt !== undefined &&
                 now - run.startedAt > timeoutMs,
@@ -1259,7 +1614,34 @@ export const cleanStaleRuns = internalAction({
             });
         }
 
-        if (stale.length > 0) {
+        const processingJobs = await ctx.db
+            .query("offerCriterionJobs")
+            .withIndex("by_org_status", (q) => q.eq("orgId", orgId).eq("status", "processing"))
+            .collect();
+
+        let jobUpdates = 0;
+        for (const job of processingJobs) {
+            if (!job.startedAt || now - job.startedAt <= OFFER_JOB_TIMEOUT_MS) {
+                continue;
+            }
+
+            if (job.attempts < OFFER_JOB_MAX_ATTEMPTS) {
+                await ctx.runMutation(internal.analysis.resetOfferJobToPending, {
+                    jobId: job._id,
+                    retryAfter: now + 5000,
+                });
+                jobUpdates += 1;
+            } else {
+                await ctx.runMutation(internal.analysis.markOfferJobFailed, {
+                    jobId: job._id,
+                    errorCode: "TIMEOUT",
+                    errorMessage: `Job nach ${OFFER_JOB_TIMEOUT_MS}ms abgebrochen.`,
+                });
+                jobUpdates += 1;
+            }
+        }
+
+        if (stale.length > 0 || jobUpdates > 0) {
             await ctx.scheduler.runAfter(0, internal.analysis.kickQueue, { orgId });
         }
     },
@@ -1518,7 +1900,8 @@ export const extractPflichtenheftCriteria = action({
 });
 
 /**
- * Check a single offer against all criteria in the template
+ * Check a single offer against all criteria in the template.
+ * This now schedules per-criterion jobs that are processed in parallel workers.
  */
 export const checkOfferAgainstCriteria = action({
 	args: {
@@ -1549,10 +1932,9 @@ export const checkOfferAgainstCriteria = action({
 			throw new ConvexError("Template nicht gefunden.");
 		}
 
-		// Get offer
 		const offer = (await ctx.runQuery(internal.analysis.getOfferForAnalysis, {
 			offerId: args.offerId,
-		})) as any;
+		})) as Doc<"offers"> | null;
 
 		if (!offer || offer.orgId !== identity.orgId) {
 			throw new ConvexError("Angebot nicht gefunden.");
@@ -1562,7 +1944,6 @@ export const checkOfferAgainstCriteria = action({
 			throw new ConvexError("Kein Dokument für dieses Angebot hochgeladen.");
 		}
 
-		// Get offer document pages
 		const docPageIds = (await ctx.runQuery(
 			internal.analysis.getDocPageIdsForDocument,
 			{ documentId: offer.documentId },
@@ -1572,73 +1953,53 @@ export const checkOfferAgainstCriteria = action({
 			throw new ConvexError("Keine Dokumentseiten im Angebot gefunden.");
 		}
 
-		const run = await acquireRun(ctx as any, project._id, identity.orgId, "offer_check", {
-			userId: identity.userId,
+		const existingRun = (await ctx.runQuery(internal.analysis.getActiveOfferCheckRun, {
 			offerId: args.offerId,
-		});
-		const pages = await fetchDocPages(ctx as any, docPageIds, identity.orgId, project._id);
+		})) as Doc<"analysisRuns"> | null;
 
-		if (pages.length === 0) {
-			throw new ConvexError("Keine Dokumentseiten gefunden.");
-		}
-
-		let totalPromptTokens = 0;
-		let totalCompletionTokens = 0;
-		let totalLatency = 0;
-		let provider = run.provider;
-		let model = run.model;
-
-		try {
-			// Check each criterion
-			for (const criterion of template.criteria) {
-				const { result, usage, latencyMs, meta } = await checkOfferCriterion(
-					pages,
-					criterion,
-				);
-
-				totalPromptTokens += usage.promptTokens ?? 0;
-				totalCompletionTokens += usage.completionTokens ?? 0;
-				totalLatency += latencyMs;
-				provider = meta.provider;
-				model = meta.model;
-
-				// Store result
-				await ctx.runMutation(internal.analysis.storeOfferCriterionResult, {
-					projectId: project._id,
-					offerId: args.offerId,
-					runId: run._id,
-					criterionKey: criterion.key,
-					criterionTitle: criterion.title,
-					required: criterion.required,
-					weight: criterion.weight,
-					status: result.status,
-					comment: result.comment ?? undefined,
-					citations: result.citations,
-					confidence: result.confidence,
-					provider: meta.provider,
-					model: meta.model,
-					orgId: identity.orgId,
-				});
-			}
-
-			// Mark run as finished
-			await ctx.runMutation(internal.analysis.finishOfferCheckRun, {
-				runId: run._id,
-				offerId: args.offerId,
-				telemetry: {
-					provider,
-					model,
-					promptTokens: totalPromptTokens || undefined,
-					completionTokens: totalCompletionTokens || undefined,
-					latencyMs: totalLatency,
-				},
+		if (existingRun && (existingRun.status === "wartet" || existingRun.status === "läuft")) {
+			await ctx.scheduler.runAfter(0, internal.analysis.kickQueue, {
+				orgId: identity.orgId,
 			});
-
-			return { status: "fertig", criteriaChecked: template.criteria.length };
-		} catch (error) {
-			await failRun(ctx as any, run._id, error);
-			throw error;
+			return { runId: existingRun._id, queued: true };
 		}
+
+		const totalCount = template.criteria.length;
+		if (totalCount === 0) {
+			throw new ConvexError("Template enthält keine Kriterien.");
+		}
+
+		const runId = (await ctx.runMutation(internal.analysis.startOfferCheckRun, {
+			projectId: project._id,
+			offerId: args.offerId,
+			orgId: identity.orgId,
+			userId: identity.userId,
+			totalCount,
+			provider: "PENDING",
+			model: "PENDING",
+		})) as Id<"analysisRuns">;
+
+		await ctx.runMutation(internal.analysis.ensureOfferCriterionJobs, {
+			runId,
+			projectId: project._id,
+			offerId: args.offerId,
+			orgId: identity.orgId,
+			criteria: template.criteria.map((criterion) => ({
+				key: criterion.key,
+				title: criterion.title,
+				description: criterion.description ?? null,
+				hints: criterion.hints ?? null,
+				required: criterion.required,
+				weight: criterion.weight,
+				keywords: criterion.keywords ?? [],
+			})),
+		});
+
+		await ctx.scheduler.runAfter(0, internal.analysis.kickQueue, {
+			orgId: identity.orgId,
+		});
+
+		return { runId, queued: true };
 	},
 });
 
@@ -1856,7 +2217,409 @@ export const getDocPageIdsForDocument = internalQuery({
 	},
 });
 
-export const storeOfferCriterionResult = internalMutation({
+export const getActiveOfferCheckRun = internalQuery({
+	args: {
+		offerId: v.id("offers"),
+	},
+	handler: async (ctx, { offerId }) => {
+		const runs = await ctx.db
+			.query("analysisRuns")
+			.withIndex("by_offerId_type", (q) => q.eq("offerId", offerId).eq("type", "offer_check"))
+			.collect();
+
+		runs.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+		return runs.find((run) => run.status === "läuft" || run.status === "wartet") ?? null;
+	},
+});
+
+export const startOfferCheckRun = internalMutation({
+	args: {
+		projectId: v.id("projects"),
+		offerId: v.id("offers"),
+		orgId: v.string(),
+		userId: v.string(),
+		totalCount: v.number(),
+		provider: v.string(),
+		model: v.string(),
+	},
+	handler: async (ctx, args) => {
+		const now = Date.now();
+		const runId = await ctx.db.insert("analysisRuns", {
+			projectId: args.projectId,
+			type: "offer_check",
+			status: "läuft",
+			error: undefined,
+			queuedAt: now,
+			startedAt: now,
+			finishedAt: undefined,
+			dispatchedAt: now,
+			resultId: undefined,
+			offerId: args.offerId,
+			templateSnapshotId: undefined,
+			provider: args.provider,
+			model: args.model,
+			promptTokens: 0,
+			completionTokens: 0,
+			latencyMs: 0,
+			totalCount: args.totalCount,
+			processedCount: 0,
+			failedCount: 0,
+			orgId: args.orgId,
+			createdBy: args.userId,
+			createdAt: now,
+		});
+
+		await ctx.runMutation(internal.offers.syncRunStatus, {
+			offerId: args.offerId,
+			runId,
+			status: "läuft",
+		});
+
+		return runId;
+	},
+});
+
+export const ensureOfferCriterionJobs = internalMutation({
+	args: {
+		runId: v.id("analysisRuns"),
+		projectId: v.id("projects"),
+		offerId: v.id("offers"),
+		orgId: v.string(),
+		criteria: v.array(
+			v.object({
+				key: v.string(),
+				title: v.string(),
+				description: v.optional(v.union(v.string(), v.null())),
+				hints: v.optional(v.union(v.string(), v.null())),
+				required: v.boolean(),
+				weight: v.number(),
+				keywords: v.array(v.string()),
+			}),
+		),
+	},
+	handler: async (ctx, args) => {
+		const existingJobs = await ctx.db
+			.query("offerCriterionJobs")
+			.withIndex("by_run", (q) => q.eq("runId", args.runId))
+			.collect();
+		const existingKeys = new Set(existingJobs.map((job) => job.criterionKey));
+		const now = Date.now();
+
+		for (const criterion of args.criteria) {
+			if (existingKeys.has(criterion.key)) {
+				continue;
+			}
+			await ctx.db.insert("offerCriterionJobs", {
+				projectId: args.projectId,
+				runId: args.runId,
+				offerId: args.offerId,
+				criterionKey: criterion.key,
+				criterionTitle: criterion.title,
+				criterionDescription: criterion.description ?? undefined,
+				criterionHints: criterion.hints ?? undefined,
+				required: criterion.required,
+				weight: criterion.weight,
+				keywords: criterion.keywords,
+				status: "pending",
+				attempts: 0,
+				errorCode: undefined,
+				errorMessage: undefined,
+				startedAt: undefined,
+				finishedAt: undefined,
+				retryAfter: undefined,
+				orgId: args.orgId,
+				createdAt: now,
+				updatedAt: now,
+			});
+		}
+	},
+});
+
+export const claimOfferCriterionJob = internalMutation({
+	args: {
+		runId: v.id("analysisRuns"),
+	},
+	handler: async (ctx, { runId }) => {
+		const candidates = await ctx.db
+			.query("offerCriterionJobs")
+			.withIndex("by_run_status", (q) => q.eq("runId", runId).eq("status", "pending"))
+			.take(25);
+
+		const now = Date.now();
+		const job = candidates.find(
+			(entry) => entry.retryAfter === undefined || entry.retryAfter <= now,
+		);
+
+		if (!job) {
+			return { jobId: null };
+		}
+
+		const startedAt = Date.now();
+		await ctx.db.patch(job._id, {
+			status: "processing",
+			attempts: job.attempts + 1,
+			startedAt,
+			retryAfter: undefined,
+			updatedAt: startedAt,
+		});
+
+		return { jobId: job._id };
+	},
+});
+
+export const getOfferCriterionJob = internalQuery({
+	args: {
+		jobId: v.id("offerCriterionJobs"),
+	},
+	handler: async (ctx, { jobId }) => {
+		return await ctx.db.get(jobId);
+	},
+});
+
+export const markOfferJobDone = internalMutation({
+	args: {
+		jobId: v.id("offerCriterionJobs"),
+		usage: v.object({
+			promptTokens: v.optional(v.number()),
+			completionTokens: v.optional(v.number()),
+		}),
+		latencyMs: v.number(),
+		provider: v.string(),
+		model: v.string(),
+	},
+	handler: async (ctx, args) => {
+		const job = await ctx.db.get(args.jobId);
+		if (!job) {
+			return { runId: null };
+		}
+
+		const run = await ctx.db.get(job.runId);
+		if (!run) {
+			return { runId: null };
+		}
+
+		const now = Date.now();
+		await ctx.db.patch(job._id, {
+			status: "done",
+			errorCode: undefined,
+			errorMessage: undefined,
+			finishedAt: now,
+			updatedAt: now,
+		});
+
+		const processedCount = (run.processedCount ?? 0) + 1;
+		const promptTokens = (run.promptTokens ?? 0) + (args.usage.promptTokens ?? 0);
+		const completionTokens = (run.completionTokens ?? 0) + (args.usage.completionTokens ?? 0);
+		const latencyMs = (run.latencyMs ?? 0) + args.latencyMs;
+
+		await ctx.db.patch(run._id, {
+			processedCount,
+			promptTokens,
+			completionTokens,
+			latencyMs,
+			provider: run.provider === "PENDING" ? args.provider : run.provider,
+			model: run.model === "PENDING" ? args.model : run.model,
+		});
+
+		const totalCount = run.totalCount ?? 0;
+		const failedCount = run.failedCount ?? 0;
+		const isComplete = totalCount > 0 && processedCount + failedCount >= totalCount;
+
+		return {
+			runId: run._id,
+			orgId: run.orgId,
+			offerId: run.offerId ?? null,
+			isComplete,
+			hasFailures: failedCount > 0,
+		};
+	},
+});
+
+export const markOfferJobFailed = internalMutation({
+	args: {
+		jobId: v.id("offerCriterionJobs"),
+		errorCode: v.optional(v.string()),
+		errorMessage: v.optional(v.string()),
+		usage: v.optional(
+			v.object({
+				promptTokens: v.optional(v.number()),
+				completionTokens: v.optional(v.number()),
+			}),
+		),
+		latencyMs: v.optional(v.number()),
+	},
+	handler: async (ctx, args) => {
+		const job = await ctx.db.get(args.jobId);
+		if (!job) {
+			return { runId: null };
+		}
+
+		const run = await ctx.db.get(job.runId);
+		if (!run) {
+			return { runId: null };
+		}
+
+		const now = Date.now();
+		await ctx.db.patch(job._id, {
+			status: "error",
+			errorCode: args.errorCode,
+			errorMessage: args.errorMessage,
+			finishedAt: now,
+			updatedAt: now,
+		});
+
+		const failedCount = (run.failedCount ?? 0) + 1;
+		const promptTokens =
+			(run.promptTokens ?? 0) + (args.usage?.promptTokens ?? 0);
+		const completionTokens =
+			(run.completionTokens ?? 0) + (args.usage?.completionTokens ?? 0);
+		const latencyMs = (run.latencyMs ?? 0) + (args.latencyMs ?? 0);
+
+		await ctx.db.patch(run._id, {
+			failedCount,
+			promptTokens,
+			completionTokens,
+			latencyMs,
+		});
+
+		const totalCount = run.totalCount ?? 0;
+		const processedCount = run.processedCount ?? 0;
+		const isComplete = totalCount > 0 && processedCount + failedCount >= totalCount;
+
+		return {
+			runId: run._id,
+			orgId: run.orgId,
+			offerId: run.offerId ?? null,
+			isComplete,
+			hasFailures: true,
+		};
+	},
+});
+
+export const resetOfferJobToPending = internalMutation({
+	args: {
+		jobId: v.id("offerCriterionJobs"),
+		retryAfter: v.optional(v.number()),
+	},
+	handler: async (ctx, { jobId, retryAfter }) => {
+		const job = await ctx.db.get(jobId);
+		if (!job) {
+			return;
+		}
+		await ctx.db.patch(jobId, {
+			status: "pending",
+			startedAt: undefined,
+			finishedAt: undefined,
+			errorCode: undefined,
+			errorMessage: undefined,
+			retryAfter,
+			updatedAt: Date.now(),
+		});
+	},
+});
+
+export const countOfferJobsForOrg = internalQuery({
+	args: {
+		orgId: v.string(),
+	},
+	handler: async (ctx, { orgId }) => {
+		const jobs = await ctx.db
+			.query("offerCriterionJobs")
+			.withIndex("by_org_status", (q) => q.eq("orgId", orgId))
+			.collect();
+
+		let pending = 0;
+		let processing = 0;
+		for (const job of jobs) {
+			if (job.status === "pending") pending += 1;
+			if (job.status === "processing") processing += 1;
+		}
+		return { pending, processing };
+	},
+});
+
+export const listOfferRunsWithPendingJobs = internalQuery({
+	args: {
+		orgId: v.string(),
+		limit: v.number(),
+	},
+	handler: async (ctx, { orgId, limit }) => {
+		const jobs = await ctx.db
+			.query("offerCriterionJobs")
+			.withIndex("by_org_status", (q) => q.eq("orgId", orgId).eq("status", "pending"))
+			.take(limit * 5);
+
+		const runIds: Id<"analysisRuns">[] = [];
+		const seen = new Set<string>();
+		for (const job of jobs) {
+			if (!seen.has(job.runId)) {
+				runIds.push(job.runId);
+				seen.add(job.runId);
+				if (runIds.length >= limit) {
+					break;
+				}
+			}
+		}
+		return runIds;
+	},
+});
+
+export const completeOfferCheckRun = internalMutation({
+	args: {
+		runId: v.id("analysisRuns"),
+		status: v.union(v.literal("fertig"), v.literal("fehler")),
+		errorMessage: v.optional(v.string()),
+	},
+	handler: async (ctx, args) => {
+		const run = await ctx.db.get(args.runId);
+		if (!run || run.type !== "offer_check") {
+			return;
+		}
+
+		if (run.status === "fertig" || run.status === "fehler") {
+			return;
+		}
+
+		const now = Date.now();
+		await ctx.db.patch(run._id, {
+			status: args.status,
+			error: args.errorMessage,
+			finishedAt: now,
+		});
+
+		if (run.offerId) {
+			await ctx.runMutation(internal.offers.syncRunStatus, {
+				offerId: run.offerId,
+				runId: run._id,
+				status: args.status,
+			});
+		}
+	},
+});
+
+export const getOfferRunErrorSummary = internalQuery({
+	args: {
+		runId: v.id("analysisRuns"),
+	},
+	handler: async (ctx, { runId }) => {
+		const jobs = await ctx.db
+			.query("offerCriterionJobs")
+			.withIndex("by_run_status", (q) => q.eq("runId", runId).eq("status", "error"))
+			.collect();
+
+		if (jobs.length === 0) {
+			return { hasFailures: false, message: undefined };
+		}
+
+		const failingKeys = jobs.map((job) => job.criterionKey).slice(0, 5);
+		const message =
+			`Kriterien fehlgeschlagen: ${failingKeys.join(", ")}` +
+			(jobs.length > 5 ? " …" : "");
+		return { hasFailures: true, message };
+	},
+});
+
+export const upsertOfferCriterionResult = internalMutation({
 	args: {
 		projectId: v.id("projects"),
 		offerId: v.id("offers"),
@@ -1879,8 +2642,28 @@ export const storeOfferCriterionResult = internalMutation({
 		orgId: v.string(),
 	},
 	handler: async (ctx, args) => {
+		const existing = await ctx.db
+			.query("offerCriteriaResults")
+			.withIndex("by_runId", (q) => q.eq("runId", args.runId))
+			.filter((q) => q.eq(q.field("criterionKey"), args.criterionKey))
+			.first();
+
 		const now = Date.now();
-		await ctx.db.insert("offerCriteriaResults", {
+		if (existing) {
+			await ctx.db.patch(existing._id, {
+				status: args.status,
+				comment: args.comment,
+				citations: args.citations,
+				confidence: args.confidence,
+				provider: args.provider,
+				model: args.model,
+				updatedAt: now,
+				checkedAt: now,
+			});
+			return existing._id;
+		}
+
+		return await ctx.db.insert("offerCriteriaResults", {
 			projectId: args.projectId,
 			offerId: args.offerId,
 			runId: args.runId,
@@ -1897,39 +2680,6 @@ export const storeOfferCriterionResult = internalMutation({
 			checkedAt: now,
 			orgId: args.orgId,
 			createdAt: now,
-			updatedAt: now,
-		});
-	},
-});
-
-export const finishOfferCheckRun = internalMutation({
-	args: {
-		runId: v.id("analysisRuns"),
-		offerId: v.id("offers"),
-		telemetry: v.object({
-			provider: v.string(),
-			model: v.string(),
-			promptTokens: v.optional(v.number()),
-			completionTokens: v.optional(v.number()),
-			latencyMs: v.number(),
-		}),
-	},
-	handler: async (ctx, args) => {
-		const now = Date.now();
-		await ctx.db.patch(args.runId, {
-			status: "fertig",
-			finishedAt: now,
-			provider: args.telemetry.provider,
-			model: args.telemetry.model,
-			promptTokens: args.telemetry.promptTokens,
-			completionTokens: args.telemetry.completionTokens,
-			latencyMs: args.telemetry.latencyMs,
-		});
-
-		// Update offers latest run status
-		await ctx.db.patch(args.offerId, {
-			latestRunId: args.runId,
-			latestStatus: "fertig",
 			updatedAt: now,
 		});
 	},

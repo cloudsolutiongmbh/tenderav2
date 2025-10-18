@@ -244,8 +244,16 @@ interface OfferCardProps {
 function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 	const checkOffer = useAction(api.analysis.checkOfferAgainstCriteria);
 	const deleteOffer = useMutation(api.offers.remove);
+	const progress = useQuery(api.analysis.getOfferCheckProgress, { offerId: offer._id });
 	const [isChecking, setChecking] = useState(false);
 	const [isDeleting, setDeleting] = useState(false);
+
+	const runStatus = progress?.run?.status ?? null;
+	const processedCount = progress?.run?.processedCount ?? 0;
+	const failedCount = progress?.run?.failedCount ?? 0;
+	const totalCount = progress?.run?.totalCount ?? 0;
+	const isRunActive = runStatus === "läuft" || runStatus === "wartet";
+	const hasRun = progress?.run != null;
 
 	const handleCheck = async () => {
 		if (!offer.documentId) {
@@ -259,7 +267,7 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 				projectId: projectId as any,
 				offerId: offer._id,
 			});
-			toast.success("Prüfung abgeschlossen!");
+			toast.success("Prüfung gestartet – Ergebnisse folgen gleich.");
 		} catch (error) {
 			toast.error(
 				error instanceof Error
@@ -334,12 +342,39 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 					</p>
 				)}
 
+			{hasRun && totalCount > 0 && (
+				<div className="space-y-2 text-xs">
+					{isRunActive && (
+						<p className="text-muted-foreground">Prüfung läuft …</p>
+					)}
+					<div className="flex items-center justify-between text-muted-foreground">
+						<span>Fortschritt</span>
+						<span>
+							{processedCount + failedCount}/{totalCount}
+						</span>
+					</div>
+					<div className="h-2 w-full rounded-full bg-muted">
+						<div
+							className="h-2 rounded-full bg-primary transition-all"
+							style={{
+								width: `${totalCount > 0 ? Math.min(100, ((processedCount + failedCount) / totalCount) * 100) : 0}%`,
+							}}
+						/>
+					</div>
+					{runStatus === "fehler" && failedCount > 0 && (
+						<p className="text-destructive">
+							{failedCount} Kriterium{failedCount === 1 ? "" : "e"} konnten nicht bewertet werden.
+						</p>
+					)}
+				</div>
+			)}
+
 			<div className="mt-auto flex flex-col gap-2">
 					<Button
 						size="sm"
 						variant="outline"
 						onClick={handleCheck}
-						disabled={!offer.documentId || isChecking}
+						disabled={!offer.documentId || isChecking || isRunActive}
 					>
 						{isChecking ? (
 							<>

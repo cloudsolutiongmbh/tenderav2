@@ -255,6 +255,10 @@ VITE v5.x.x  ready in 1234 ms
 | `ANTHROPIC_API_KEY` | ⚠️ | Anthropic API key | `sk-ant-...` (if provider=ANTHROPIC) |
 | `CONVEX_MAX_ACTIVE_RUNS_PER_ORG` | ❌ | Queue limit | `1` (default) |
 | `CONVEX_ANALYSIS_PAGES_PER_CHUNK` | ❌ | Pages per LLM call | `10` (default) |
+| `CONVEX_MAX_PARALLEL_OFFER_JOBS` | ❌ | Parallel offer criteria workers per org | `3` (default) |
+| `CONVEX_OFFER_JOB_TIMEOUT_MS` | ❌ | Timeout before recycling a processing job | `120000` |
+| `CONVEX_OFFER_JOB_MAX_ATTEMPTS` | ❌ | Retry attempts per job before failing | `3` |
+| `CONVEX_OFFER_PAGE_LIMIT` | ❌ | Preferred number of top-ranked pages sent first | `8` |
 | `MAX_UPLOAD_MB` | ❌ | Server-side upload limit | `200` (default) |
 
 ### Model Selection Guide

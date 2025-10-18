@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { createFileRoute } from "@tanstack/react-router";
-import { SignedIn, SignedOut, SignInButton, OrganizationProfile } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignInButton, OrganizationProfile, ClerkLoading, ClerkLoaded } from "@clerk/clerk-react";
 
 export const Route = createFileRoute("/organisation")({
   component: OrganisationRoute,
@@ -9,29 +9,36 @@ export const Route = createFileRoute("/organisation")({
 function OrganisationRoute() {
   return (
     <div className="container mx-auto max-w-5xl px-4 py-6 space-y-6">
-      <SignedIn>
-        <h1 className="text-2xl font-semibold">Organisation</h1>
-        <p className="text-sm text-muted-foreground">
-          Verwalte Mitgliedschaften, Sicherheit und Abrechnung.
-        </p>
+      <ClerkLoading>
+        <div className="flex flex-col items-center gap-3 py-16 text-sm text-muted-foreground">
+          Anmeldung wird geladen…
+        </div>
+      </ClerkLoading>
+      <ClerkLoaded>
+        <SignedIn>
+          <h1 className="text-2xl font-semibold">Organisation</h1>
+          <p className="text-sm text-muted-foreground">
+            Verwalte Mitgliedschaften, Sicherheit und Abrechnung.
+          </p>
 
-        <section className="rounded-lg border p-4">
-          <OrganizationProfile routing="hash" afterLeaveOrganizationUrl="/" />
-        </section>
-      </SignedIn>
+          <section className="rounded-lg border p-4">
+            <OrganizationProfile routing="hash" afterLeaveOrganizationUrl="/" />
+          </section>
+        </SignedIn>
 
-		<SignedOut>
-			<div className="flex flex-col items-center gap-3 py-16">
-				<p>Bitte anmelden, um Organisationen zu verwalten.</p>
-				<SignInButton
-					mode="redirect"
-					forceRedirectUrl="/onboarding"
-					signUpForceRedirectUrl="/onboarding"
-				>
-					<Button>Anmelden</Button>
-				</SignInButton>
-			</div>
-		</SignedOut>
+        <SignedOut>
+          <div className="flex flex-col items-center gap-3 py-16">
+            <p>Bitte anmelden, um Organisationen zu verwalten.</p>
+            <SignInButton
+              mode="redirect"
+              forceRedirectUrl="/onboarding"
+              signUpForceRedirectUrl="/onboarding"
+            >
+              <Button>Anmelden</Button>
+            </SignInButton>
+          </div>
+        </SignedOut>
+      </ClerkLoaded>
     </div>
   );
 }
