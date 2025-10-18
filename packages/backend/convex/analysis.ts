@@ -766,11 +766,14 @@ async function failRun(ctx: ActionCtx, runId: Id<"analysisRuns">, error: unknown
 }
 
 function mergeStandardResults(results: z.infer<typeof standardResultSchema>[]) {
-	const summary = results.map((result) => result.summary).join("\n\n");
+        const summaryParts = results
+                .map((result) => result.summary)
+                .filter((summary): summary is string => typeof summary === "string" && summary.length > 0);
+        const summary = summaryParts.length > 0 ? summaryParts.join("\n\n") : null;
 
-	const milestones = dedupeByKey(results.flatMap((r) => r.milestones), (item) =>
-		`${item.title}-${item.date ?? ""}`,
-	);
+        const milestones = dedupeByKey(results.flatMap((r) => r.milestones), (item) =>
+                `${item.title}-${item.date ?? ""}`,
+        );
 	const requirements = dedupeByKey(
 		results.flatMap((r) => r.requirements),
 		(item) => `${item.title}-${item.category ?? ""}`,
@@ -778,11 +781,11 @@ function mergeStandardResults(results: z.infer<typeof standardResultSchema>[]) {
 	const metadata = dedupeByKey(results.flatMap((r) => r.metadata), (item) => item.label);
 
 	return {
-		summary,
-		milestones,
-		requirements,
-		metadata,
-	};
+                summary,
+                milestones,
+                requirements,
+                metadata,
+        };
 }
 
 function dedupeByKey<T>(items: T[], keyFn: (item: T) => string): T[] {
