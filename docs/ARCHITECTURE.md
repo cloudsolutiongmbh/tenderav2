@@ -358,7 +358,7 @@ MAX_UPLOAD_MB=200
 |--------|---------|-------|
 | Concurrent Users | ~100 per org | Limited by Convex plan |
 | Analysis Queue | 1 active per org | Configurable via `CONVEX_MAX_ACTIVE_RUNS_PER_ORG` |
-| Document Size | 200 MB total per project | Client-side extraction limits browser memory |
+| Document Size | 200 MB total per project | Client + server validation; client extraction still limited by browser memory |
 | LLM Requests | Rate limited by provider | OpenAI: 10K TPM, Anthropic: varies by plan |
 | Database Size | Unlimited | Convex scales automatically |
 | Storage | Pay-per-GB | Convex pricing |

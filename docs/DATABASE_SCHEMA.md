@@ -214,7 +214,7 @@
 - `by_orgId`: `(orgId)` - For org-scoped queries
 
 **Business Rules:**
-- Total size of all documents per project ≤ `MAX_UPLOAD_MB` (enforced client-side)
+- Total size of all documents per project ≤ `MAX_UPLOAD_MB` (validated on client and server)
 - `textExtracted = true` required before starting analysis
 - Deleting a document should delete associated `docPages` and storage blob
 
