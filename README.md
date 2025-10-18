@@ -12,7 +12,7 @@ Tendera is a modern web application designed for companies responding to Swiss p
 
 - **Extracting key information**: Automatically identifies deadlines, requirements, eligibility criteria, and open questions from PDF/DOCX documents
 - **Criteria-based analysis**: Checks tender offers against custom templates with mandatory (Muss) and optional (Kann) criteria
-- **Multi-offer comparison** *(in development)*: Compare multiple vendor offers side-by-side against extracted criteria
+- **Multi-offer comparison (Offerten-Vergleich)**: Evaluate multiple vendor offers side-by-side against extracted criteria
 - **Collaborative workflows**: Organization-based tenancy with shared templates and project management
 - **Export & sharing**: Generate PDF reports and create time-limited share links for stakeholders
 
@@ -22,10 +22,10 @@ Tendera is a modern web application designed for companies responding to Swiss p
 ✅ **Criteria Analysis** - Custom template-based evaluation with evidence citations
 ✅ **Document Management** - Upload and process PDF, DOCX, and TXT files (client-side extraction)
 ✅ **Template System** - Reusable criteria catalogs with flexible weighting and answer types
+✅ **Parallel Offer Checks** - Convex job queue that processes offer criteria in parallel with retries
 ✅ **Live Status Tracking** - Real-time analysis progress with reactive UI updates
 ✅ **PDF Export** - Print-optimized reports with full citation preservation
 ✅ **Secure Sharing** - Time-limited read-only access for external stakeholders
-✅ **Comments & Tasks** - Project-specific collaboration tools
 
 ---
 

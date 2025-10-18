@@ -1,7 +1,7 @@
 # Documentation Index
 
 **Tendera - AI-Powered Tender Analysis Platform**
-**Last Updated:** 2025-09-30
+**Last Updated:** 2025-10-01
 
 ---
 
@@ -26,9 +26,8 @@ This index provides quick access to all documentation for the Tendera codebase. 
 
 **For Product/Project Managers:**
 1. [README.md](../README.md) - What is Tendera?
-2. [tasks.md](../tasks.md) - Development phases and roadmap
-3. [MILESTONE_OFFERTEN_VERGLEICH.md](../MILESTONE_OFFERTEN_VERGLEICH.md) - Offer comparison feature
-4. [issues.md](../issues.md) - Known issues summary
+2. [SETUP_AND_DEPLOYMENT.md](./SETUP_AND_DEPLOYMENT.md) - Operational procedures
+3. [issues.md](../issues.md) - Current risk register (see note in document)
 
 ---
 
@@ -188,35 +187,7 @@ npm run dev:web       # Terminal 2
 
 ## 📋 Planning and Project Management
 
-### [tasks.md](../tasks.md)
-**Audience:** Developers, Project Managers
-**Purpose:** Development roadmap and task tracking
-
-**Contents:**
-- Phase 0-14: Completed development phases
-- Implementation notes and guardrails
-- Definition of Done (MVP)
-- Commit and PR etiquette
-- ENV checklist
-- Performance budget
-- Risk mitigation
-
-**Status:** ✅ Phases 0-14 complete, Phase 15+ (Offerten-Vergleich) in progress
-
----
-
-### [MILESTONE_OFFERTEN_VERGLEICH.md](../MILESTONE_OFFERTEN_VERGLEICH.md)
-**Audience:** Product Managers, Developers
-**Purpose:** Offer comparison feature specification
-
-**Contents:**
-- Feature overview
-- User flows
-- Implementation plan (Phases 15-20)
-- Data model changes
-- UI mockups
-
-**Status:** 🚧 In development
+Roadmap tracking has moved to the internal GitHub Projects board. Historical planning documents have been removed from the repository to avoid drifting information. For current priorities, contact the product team or consult the private board.
 
 ---
 
@@ -311,8 +282,8 @@ offers.ts                 # Offer comparison
 | LLM prompt templates | [LLM_INTEGRATION.md](./LLM_INTEGRATION.md) |
 | Security vulnerabilities | [SECURITY_AND_ISSUES.md](./SECURITY_AND_ISSUES.md) |
 | System architecture | [ARCHITECTURE.md](./ARCHITECTURE.md) |
-| Development phases | [tasks.md](../tasks.md) |
-| Known bugs | [issues.md](../issues.md) |
+| Roadmap / planning | Internal GitHub Projects board (ask product team) |
+| Known risks & bugs | [issues.md](../issues.md) |
 
 ---
 
@@ -320,7 +291,7 @@ offers.ts                 # Offer comparison
 
 ### Adding a New Feature
 
-1. **Plan:** Add to [tasks.md](../tasks.md)
+1. **Plan:** Align with the product roadmap (GitHub Projects board)
 2. **Design:** Update [ARCHITECTURE.md](./ARCHITECTURE.md) if architectural changes
 3. **Schema:** Update [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) if new tables/fields
 4. **API:** Document new endpoints in [API_REFERENCE.md](./API_REFERENCE.md)
@@ -348,19 +319,18 @@ offers.ts                 # Offer comparison
 
 ## 📊 Documentation Stats
 
-| Document | Lines | Last Updated | Status |
-|----------|-------|--------------|--------|
-| README.md | ~550 | 2025-09-30 | ✅ Complete |
-| ARCHITECTURE.md | ~700 | 2025-09-30 | ✅ Complete |
-| DATABASE_SCHEMA.md | ~900 | 2025-09-30 | ✅ Complete |
-| API_REFERENCE.md | ~1100 | 2025-09-30 | ✅ Complete |
-| LLM_INTEGRATION.md | ~900 | 2025-09-30 | ✅ Complete |
-| SECURITY_AND_ISSUES.md | ~700 | 2025-09-30 | ⚠️ Critical issues unfixed |
-| SETUP_AND_DEPLOYMENT.md | ~750 | 2025-09-30 | ✅ Complete |
-| tasks.md | ~450 | 2025-09-30 | ✅ Complete |
-| issues.md | ~670 | 2025-09-30 | 🚧 Active tracking |
+| Document | Approx. Lines | Last Reviewed | Status |
+|----------|----------------|---------------|--------|
+| README.md | ~550 | 2025-10-01 | ✅ Up to date |
+| ARCHITECTURE.md | ~700 | 2025-09-30 | ⚠️ Needs revisit after offer-check changes |
+| DATABASE_SCHEMA.md | ~900 | 2025-10-01 | ✅ Up to date |
+| API_REFERENCE.md | ~1,100 | 2025-10-01 | ✅ Up to date |
+| LLM_INTEGRATION.md | ~900 | 2025-10-01 | ✅ Up to date |
+| SECURITY_AND_ISSUES.md | ~700 | 2025-09-30 | ⚠️ Contains open risks |
+| SETUP_AND_DEPLOYMENT.md | ~750 | 2025-10-01 | ✅ Up to date |
+| issues.md | ~350 | 2025-10-01 | 🚧 Active tracking |
 
-**Total Documentation:** ~6,700 lines covering all aspects of the system
+**Total Documentation:** ~5,000 lines covering the maintained corpus
 
 ---
 
