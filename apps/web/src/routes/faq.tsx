@@ -22,9 +22,9 @@ function FAQPage() {
 		<div className="mx-auto max-w-4xl space-y-6">
 			<div>
 				<h1 className="text-3xl font-semibold">Häufig gestellte Fragen</h1>
-				<p className="mt-2 text-muted-foreground">
-					Hier findest du Antworten auf die wichtigsten Fragen zur Nutzung von
-					tendera.
+                                <p className="mt-2 text-muted-foreground">
+                                        Hier findest du Antworten auf die wichtigsten Fragen zur Nutzung von
+                                        Tendera.
 				</p>
 			</div>
 
@@ -37,10 +37,10 @@ function FAQPage() {
 				</CardHeader>
 				<CardContent>
 					<Accordion type="single" collapsible className="w-full">
-						<AccordionItem value="what-is-tendera">
-							<AccordionTrigger>Was ist tendera?</AccordionTrigger>
-							<AccordionContent>
-								tendera ist eine Plattform zur automatischen Analyse von
+                                                <AccordionItem value="what-is-tendera">
+                                                        <AccordionTrigger>Was ist Tendera?</AccordionTrigger>
+                                                        <AccordionContent>
+                                                                Tendera ist eine Plattform zur automatischen Analyse von
 								Ausschreibungen und Vergabeunterlagen. Du kannst zwei Arten von
 								Projekten erstellen: Standard-Analysen für einzelne Dokumente und
 								Offerten-Vergleiche für mehrere Angebote.
@@ -305,7 +305,7 @@ function FAQPage() {
 								Welche Dateiformate werden unterstützt?
 							</AccordionTrigger>
 							<AccordionContent>
-								tendera unterstützt PDF, DOCX (Word) und TXT-Dateien. Die
+                                                                Tendera unterstützt PDF, DOCX (Word) und TXT-Dateien. Die
 								Texterkennung läuft automatisch nach dem Upload. Bei PDF-Dateien
 								funktioniert OCR (Texterkennung aus Bildern) möglicherweise nur
 								eingeschränkt – am besten funktionieren PDFs mit selektierbarem
@@ -329,7 +329,7 @@ function FAQPage() {
 								Was passiert nach dem Upload?
 							</AccordionTrigger>
 							<AccordionContent>
-								Nach dem Upload extrahiert tendera automatisch den Text aus dem
+                                                                Nach dem Upload extrahiert Tendera automatisch den Text aus dem
 								Dokument. Dieser wird seitenweise gespeichert, sodass die KI
 								später präzise Zitate mit Seitenzahlen liefern kann. Die
 								Verarbeitung läuft im Hintergrund und dauert je nach Größe einige
@@ -438,9 +438,9 @@ function FAQPage() {
 
 			<Card>
 				<CardHeader>
-					<CardTitle>Tipps & Best Practices</CardTitle>
-					<CardDescription>
-						So holst du das Beste aus tendera heraus
+                                        <CardTitle>Tipps & Best Practices</CardTitle>
+                                        <CardDescription>
+                                                So holst du das Beste aus Tendera heraus
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
