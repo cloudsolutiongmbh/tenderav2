@@ -54,7 +54,7 @@ export const standardResultJsonSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    summary: { type: "string" },
+    summary: { type: ["string", "null"] },
     milestones: {
       type: "array",
       items: {
