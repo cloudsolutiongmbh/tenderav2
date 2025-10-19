@@ -591,12 +591,13 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 				}
 			}
 
-			if (projectType === "offerten") {
-				if (pflichtenheftFile) {
-					toast.info("Pflichtenheft wird hochgeladen …");
-					await uploadAndExtract(projectId, pflichtenheftFile, { role: "pflichtenheft" });
-					await triggerPflichtenheftExtraction(projectId);
-				}
+                        if (projectType === "offerten") {
+                                if (pflichtenheftFile) {
+                                        toast.info("Pflichtenheft wird hochgeladen …");
+                                        await uploadAndExtract(projectId, pflichtenheftFile, { role: "pflichtenheft" });
+                                        toast.info("Kriterien-Extraktion wird gestartet …");
+                                        void triggerPflichtenheftExtraction(projectId);
+                                }
 				if (offerFiles.length > 0) {
 					toast.info("Angebotsdokumente werden hochgeladen …");
 					for (const file of offerFiles) {
