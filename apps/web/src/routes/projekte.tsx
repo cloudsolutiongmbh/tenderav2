@@ -631,29 +631,32 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 		}
 	};
 
-	return (
-		<form className="grid gap-4" onSubmit={handleSubmit}>
-			<Input
-				placeholder="Projektname"
-				value={name}
-				onChange={(event) => setName(event.target.value)}
-				required
-				disabled={isSubmitting}
-			/>
-			<Input
-				placeholder="Kunde/Behörde"
-				value={customer}
-				onChange={(event) => setCustomer(event.target.value)}
-				required
-				disabled={isSubmitting}
-			/>
-			<Input
-				placeholder="Interne Tags (Komma-getrennt)"
-				value={tags}
-				onChange={(event) => setTags(event.target.value)}
-				disabled={isSubmitting}
-			/>
-			<div className="space-y-2">
+        return (
+                <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+                        <Input
+                                placeholder="Projektname"
+                                value={name}
+                                onChange={(event) => setName(event.target.value)}
+                                required
+                                disabled={isSubmitting}
+                                className="md:col-span-1"
+                        />
+                        <Input
+                                placeholder="Kunde/Behörde"
+                                value={customer}
+                                onChange={(event) => setCustomer(event.target.value)}
+                                required
+                                disabled={isSubmitting}
+                                className="md:col-span-1"
+                        />
+                        <Input
+                                placeholder="Interne Tags (Komma-getrennt)"
+                                value={tags}
+                                onChange={(event) => setTags(event.target.value)}
+                                disabled={isSubmitting}
+                                className="md:col-span-2"
+                        />
+                        <div className="space-y-2 md:col-span-2">
 				<label className="text-sm font-medium">Projekt-Typ</label>
 				<select
 					className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
@@ -670,8 +673,8 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 						: "Vergleiche Angebote gegen ein Pflichtenheft. Du kannst Dokumente direkt hier hochladen."}
 				</p>
 			</div>
-			{projectType === "standard" ? (
-				<div className="space-y-3">
+                        {projectType === "standard" ? (
+                                <div className="space-y-3 md:col-span-2">
 					<select
 						className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
 						value={templateId}
@@ -721,8 +724,8 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 					</div>
 				</div>
 			) : (
-				<div className="space-y-6">
-					<div className="space-y-2">
+                                <div className="space-y-6 md:col-span-2 md:grid md:grid-cols-2 md:gap-6">
+                                        <div className="space-y-2">
 						<p className="text-sm font-medium">Pflichtenheft (1 Datei)</p>
 						<UploadDropzone
 							onFilesAccepted={handlePflichtenheftAccepted}
@@ -750,7 +753,7 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 							</p>
 						)}
 					</div>
-					<div className="space-y-2">
+                                        <div className="space-y-2">
 						<p className="text-sm font-medium">Angebote (mehrere Dateien möglich)</p>
 						<UploadDropzone
 							onFilesAccepted={handleOfferAccepted}
@@ -786,7 +789,7 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 					</div>
 				</div>
 			)}
-			<DialogFooter>
+                        <DialogFooter className="md:col-span-2">
 				<DialogClose asChild>
 					<Button type="button" variant="outline" disabled={isSubmitting}>
 						Abbrechen
