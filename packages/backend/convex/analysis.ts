@@ -31,15 +31,31 @@ const OFFER_JOB_MAX_ATTEMPTS = Math.max(
 	Number.parseInt(process.env.CONVEX_OFFER_JOB_MAX_ATTEMPTS ?? "3"),
 );
 const OFFER_PAGE_LIMIT = Math.max(
-	1,
-	Number.parseInt(process.env.CONVEX_OFFER_PAGE_LIMIT ?? "8"),
+        1,
+        Number.parseInt(process.env.CONVEX_OFFER_PAGE_LIMIT ?? "8"),
 );
 
+function deduplicateCriteriaByKey<T extends { key: string }>(criteria: T[]): T[] {
+        const seen = new Set<string>();
+        const unique: T[] = [];
+
+        for (const criterion of criteria) {
+                const key = criterion.key.trim();
+                if (seen.has(key)) {
+                        continue;
+                }
+                seen.add(key);
+                unique.push(criterion);
+        }
+
+        return unique;
+}
+
 interface CriterionComputation {
-	key: string;
-	title: string;
-	description?: string;
-	hints?: string;
+        key: string;
+        title: string;
+        description?: string;
+        hints?: string;
 	answerType: "boolean" | "skala" | "text";
 	weight: number;
 	required: boolean;
@@ -1967,12 +1983,13 @@ export const checkOfferAgainstCriteria = action({
 			return { runId: existingRun._id, queued: true };
 		}
 
-		const totalCount = template.criteria.length;
-		if (totalCount === 0) {
-			throw new ConvexError("Template enthält keine Kriterien.");
-		}
+                const uniqueCriteria = deduplicateCriteriaByKey(template.criteria);
+                const totalCount = uniqueCriteria.length;
+                if (totalCount === 0) {
+                        throw new ConvexError("Template enthält keine Kriterien.");
+                }
 
-		const runId = (await ctx.runMutation(internal.analysis.startOfferCheckRun, {
+                const runId = (await ctx.runMutation(internal.analysis.startOfferCheckRun, {
 			projectId: project._id,
 			offerId: args.offerId,
 			orgId: identity.orgId,
@@ -1982,17 +1999,17 @@ export const checkOfferAgainstCriteria = action({
 			model: "PENDING",
 		})) as Id<"analysisRuns">;
 
-		await ctx.runMutation(internal.analysis.ensureOfferCriterionJobs, {
-			runId,
-			projectId: project._id,
-			offerId: args.offerId,
-			orgId: identity.orgId,
-			criteria: template.criteria.map((criterion) => ({
-				key: criterion.key,
-				title: criterion.title,
-				description: criterion.description ?? null,
-				hints: criterion.hints ?? null,
-				required: criterion.required,
+                await ctx.runMutation(internal.analysis.ensureOfferCriterionJobs, {
+                        runId,
+                        projectId: project._id,
+                        offerId: args.offerId,
+                        orgId: identity.orgId,
+                        criteria: uniqueCriteria.map((criterion) => ({
+                                key: criterion.key,
+                                title: criterion.title,
+                                description: criterion.description ?? null,
+                                hints: criterion.hints ?? null,
+                                required: criterion.required,
 				weight: criterion.weight,
 				keywords: criterion.keywords ?? [],
 			})),
