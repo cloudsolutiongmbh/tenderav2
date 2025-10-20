@@ -455,13 +455,36 @@ export const getOfferCheckProgress = query({
 			return { run: null as const };
 		}
 
+		const jobs = await ctx.db
+			.query("offerCriterionJobs")
+			.withIndex("by_run", (q) => q.eq("runId", run._id))
+			.collect();
+
+		let trackedProcessed = run.processedCount ?? 0;
+		let trackedFailed = run.failedCount ?? 0;
+		if (jobs.length > 0) {
+			let derivedProcessed = 0;
+			let derivedFailed = 0;
+			for (const job of jobs) {
+				if (job.status === "done") {
+					derivedProcessed += 1;
+				} else if (job.status === "error") {
+					derivedFailed += 1;
+				}
+			}
+			trackedProcessed = derivedProcessed;
+			trackedFailed = derivedFailed;
+		}
+
+		const totalCount = Math.max(run.totalCount ?? 0, jobs.length);
+
 		return {
 			run: {
 				_id: run._id,
 				status: run.status,
-				processedCount: run.processedCount ?? 0,
-				failedCount: run.failedCount ?? 0,
-				totalCount: run.totalCount ?? 0,
+				processedCount: trackedProcessed,
+				failedCount: trackedFailed,
+				totalCount,
 				startedAt: run.startedAt ?? null,
 				finishedAt: run.finishedAt ?? null,
 			},
@@ -2418,6 +2441,32 @@ export const markOfferJobDone = internalMutation({
 			return { runId: null };
 		}
 
+		const totalCount = run.totalCount ?? 0;
+		const currentProcessed = run.processedCount ?? 0;
+		const currentFailed = run.failedCount ?? 0;
+
+		if (job.status === "done") {
+			const isComplete = totalCount > 0 && currentProcessed + currentFailed >= totalCount;
+			return {
+				runId: run._id,
+				orgId: run.orgId,
+				offerId: run.offerId ?? null,
+				isComplete,
+				hasFailures: currentFailed > 0,
+			};
+		}
+
+		if (job.status === "error") {
+			const isComplete = totalCount > 0 && currentProcessed + currentFailed >= totalCount;
+			return {
+				runId: run._id,
+				orgId: run.orgId,
+				offerId: run.offerId ?? null,
+				isComplete,
+				hasFailures: true,
+			};
+		}
+
 		const now = Date.now();
 		await ctx.db.patch(job._id, {
 			status: "done",
@@ -2427,7 +2476,7 @@ export const markOfferJobDone = internalMutation({
 			updatedAt: now,
 		});
 
-		const processedCount = (run.processedCount ?? 0) + 1;
+		const processedCount = currentProcessed + 1;
 		const promptTokens = (run.promptTokens ?? 0) + (args.usage.promptTokens ?? 0);
 		const completionTokens = (run.completionTokens ?? 0) + (args.usage.completionTokens ?? 0);
 		const latencyMs = (run.latencyMs ?? 0) + args.latencyMs;
@@ -2441,8 +2490,7 @@ export const markOfferJobDone = internalMutation({
 			model: run.model === "PENDING" ? args.model : run.model,
 		});
 
-		const totalCount = run.totalCount ?? 0;
-		const failedCount = run.failedCount ?? 0;
+		const failedCount = currentFailed;
 		const isComplete = totalCount > 0 && processedCount + failedCount >= totalCount;
 
 		return {
@@ -2479,6 +2527,32 @@ export const markOfferJobFailed = internalMutation({
 			return { runId: null };
 		}
 
+		const totalCount = run.totalCount ?? 0;
+		const currentProcessed = run.processedCount ?? 0;
+		const currentFailed = run.failedCount ?? 0;
+
+		if (job.status === "error") {
+			const isComplete = totalCount > 0 && currentProcessed + currentFailed >= totalCount;
+			return {
+				runId: run._id,
+				orgId: run.orgId,
+				offerId: run.offerId ?? null,
+				isComplete,
+				hasFailures: true,
+			};
+		}
+
+		if (job.status === "done") {
+			const isComplete = totalCount > 0 && currentProcessed + currentFailed >= totalCount;
+			return {
+				runId: run._id,
+				orgId: run.orgId,
+				offerId: run.offerId ?? null,
+				isComplete,
+				hasFailures: currentFailed > 0,
+			};
+		}
+
 		const now = Date.now();
 		await ctx.db.patch(job._id, {
 			status: "error",
@@ -2488,7 +2562,7 @@ export const markOfferJobFailed = internalMutation({
 			updatedAt: now,
 		});
 
-		const failedCount = (run.failedCount ?? 0) + 1;
+		const failedCount = currentFailed + 1;
 		const promptTokens =
 			(run.promptTokens ?? 0) + (args.usage?.promptTokens ?? 0);
 		const completionTokens =
@@ -2502,8 +2576,7 @@ export const markOfferJobFailed = internalMutation({
 			latencyMs,
 		});
 
-		const totalCount = run.totalCount ?? 0;
-		const processedCount = run.processedCount ?? 0;
+		const processedCount = currentProcessed;
 		const isComplete = totalCount > 0 && processedCount + failedCount >= totalCount;
 
 		return {
