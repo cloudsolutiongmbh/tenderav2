@@ -21,4 +21,4 @@ jobs:
         run: npx convex deploy
         env:
           CONVEX_DEPLOYMENT: ${{ secrets.CONVEX_DEV_DEPLOYMENT }}
-          CONVEX_AUTH_TOKEN: ${{ secrets.CONVEX_DEV_AUTH_TOKEN }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEV_AUTH_TOKEN }}
