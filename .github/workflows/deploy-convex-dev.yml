@@ -18,6 +18,7 @@ jobs:
         run: npm ci
 
       - name: Deploy Convex dev
+        working-directory: packages/backend
         run: npx convex deploy
         env:
           CONVEX_DEPLOYMENT: ${{ secrets.CONVEX_DEV_DEPLOYMENT }}
