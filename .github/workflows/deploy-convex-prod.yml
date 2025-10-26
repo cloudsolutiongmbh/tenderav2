@@ -19,7 +19,7 @@ jobs:
 
       - name: Deploy Convex production
         working-directory: packages/backend
-        run: npx convex deploy --prod
+        run: npx convex deploy -y
         env:
           CONVEX_DEPLOYMENT: ${{ secrets.CONVEX_DEPLOYMENT }}
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_AUTH_TOKEN }}
