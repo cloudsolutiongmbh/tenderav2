@@ -105,7 +105,7 @@ function mapToAnalysisStatus(status: CriteriaDetailData["status"]) {
 		case "gefunden":
 			return "fertig" as const;
 		case "teilweise":
-			return "läuft" as const;
+			return "fertig" as const;
 		case "nicht_gefunden":
 		case "unbekannt":
 			return "fehler" as const;

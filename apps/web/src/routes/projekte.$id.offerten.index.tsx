@@ -254,6 +254,7 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 	const totalCount = progress?.run?.totalCount ?? 0;
 	const isRunActive = runStatus === "läuft" || runStatus === "wartet";
 	const hasRun = progress?.run != null;
+	const badgeStatus = progress?.run?.status ?? offer.latestStatus ?? null;
 
 	const handleCheck = async () => {
 		if (!offer.documentId) {
@@ -313,7 +314,7 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 							</CardDescription>
 						)}
 					</div>
-					{offer.latestStatus && <StatusBadge status={offer.latestStatus} />}
+					{badgeStatus && <StatusBadge status={badgeStatus} />}
 				</div>
 			</CardHeader>
 		<CardContent className="flex flex-1 flex-col gap-4">

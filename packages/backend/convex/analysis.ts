@@ -597,8 +597,8 @@ function selectOfferPagesForCriterion(
 		const lower = page.text.toLowerCase();
 		let score = 0;
 		for (const token of tokens) {
-			const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-			const matches = lower.match(new RegExp(escaped, "g"));
+			const escapedToken = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+			const matches = lower.match(new RegExp(escapedToken, "g"));
 			if (matches) {
 				score += matches.length;
 			}
@@ -1538,14 +1538,23 @@ export const runOfferCriterionWorker = internalAction({
 });
 
 export const kickQueue = internalAction({
-    args: {
-        orgId: v.string(),
-    },
-    handler: async (ctx, { orgId }) => {
-        const runs = await ctx.runQuery(internal.analysis.listRunsByOrg, { orgId });
-        if (runs.length === 0) {
-            return;
-        }
+	args: {
+		orgId: v.string(),
+	},
+	handler: async (ctx, { orgId }) => {
+		await ctx.scheduler.runAfter(0, internal.analysis.cleanStaleRuns, {
+			orgId,
+			timeoutMs: OFFER_JOB_TIMEOUT_MS,
+		});
+		await ctx.scheduler.runAfter(Math.floor(OFFER_JOB_TIMEOUT_MS / 2), internal.analysis.cleanStaleRuns, {
+			orgId,
+			timeoutMs: OFFER_JOB_TIMEOUT_MS,
+		});
+
+		const runs = await ctx.runQuery(internal.analysis.listRunsByOrg, { orgId });
+		if (runs.length === 0) {
+			return;
+		}
 
         const offerRuns = runs.filter((run) => run.type === "offer_check");
         const otherRuns = runs.filter((run) => run.type !== "offer_check");
@@ -2441,29 +2450,43 @@ export const markOfferJobDone = internalMutation({
 			return { runId: null };
 		}
 
-		const totalCount = run.totalCount ?? 0;
-		const currentProcessed = run.processedCount ?? 0;
-		const currentFailed = run.failedCount ?? 0;
+		const summarize = async () => {
+			const jobs = await ctx.db
+				.query("offerCriterionJobs")
+				.withIndex("by_run", (q) => q.eq("runId", job.runId))
+				.collect();
 
-		if (job.status === "done") {
-			const isComplete = totalCount > 0 && currentProcessed + currentFailed >= totalCount;
+			let processed = 0;
+			let failed = 0;
+			for (const entry of jobs) {
+				if (entry.status === "done") {
+					processed += 1;
+				} else if (entry.status === "error") {
+					failed += 1;
+				}
+			}
+
+			const total = run.totalCount ?? jobs.length;
 			return {
-				runId: run._id,
-				orgId: run.orgId,
-				offerId: run.offerId ?? null,
-				isComplete,
-				hasFailures: currentFailed > 0,
+				processed,
+				failed,
+				total,
+				isComplete: processed + failed >= total,
 			};
-		}
+		};
 
-		if (job.status === "error") {
-			const isComplete = totalCount > 0 && currentProcessed + currentFailed >= totalCount;
+		if (job.status === "done" || job.status === "error") {
+			const summary = await summarize();
+			await ctx.db.patch(run._id, {
+				processedCount: summary.processed,
+				failedCount: summary.failed,
+			});
 			return {
 				runId: run._id,
 				orgId: run.orgId,
 				offerId: run.offerId ?? null,
-				isComplete,
-				hasFailures: true,
+				isComplete: summary.isComplete,
+				hasFailures: summary.failed > 0,
 			};
 		}
 
@@ -2476,13 +2499,14 @@ export const markOfferJobDone = internalMutation({
 			updatedAt: now,
 		});
 
-		const processedCount = currentProcessed + 1;
+		const summary = await summarize();
 		const promptTokens = (run.promptTokens ?? 0) + (args.usage.promptTokens ?? 0);
 		const completionTokens = (run.completionTokens ?? 0) + (args.usage.completionTokens ?? 0);
 		const latencyMs = (run.latencyMs ?? 0) + args.latencyMs;
 
 		await ctx.db.patch(run._id, {
-			processedCount,
+			processedCount: summary.processed,
+			failedCount: summary.failed,
 			promptTokens,
 			completionTokens,
 			latencyMs,
@@ -2490,15 +2514,12 @@ export const markOfferJobDone = internalMutation({
 			model: run.model === "PENDING" ? args.model : run.model,
 		});
 
-		const failedCount = currentFailed;
-		const isComplete = totalCount > 0 && processedCount + failedCount >= totalCount;
-
 		return {
 			runId: run._id,
 			orgId: run.orgId,
 			offerId: run.offerId ?? null,
-			isComplete,
-			hasFailures: failedCount > 0,
+			isComplete: summary.isComplete,
+			hasFailures: summary.failed > 0,
 		};
 	},
 });
@@ -2527,29 +2548,43 @@ export const markOfferJobFailed = internalMutation({
 			return { runId: null };
 		}
 
-		const totalCount = run.totalCount ?? 0;
-		const currentProcessed = run.processedCount ?? 0;
-		const currentFailed = run.failedCount ?? 0;
+		const summarize = async () => {
+			const jobs = await ctx.db
+				.query("offerCriterionJobs")
+				.withIndex("by_run", (q) => q.eq("runId", job.runId))
+				.collect();
 
-		if (job.status === "error") {
-			const isComplete = totalCount > 0 && currentProcessed + currentFailed >= totalCount;
+			let processed = 0;
+			let failed = 0;
+			for (const entry of jobs) {
+				if (entry.status === "done") {
+					processed += 1;
+				} else if (entry.status === "error") {
+					failed += 1;
+				}
+			}
+
+			const total = run.totalCount ?? jobs.length;
 			return {
-				runId: run._id,
-				orgId: run.orgId,
-				offerId: run.offerId ?? null,
-				isComplete,
-				hasFailures: true,
+				processed,
+				failed,
+				total,
+				isComplete: processed + failed >= total,
 			};
-		}
+		};
 
-		if (job.status === "done") {
-			const isComplete = totalCount > 0 && currentProcessed + currentFailed >= totalCount;
+		if (job.status === "error" || job.status === "done") {
+			const summary = await summarize();
+			await ctx.db.patch(run._id, {
+				processedCount: summary.processed,
+				failedCount: summary.failed,
+			});
 			return {
 				runId: run._id,
 				orgId: run.orgId,
 				offerId: run.offerId ?? null,
-				isComplete,
-				hasFailures: currentFailed > 0,
+				isComplete: summary.isComplete,
+				hasFailures: summary.failed > 0,
 			};
 		}
 
@@ -2562,7 +2597,7 @@ export const markOfferJobFailed = internalMutation({
 			updatedAt: now,
 		});
 
-		const failedCount = currentFailed + 1;
+		const summary = await summarize();
 		const promptTokens =
 			(run.promptTokens ?? 0) + (args.usage?.promptTokens ?? 0);
 		const completionTokens =
@@ -2570,21 +2605,19 @@ export const markOfferJobFailed = internalMutation({
 		const latencyMs = (run.latencyMs ?? 0) + (args.latencyMs ?? 0);
 
 		await ctx.db.patch(run._id, {
-			failedCount,
+			processedCount: summary.processed,
+			failedCount: summary.failed,
 			promptTokens,
 			completionTokens,
 			latencyMs,
 		});
 
-		const processedCount = currentProcessed;
-		const isComplete = totalCount > 0 && processedCount + failedCount >= totalCount;
-
 		return {
 			runId: run._id,
 			orgId: run.orgId,
 			offerId: run.offerId ?? null,
-			isComplete,
-			hasFailures: true,
+			isComplete: summary.isComplete,
+			hasFailures: summary.failed > 0,
 		};
 	},
 });

@@ -53,6 +53,8 @@ interface ListedProject {
 	runs?: {
 		standard?: RunSummary;
 		criteria?: RunSummary;
+		pflichtenheft_extract?: RunSummary;
+		offer_check?: RunSummary;
 	};
 }
 
@@ -821,7 +823,12 @@ function getLatestRun(runs?: ListedProject["runs"] | null) {
 		return null;
 	}
 
-	const candidates = [runs.standard, runs.criteria].filter(Boolean) as RunSummary[];
+	const candidates = [
+		runs.standard,
+		runs.criteria,
+		runs.pflichtenheft_extract,
+		runs.offer_check,
+	].filter(Boolean) as RunSummary[];
 	if (candidates.length === 0) {
 		return null;
 	}
@@ -841,6 +848,12 @@ function getRunLabel(runs: ListedProject["runs"] | undefined, runId?: string) {
 	if (runs.criteria && runs.criteria._id === runId) {
 		return "Letzte Analyse: Kriterien";
 	}
+	if (runs.pflichtenheft_extract && runs.pflichtenheft_extract._id === runId) {
+		return "Letzte Analyse: Pflichtenheft-Extraktion";
+	}
+	if (runs.offer_check && runs.offer_check._id === runId) {
+		return "Letzte Analyse: Angebotsvergleich";
+	}
 	return "Letzte Analyse";
 }
 
@@ -851,6 +864,20 @@ function getLastActivity(createdAt: number, runs?: ListedProject["runs"]) {
 	}
 	if (runs?.criteria) {
 		timestamps.push(runs.criteria.finishedAt ?? runs.criteria.startedAt ?? runs.criteria.createdAt);
+	}
+	if (runs?.pflichtenheft_extract) {
+		timestamps.push(
+			runs.pflichtenheft_extract.finishedAt
+				?? runs.pflichtenheft_extract.startedAt
+				?? runs.pflichtenheft_extract.createdAt,
+		);
+	}
+	if (runs?.offer_check) {
+		timestamps.push(
+			runs.offer_check.finishedAt
+				?? runs.offer_check.startedAt
+				?? runs.offer_check.createdAt,
+		);
 	}
 	return Math.max(...timestamps);
 }
