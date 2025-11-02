@@ -1,0 +1,48 @@
+name: Manual Convex Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deployment target (dev or prod)"
+        required: true
+        default: prod
+        type: choice
+        options:
+          - prod
+          - dev
+      ref:
+        description: "Git ref (branch or tag) to deploy"
+        required: true
+        default: main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Convex (prod)
+        if: ${{ inputs.target == 'prod' }}
+        working-directory: packages/backend
+        run: npx convex deploy -y
+        env:
+          CONVEX_DEPLOYMENT: ${{ secrets.CONVEX_DEPLOYMENT }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_AUTH_TOKEN }}
+
+      - name: Deploy to Convex (dev)
+        if: ${{ inputs.target == 'dev' }}
+        working-directory: packages/backend
+        run: npx convex deploy -y
+        env:
+          CONVEX_DEPLOYMENT: ${{ secrets.CONVEX_DEV_DEPLOYMENT }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEV_AUTH_TOKEN }}
+
