@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - dev
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -23,4 +24,3 @@ jobs:
         env:
           CONVEX_DEPLOYMENT: ${{ secrets.CONVEX_DEV_DEPLOYMENT }}
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEV_AUTH_TOKEN }}
-          CLERK_JWT_ISSUER_DOMAIN: ${{ secrets.CLERK_DEV_JWT_ISSUER_DOMAIN }}
