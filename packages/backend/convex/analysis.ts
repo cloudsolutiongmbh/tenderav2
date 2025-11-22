@@ -64,7 +64,13 @@ interface CriterionComputation {
 	comment?: string;
 	answer?: string;
 	score?: number;
-	citations: Array<{ page: number; quote: string }>;
+	citations: Array<{
+		documentId?: Id<"documents"> | string;
+		documentKey?: string;
+		documentName?: string;
+		page: number;
+		quote: string;
+	}>;
 }
 
 interface OfferCriterionSnapshot {
@@ -164,7 +170,9 @@ async function executeStandardAnalysis(
         );
     }
 
-    const chunks = chunkPages(pages, PAGES_PER_CHUNK);
+    const documentLookup = buildDocumentLookup(pages);
+    const documentLegend = formatDocumentLegend(documentLookup);
+    const chunks = chunkPages(pages, PAGES_PER_CHUNK, documentLookup);
 
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
@@ -176,7 +184,11 @@ async function executeStandardAnalysis(
 
     try {
         for (const chunk of chunks) {
-            const { result, usage, latencyMs, meta } = await analyseStandardChunk(chunk);
+            const { result, usage, latencyMs, meta } = await analyseStandardChunk(
+                chunk,
+                documentLegend,
+                documentLookup,
+            );
             partialResults.push(result);
             if (usage.promptTokens) totalPromptTokens += usage.promptTokens;
             if (usage.completionTokens) totalCompletionTokens += usage.completionTokens;
@@ -256,7 +268,8 @@ async function executeCriteriaAnalysis(
     let model = run.model;
 
     try {
-        const documentContext = buildDocumentContext(pages);
+        const documentLookup = buildDocumentLookup(pages);
+        const documentContext = buildDocumentContext(pages, documentLookup);
         const criteriaResults: CriterionComputation[] = [];
 
         for (const criterion of template.criteria) {
@@ -270,7 +283,9 @@ async function executeCriteriaAnalysis(
                 comment: result.comment,
                 answer: result.answer,
                 score: result.score,
-                citations: result.citations ?? [],
+                citations: (result.citations ?? []).map(
+                    (citation) => normalizeCitationWithDocuments(citation, documentLookup) ?? citation,
+                ),
             });
             if (usage.promptTokens) totalPromptTokens += usage.promptTokens;
             if (usage.completionTokens) totalCompletionTokens += usage.completionTokens;
@@ -540,30 +555,180 @@ async function fetchDocPages(
 	ids: Id<"docPages">[],
 	orgId: string,
 	projectId: Id<"projects">,
-): Promise<Array<{ _id: Id<"docPages">; page: number; text: string }>> {
+): Promise<
+	Array<{
+		_id: Id<"docPages">;
+		page: number;
+		text: string;
+		documentId: Id<"documents">;
+		documentName: string | null;
+	}>
+> {
 	return (await ctx.runQuery(internal.analysis.getDocPagesByIds, {
 		docPageIds: ids,
 		orgId,
 		projectId,
-	})) as Array<{ _id: Id<"docPages">; page: number; text: string }>;
+	})) as Array<{
+		_id: Id<"docPages">;
+		page: number;
+		text: string;
+		documentId: Id<"documents">;
+		documentName: string | null;
+	}>;
+}
+
+type DocumentMeta = {
+	documentId: Id<"documents">;
+	documentName: string;
+	documentKey: string;
+};
+
+type DocumentLookup = {
+	byId: Map<string, DocumentMeta>;
+	byKey: Map<string, DocumentMeta>;
+};
+
+function toDocumentKey(index: number) {
+	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	if (index < alphabet.length) return alphabet[index];
+	const prefix = Math.floor(index / alphabet.length) - 1;
+	const suffix = index % alphabet.length;
+	return `${alphabet[prefix]}${alphabet[suffix]}`;
+}
+
+function buildDocumentLookup(
+	pages: Array<{ documentId: Id<"documents">; documentName: string | null }>,
+): DocumentLookup {
+	const byId = new Map<string, DocumentMeta>();
+	const byKey = new Map<string, DocumentMeta>();
+
+	for (const page of pages) {
+		if (byId.has(page.documentId)) continue;
+		const documentKey = toDocumentKey(byId.size);
+		const meta: DocumentMeta = {
+			documentId: page.documentId,
+			documentName: page.documentName ?? "Unbenanntes Dokument",
+			documentKey,
+		};
+		byId.set(page.documentId, meta);
+		byKey.set(documentKey, meta);
+	}
+
+	return { byId, byKey };
 }
 
 function chunkPages(
-	pages: Array<{ page: number; text: string }>,
+	pages: Array<{
+		page: number;
+		text: string;
+		documentId: Id<"documents">;
+		documentName: string | null;
+	}>,
 	size: number,
+	lookup: DocumentLookup,
 ) {
-	const chunks: Array<{ pages: Array<{ page: number; text: string }>; text: string }>
-		= [];
+	const chunks: Array<{
+		pages: Array<{
+			page: number;
+			text: string;
+			documentId: Id<"documents">;
+			documentName: string | null;
+			documentKey: string;
+		}>;
+		text: string;
+	}> = [];
 
 	for (let i = 0; i < pages.length; i += size) {
-		const subset = pages.slice(i, i + size);
+		const subset = pages.slice(i, i + size).map((page) => {
+			const meta = lookup.byId.get(page.documentId) ?? {
+				documentKey: "?",
+				documentName: page.documentName ?? "Unbenanntes Dokument",
+				documentId: page.documentId,
+			};
+			return { ...page, documentKey: meta.documentKey };
+		});
+
 		const text = subset
-			.map((page) => `Seite ${page.page}:\n${page.text}`)
+			.map((page) => {
+				const meta = lookup.byId.get(page.documentId);
+				const name = meta?.documentName ?? "Unbenanntes Dokument";
+				const key = meta?.documentKey ?? "?";
+				return `Dokument ${key} (${name}) — Seite ${page.page}:\n${page.text}`;
+			})
 			.join("\n\n");
+
 		chunks.push({ pages: subset, text });
 	}
 
 	return chunks;
+}
+
+function normalizeCitationWithDocuments(
+	citation: z.infer<typeof citationSchema> | null | undefined,
+	lookup: DocumentLookup,
+) {
+	if (!citation) return citation ?? null;
+
+	const metaFromKey = citation.documentKey
+		? lookup.byKey.get(citation.documentKey)
+		: undefined;
+	const metaFromId = citation.documentId
+		? lookup.byId.get(citation.documentId)
+		: undefined;
+	const meta = metaFromKey ?? metaFromId;
+
+	if (!meta) {
+		return citation;
+	}
+
+	return {
+		...citation,
+		documentId: meta.documentId,
+		documentKey: meta.documentKey,
+		documentName: meta.documentName,
+	};
+}
+
+function normalizeStandardResultWithDocuments(
+	result: z.infer<typeof standardResultSchema>,
+	lookup: DocumentLookup,
+) {
+	return {
+		...result,
+		milestones: result.milestones.map((item) => ({
+			...item,
+			citation: normalizeCitationWithDocuments(item.citation, lookup),
+		})),
+		requirements: result.requirements.map((item) => ({
+			...item,
+			citation: normalizeCitationWithDocuments(item.citation, lookup),
+		})),
+		metadata: result.metadata.map((item) => ({
+			...item,
+			citation: normalizeCitationWithDocuments(item.citation, lookup),
+		})),
+	};
+}
+
+function normalizeCriteriaResultWithDocuments(
+	items: CriterionComputation[],
+	lookup: DocumentLookup,
+): CriterionComputation[] {
+	return items.map((item) => ({
+		...item,
+		citations: (item.citations ?? []).map((citation) =>
+			normalizeCitationWithDocuments(citation, lookup) ?? citation,
+		),
+	}));
+}
+
+function formatDocumentLegend(lookup: DocumentLookup) {
+	const entries = Array.from(lookup.byKey.values()).sort((a, b) =>
+		a.documentKey.localeCompare(b.documentKey),
+	);
+	return entries
+		.map((entry) => `- Dokument ${entry.documentKey}: ${entry.documentName}`)
+		.join("\n");
 }
 
 function selectOfferPagesForCriterion(
@@ -630,7 +795,18 @@ function selectOfferPagesForCriterion(
 }
 
 async function analyseStandardChunk(
-	chunk: { pages: Array<{ page: number; text: string }>; text: string },
+	chunk: {
+		pages: Array<{
+			page: number;
+			text: string;
+			documentId: Id<"documents">;
+			documentName: string | null;
+			documentKey: string;
+		}>;
+		text: string;
+	},
+	documentLegend: string,
+	lookup: DocumentLookup,
 ) {
 	const systemPrompt = `Developer message
 Du bist ein deutscher KI-Assistent zur strukturierten Analyse von HSE-Ausschreibungsunterlagen. Deine einzige Aufgabe ist es, basierend ausschließlich auf den gelieferten Dokumentseiten genau EIN valides JSON-Objekt gemäß der beschriebenen Struktur auszugeben.
@@ -660,6 +836,7 @@ Vorgaben:
 - Fehlende Werte sind grundsätzlich mit \`null\` zu füllen, auch bei verschachtelten Objekten und für jedes Feld ohne Information.
 - Die Seitenzahl im Citation-Objekt muss als Zahl (Numerus) angegeben werden, nicht als String.
 - Halte dich strikt an die Feldnamen und die Struktur des Schemas; verwende keine zusätzlichen Felder oder Strukturen.
+- Verwende immer den passenden Dokument-Schlüssel (\`documentKey\`), wie in der Dokumentenliste angegeben, damit klar ist, aus welchem Dokument eine Seite stammt.
 Arbeite exakt, beachte die Zitierregeln und gib **ausschließlich** das finale JSON-Objekt zurück.
 Nach Fertigstellung prüfe die vollständige Korrektheit und Gültigkeit des ausgegebenen JSON-Objekts. Bei Fehlern sind diese intern zu beheben, sodass nur ein valides, finales JSON zurückgegeben wird.
 Abbruchbedingung:
@@ -674,7 +851,7 @@ Das auszugebende JSON-Objekt sieht wie folgt aus:
 {
 "title": string, // Der Name des Meilensteins (z.B. "Angebotsabgabe", "Projektstart", "Inbetriebnahme"). NIEMALS "Dokument erstellt" oder "Dokument Version".
 "date": string | null, // Das Datum des Meilensteins im Format "YYYY-MM-DD". Wenn nur ein Monat oder Jahr angegeben ist, verwende das Format "YYYY-MM" oder "YYYY".
-"citation": { "page": number, "quote": string } | null
+"citation": { "documentKey": string, "page": number, "quote": string } | null
 }
 ],
 "requirements": [ // Eine Liste der wichtigsten funktionalen und nicht-funktionalen Anforderungen an das Projekt.
@@ -682,14 +859,14 @@ Das auszugebende JSON-Objekt sieht wie folgt aus:
   "title": string, // Eine kurze, prägnante Beschreibung der Anforderung.
   "category": string | null, // Eine Kategorie für die Anforderung (z.B. "Technisch", "Rechtlich", "Organisatorisch").
   "notes": string | null, // Zusätzliche Anmerkungen oder Details zur Anforderung.
-  "citation": { "page": number, "quote": string } | null
+  "citation": { "documentKey": string, "page": number, "quote": string } | null
 }
 ],
 "metadata": [ // Eine Liste von Metadaten zum Projekt, wie z.B. Ansprechpartner, Auftraggeber, etc.
 {
 "label": string, // Die Bezeichnung des Metadatums (z.B. "Auftraggeber", "Ansprechpartner").
 "value": string, // Der Wert des Metadatums.
-"citation": { "page": number, "quote": string } | null
+"citation": { "documentKey": string, "page": number, "quote": string } | null
 }
 ]
 }
@@ -700,6 +877,9 @@ Hinweise:
 - Bei unvollständigem oder fehlendem Kontext sind alle Felder gemäß oben zu behandeln und keine Fehlerhinweise oder Meldungen auszugeben.`;
 
     const userPrompt = `Lies die folgenden Seiten und liefere genau EIN valides JSON-Objekt (kein Array, keine Erklärungen, keine Kommentare, kein Fließtext).
+
+Dokumente in diesem Chunk:
+${documentLegend}
 
 Seiten:
 ${chunk.text}`;
@@ -713,8 +893,10 @@ ${chunk.text}`;
     const candidate = Array.isArray(parsed) ? parsed[0] : parsed;
     const result = standardResultSchema.parse(candidate);
 
+    const enriched = normalizeStandardResultWithDocuments(result, lookup);
+
 	return {
-		result,
+		result: enriched,
 		usage,
 		latencyMs,
 		meta: { provider, model },
@@ -738,12 +920,13 @@ async function analyseCriterion(
 		"Du bist ein deutschsprachiger Assistent zur Bewertung von Kriterien in Ausschreibungsunterlagen. Antworte ausschliesslich auf Deutsch und nur auf Basis der bereitgestellten Textauszüge.";
     const userPrompt = `Bewerte das folgende Kriterium anhand der bereitgestellten Dokumentseiten. Liefere GENAU EIN JSON-OBJEKT (kein Array, keine Erklärungen, kein Markdown) mit folgender Struktur:
 
-{\n  \"status\": \"gefunden\" | \"nicht_gefunden\" | \"teilweise\",\n  \"comment\": string | null,\n  \"answer\": string | null,\n  \"score\": number | null,\n  \"citations\": [ { \"page\": number, \"quote\": string } ]\n}
+{\n  \"status\": \"gefunden\" | \"nicht_gefunden\" | \"teilweise\",\n  \"comment\": string | null,\n  \"answer\": string | null,\n  \"score\": number | null,\n  \"citations\": [ { \"documentKey\": string, \"page\": number, \"quote\": string } ]\n}
 
 Regeln:
 - Gib ausschliesslich dieses JSON-Objekt zurück (kein Array, kein Fliesstext, keine Codeblöcke).
-- Jede Aussage benötigt mindestens ein Zitat in \"citations\" (page + quote).
+- Jede Aussage benötigt mindestens ein Zitat in \"citations\" (documentKey + page + quote).
 - Fehlende Werte als null eintragen.
+- Nutze den Dokument-Schlüssel (documentKey) aus der Dokumentliste, damit klar ist, aus welchem Dokument die Seite stammt.
 
 Kriterium:
 Titel: ${criterion.title}
@@ -872,7 +1055,13 @@ export const getDocPagesByIds = internalQuery({
 		projectId: v.id("projects"),
 	},
 	handler: async (ctx, { docPageIds, orgId, projectId }) => {
-		const pages: Array<{ _id: Id<"docPages">; page: number; text: string }> = [];
+		const pages: Array<{
+			_id: Id<"docPages">;
+			page: number;
+			text: string;
+			documentId: Id<"documents">;
+			documentName: string | null;
+		}> = [];
 		for (const id of docPageIds) {
 			const page = await ctx.db.get(id);
 			if (!page || page.orgId !== orgId) {
@@ -882,7 +1071,13 @@ export const getDocPagesByIds = internalQuery({
 			if (!document || document.projectId !== projectId || document.orgId !== orgId) {
 				throw new ConvexError("Dokumentseite gehört nicht zum Projekt.");
 			}
-			pages.push({ _id: page._id, page: page.page, text: page.text });
+			pages.push({
+				_id: page._id,
+				page: page.page,
+				text: page.text,
+				documentId: page.documentId,
+				documentName: document.filename ?? null,
+			});
 		}
 		return pages.sort((a, b) => a.page - b.page);
 	},
@@ -1787,10 +1982,26 @@ async function callLlmForJson({
 	}
 }
 
-function buildDocumentContext(pages: Array<{ page: number; text: string }>) {
-	return pages
-		.map((page) => `Seite ${page.page}:\n${page.text}`)
+function buildDocumentContext(
+	pages: Array<{
+		page: number;
+		text: string;
+		documentId: Id<"documents">;
+		documentName: string | null;
+	}>,
+	lookup: DocumentLookup,
+) {
+	const legend = formatDocumentLegend(lookup);
+	const body = pages
+		.map((page) => {
+			const meta = lookup.byId.get(page.documentId);
+			const name = meta?.documentName ?? "Unbenanntes Dokument";
+			const key = meta?.documentKey ?? "?";
+			return `Dokument ${key} (${name}) — Seite ${page.page}:\n${page.text}`;
+		})
 		.join("\n\n");
+
+	return `${legend}\n\n${body}`;
 }
 
 function tryParseJson(text: string): any {
@@ -2114,7 +2325,12 @@ Vorgaben:
 }
 
 async function checkOfferCriterion(
-	pages: Array<{ page: number; text: string }>,
+	pages: Array<{
+		page: number;
+		text: string;
+		documentId?: Id<"documents">;
+		documentName?: string | null;
+	}>,
 	criterion: {
 		key: string;
 		title: string;
@@ -2173,8 +2389,26 @@ Typ: ${criterion.required ? "Muss-Kriterium" : "Kann-Kriterium"}
 	const parsed = tryParseJson(text);
 	const result = offerCheckResultSchema.parse(parsed);
 
+	const documentMeta =
+		pages.length > 0
+			? {
+					documentId: pages[0].documentId,
+					documentName: pages[0].documentName ?? "Angebot",
+					documentKey: "A",
+				}
+			: null;
+	const enriched = {
+		...result,
+		citations: (result.citations ?? []).map((citation) => ({
+			...citation,
+			documentId: documentMeta?.documentId,
+			documentName: documentMeta?.documentName ?? undefined,
+			documentKey: documentMeta?.documentKey,
+		})),
+	};
+
 	return {
-		result,
+		result: enriched,
 		usage,
 		latencyMs,
 		meta: { provider, model },

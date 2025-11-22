@@ -11,14 +11,11 @@ import {
 	SummaryCard,
 } from "@/components/analysis-cards";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-interface Citation {
-	page: number;
-	quote: string;
-}
+import { CitationList } from "@/components/citation-list";
+import type { Citation } from "@/types/citation";
 
 interface StandardResultShape {
-	summary: string;
+	summary: string | null;
 	milestones: Array<{ title: string; date?: string; citation?: Citation }>;
 	requirements: Array<{ title: string; category?: string; notes?: string; citation?: Citation }>;
 	metadata: Array<{ label: string; value: string; citation?: Citation }>;
@@ -150,13 +147,9 @@ function SharePage() {
 									</p>
 								) : null}
 								{item.citations.length > 0 ? (
-									<ul className="mt-3 space-y-1 text-xs text-muted-foreground">
-										{item.citations.map((citation, index) => (
-											<li key={`${citation.page}-${index}`}>
-												Seite {citation.page}: „{citation.quote}“
-											</li>
-										))}
-									</ul>
+									<div className="mt-3">
+										<CitationList citations={item.citations} />
+									</div>
 								) : null}
 							</div>
 						))

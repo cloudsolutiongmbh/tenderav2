@@ -1,10 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface Citation {
-	page: number;
-	quote: string;
-}
+import type { Citation } from "@/types/citation";
 
 export interface MetadataItem {
 	label: string;
@@ -44,7 +40,7 @@ export function MetadataCard({ metadata = [], isLoading }: MetadataCardProps) {
 								<dd className="mt-1 font-medium break-words">{item.value}</dd>
 								{item.citation ? (
 									<p className="mt-2 text-xs text-muted-foreground break-words">
-										Zitat (Seite {item.citation.page}): „{item.citation.quote}"
+										{formatCitation(item.citation)}
 									</p>
 								) : null}
 							</div>
@@ -60,4 +56,11 @@ export function MetadataCard({ metadata = [], isLoading }: MetadataCardProps) {
 			</CardContent>
 		</Card>
 	);
+}
+
+function formatCitation(citation: Citation) {
+	const location = citation.documentName
+		? `${citation.documentName} · Seite ${citation.page}`
+		: `Seite ${citation.page}`;
+	return `Zitat (${location}): „${citation.quote}“`;
 }

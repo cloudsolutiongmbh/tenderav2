@@ -1,10 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface Citation {
-	page: number;
-	quote: string;
-}
+import type { Citation } from "@/types/citation";
 
 export interface RequirementItem {
 	title: string;
@@ -52,7 +48,7 @@ export function RequirementsCard({
 								) : null}
 								{requirement.citation ? (
 									<p className="mt-2 text-xs text-muted-foreground">
-										Zitat (Seite {requirement.citation.page}): „{requirement.citation.quote}“
+										{formatCitation(requirement.citation)}
 									</p>
 								) : null}
 							</li>
@@ -78,4 +74,11 @@ function LoadingList() {
 			<Skeleton className="h-4 w-[75%]" />
 		</div>
 	);
+}
+
+function formatCitation(citation: Citation) {
+	const location = citation.documentName
+		? `${citation.documentName} · Seite ${citation.page}`
+		: `Seite ${citation.page}`;
+	return `Zitat (${location}): „${citation.quote}“`;
 }

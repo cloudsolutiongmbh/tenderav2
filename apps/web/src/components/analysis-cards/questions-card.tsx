@@ -1,10 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface Citation {
-	page: number;
-	quote: string;
-}
+import type { Citation } from "@/types/citation";
 
 export interface QuestionItem {
 	question: string;
@@ -36,7 +32,7 @@ export function QuestionsCard({ questions = [], isLoading }: QuestionsCardProps)
 								<p className="font-medium">{item.question}</p>
 								{item.citation ? (
 									<p className="mt-2 text-xs text-muted-foreground">
-										Zitat (Seite {item.citation.page}): „{item.citation.quote}“
+										{formatCitation(item.citation)}
 									</p>
 								) : null}
 							</li>
@@ -52,4 +48,11 @@ export function QuestionsCard({ questions = [], isLoading }: QuestionsCardProps)
 			</CardContent>
 		</Card>
 	);
+}
+
+function formatCitation(citation: Citation) {
+	const location = citation.documentName
+		? `${citation.documentName} · Seite ${citation.page}`
+		: `Seite ${citation.page}`;
+	return `Zitat (${location}): „${citation.quote}“`;
 }

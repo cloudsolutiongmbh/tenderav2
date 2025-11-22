@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 export const citationSchema = z.object({
+    documentId: z.string().optional(),
+    documentKey: z.string().optional(),
+    documentName: z.string().optional(),
     page: z.number(),
     quote: z.string().min(1),
 });
@@ -44,6 +47,9 @@ export const citationJsonSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
+    documentId: { type: "string" },
+    documentKey: { type: "string" },
+    documentName: { type: "string" },
     page: { type: "number" },
     quote: { type: "string" },
   },

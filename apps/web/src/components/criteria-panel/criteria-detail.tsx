@@ -1,11 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CitationList } from "@/components/citation-list";
 import { StatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
-
-interface Citation {
-	page: number;
-	quote: string;
-}
+import type { Citation } from "@/types/citation";
 
 export interface CriteriaDetailData {
 	criterionId: string;
@@ -71,14 +68,7 @@ export function CriteriaDetail({ criterion }: CriteriaDetailProps) {
 				{criterion.citations && criterion.citations.length > 0 ? (
 					<section>
 						<h3 className="font-medium">Fundstellen</h3>
-						<ul className="space-y-2 text-xs text-muted-foreground">
-							{criterion.citations.map((citation, index) => (
-								<li key={`${citation.page}-${index}`} className="rounded-lg border border-border/60 p-2">
-									<strong className="font-medium">Seite {citation.page}</strong>
-									<p className="mt-1 italic">„{citation.quote}“</p>
-								</li>
-							))}
-						</ul>
+						<CitationList citations={criterion.citations} />
 					</section>
 				) : null}
 				{typeof criterion.score === "number" || typeof criterion.weight === "number" ? (

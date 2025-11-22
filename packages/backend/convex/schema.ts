@@ -3,6 +3,8 @@ import { v } from "convex/values";
 
 const citationSchema = v.object({
 	documentId: v.optional(v.id("documents")),
+	documentKey: v.optional(v.string()),
+	documentName: v.optional(v.string()),
 	page: v.number(),
 	quote: v.string(),
 });
