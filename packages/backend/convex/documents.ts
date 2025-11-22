@@ -106,3 +106,59 @@ export const markExtracted = mutation({
 		return { success: true };
 	},
 });
+
+export const remove = mutation({
+	args: {
+		documentId: v.id("documents"),
+	},
+	handler: async (ctx, { documentId }) => {
+		const identity = await getIdentityOrThrow(ctx);
+		const document = await ctx.db.get(documentId);
+		if (!document || document.orgId !== identity.orgId) {
+			throw new Error("Dokument nicht gefunden.");
+		}
+
+		const pages = await ctx.db
+			.query("docPages")
+			.withIndex("by_documentId", (q) => q.eq("documentId", documentId))
+			.collect();
+
+		// Remove any offers linked to this document (including results and jobs)
+		const offers = await ctx.db
+			.query("offers")
+			.withIndex("by_projectId", (q) => q.eq("projectId", document.projectId))
+			.filter((q) => q.eq(q.field("orgId"), identity.orgId))
+			.collect();
+
+		const offersToDelete = offers.filter((offer) => offer.documentId === documentId);
+		for (const offer of offersToDelete) {
+			const results = await ctx.db
+				.query("offerCriteriaResults")
+				.withIndex("by_offerId", (q) => q.eq("offerId", offer._id))
+				.collect();
+			for (const result of results) {
+				await ctx.db.delete(result._id);
+			}
+
+			const jobs = await ctx.db
+				.query("offerCriterionJobs")
+				.withIndex("by_offer", (q) => q.eq("offerId", offer._id))
+				.collect();
+			for (const job of jobs) {
+				await ctx.db.delete(job._id);
+			}
+
+			await ctx.db.delete(offer._id);
+		}
+
+		await Promise.all(pages.map((page) => ctx.db.delete(page._id)));
+		await ctx.storage.delete(document.storageId);
+		await ctx.db.delete(documentId);
+
+		return {
+			success: true,
+			removedPages: pages.length,
+			removedOffers: offersToDelete.length,
+		};
+	},
+});

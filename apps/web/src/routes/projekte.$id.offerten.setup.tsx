@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 
 import { api } from "@tendera/backend/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -63,11 +63,17 @@ const offers = useQuery(
 	const attachDocument = useMutation(api.documents.attach);
 	const bulkInsertPages = useMutation(api.docPages.bulkInsert);
 	const markDocumentExtracted = useMutation(api.documents.markExtracted);
-const ensureOfferFromDocument = useMutation(api.offers.ensureFromDocument);
+	const removeDocument = useMutation(api.documents.remove);
+	const startAnalysis = useMutation(api.projects.startAnalysis);
+	const ensureOfferFromDocument = useMutation(api.offers.ensureFromDocument);
+	const runStandardForProject = useAction(api.analysis.runStandardForProject);
+	const runCriteriaForProject = useAction(api.analysis.runCriteriaForProject);
 
 const [isExtracting, setExtracting] = useState(false);
 const [uploadState, setUploadState] = useState<PflichtenheftUploadState | null>(null);
 const [offerUploads, setOfferUploads] = useState<OfferUploadState[]>([]);
+const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+const [isRerunning, setRerunning] = useState(false);
 const extractCriteria = useAction(api.analysis.extractPflichtenheftCriteria);
 
 const extractionRunStatus = extractionStatus?.run?.status ?? null;
@@ -337,6 +343,71 @@ const isUploading = uploadState?.status === "uploading" || uploadState?.status =
 		}
 	};
 
+	const triggerAnalysisRestart = async () => {
+		const rerun = window.confirm(
+			"Analysen jetzt mit den verbleibenden Dokumenten neu starten?",
+		);
+		if (!rerun) {
+			return;
+		}
+
+		setRerunning(true);
+		try {
+			const standard = (await startAnalysis({
+				projectId: projectId as any,
+				type: "standard",
+			})) as { status: "läuft" | "wartet" } | undefined;
+			if (standard?.status === "läuft") {
+				await runStandardForProject({ projectId: projectId as any });
+			}
+
+			if (hasTemplate) {
+				const criteria = (await startAnalysis({
+					projectId: projectId as any,
+					type: "criteria",
+				})) as { status: "läuft" | "wartet" } | undefined;
+				if (criteria?.status === "läuft") {
+					await runCriteriaForProject({ projectId: projectId as any });
+				}
+			}
+
+			toast.success("Analysen neu gestartet.");
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Analysen konnten nicht neu gestartet werden.",
+			);
+		} finally {
+			setRerunning(false);
+		}
+	};
+
+	const handleDeleteDocument = async (documentId: string) => {
+		const doc = (documents ?? []).find((entry) => entry._id === documentId);
+		const confirmed = window.confirm(
+			`${doc?.filename ?? "Dokument"} löschen? Die Datei wird vollständig entfernt. Eine erneute Analyse ist empfohlen.`,
+		);
+		if (!confirmed) {
+			return;
+		}
+
+		setDeletingDocumentId(documentId);
+		try {
+			await removeDocument({ documentId: documentId as any });
+			toast.success("Dokument gelöscht.");
+			await triggerAnalysisRestart();
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Dokument konnte nicht gelöscht werden.",
+			);
+		} finally {
+			setDeletingDocumentId(null);
+		}
+	};
+
 const handleExtract = async () => {
 		if (isExtractionRunning) {
 			toast.info("Die Extraktion läuft bereits im Hintergrund.");
@@ -391,16 +462,32 @@ const handleExtract = async () => {
 					<CardContent className="space-y-4">
 						{pflichtenheft ? (
 							<>
-								<div className="rounded-md border border-green-200 bg-green-50 p-4">
-									<p className="text-sm font-medium text-green-900">
-										✓ Pflichtenheft hochgeladen: {pflichtenheft.filename}
-									</p>
-									<p className="mt-1 text-xs text-green-700">
-										{pflichtenheft.pageCount ?? 0} Seiten · {pflichtenheftExtracted ? "Texte extrahiert" : "Verarbeitung läuft"}
-									</p>
+								<div className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-green-200 bg-green-50 p-4">
+									<div>
+										<p className="text-sm font-medium text-green-900">
+											✓ Pflichtenheft hochgeladen: {pflichtenheft.filename}
+										</p>
+										<p className="mt-1 text-xs text-green-700">
+											{pflichtenheft.pageCount ?? 0} Seiten · {pflichtenheftExtracted ? "Texte extrahiert" : "Verarbeitung läuft"}
+										</p>
+									</div>
+									<Button
+										variant="ghost"
+										size="icon"
+										onClick={() => handleDeleteDocument(pflichtenheft._id as any)}
+										disabled={deletingDocumentId === pflichtenheft._id || isRerunning}
+										title="Pflichtenheft löschen"
+										aria-label="Pflichtenheft löschen"
+									>
+										{deletingDocumentId === pflichtenheft._id ? (
+											<Loader2 className="h-4 w-4 animate-spin" />
+										) : (
+											<Trash2 className="h-4 w-4" />
+										)}
+									</Button>
 								</div>
 								<p className="text-xs text-muted-foreground">
-									Um das Pflichtenheft zu ersetzen, entferne das bestehende Dokument im Bereich „Dokumente" und lade anschliessend ein neues hoch.
+									Lösche und lade neu hoch, wenn das Pflichtenheft ersetzt werden soll.
 								</p>
 							</>
 						) : (
@@ -480,19 +567,35 @@ const handleExtract = async () => {
 														{doc.pageCount ?? 0} Seiten · {doc.textExtracted ? "Texte extrahiert" : "Verarbeitung läuft"}
 													</p>
 												</div>
-												<div className="flex flex-col items-end gap-1 text-xs text-muted-foreground">
-													{offer ? (
-														<>
-															<span className="font-medium text-foreground">{offer.anbieterName}</span>
-															{offer.latestStatus ? (
-																<StatusBadge status={offer.latestStatus} />
-															) : (
-																<span>Angebot bereit</span>
-															)}
-														</>
-													) : (
-														<span className="text-xs">Angebot wird vorbereitet …</span>
-													)}
+												<div className="flex flex-wrap items-center justify-end gap-2">
+													<div className="flex flex-col items-end gap-1 text-xs text-muted-foreground">
+														{offer ? (
+															<>
+																<span className="font-medium text-foreground">{offer.anbieterName}</span>
+																{offer.latestStatus ? (
+																	<StatusBadge status={offer.latestStatus} />
+																) : (
+																	<span>Angebot bereit</span>
+																)}
+															</>
+														) : (
+															<span className="text-xs">Angebot wird vorbereitet …</span>
+														)}
+													</div>
+													<Button
+														variant="ghost"
+														size="icon"
+														onClick={() => handleDeleteDocument(doc._id as any)}
+														disabled={deletingDocumentId === doc._id || isRerunning}
+														title="Dokument löschen"
+														aria-label="Dokument löschen"
+													>
+														{deletingDocumentId === doc._id ? (
+															<Loader2 className="h-4 w-4 animate-spin" />
+														) : (
+															<Trash2 className="h-4 w-4" />
+														)}
+													</Button>
 												</div>
 											</li>
 										);
