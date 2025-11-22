@@ -17,7 +17,7 @@ import { useOrgAuth } from "@/hooks/useOrgAuth";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { cn } from "@/lib/utils";
 
-const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "200", 10);
+const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "400", 10);
 
 export const Route = createFileRoute("/projekte/$id/dokumente")({
 	component: ProjectDocumentsPage,

@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { getIdentityOrThrow } from "./auth";
 import type { Id } from "./_generated/dataModel";
 
-const DEFAULT_MAX_UPLOAD_MB = 200;
+const DEFAULT_MAX_UPLOAD_MB = 400;
 const maxUploadMb = Number.parseInt(process.env.MAX_UPLOAD_MB ?? `${DEFAULT_MAX_UPLOAD_MB}`);
 const MAX_UPLOAD_BYTES = (Number.isNaN(maxUploadMb) ? DEFAULT_MAX_UPLOAD_MB : maxUploadMb) * 1024 * 1024;
 

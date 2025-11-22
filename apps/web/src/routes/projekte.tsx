@@ -26,7 +26,7 @@ import { Grid3x3, List, Trash2, Search, X } from "lucide-react";
 
 import { extractDocumentPages } from "@/lib/extract-text";
 
-const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "200", 10);
+const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "400", 10);
 
 interface TemplateOption {
 	_id: string;

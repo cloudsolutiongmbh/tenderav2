@@ -230,20 +230,17 @@ ${chunk.text}`;
 
 ### Document Chunking
 
-**Default:** 10 pages per chunk (`CONVEX_ANALYSIS_PAGES_PER_CHUNK`)
+**Default:** 15 pages per chunk (`CONVEX_ANALYSIS_PAGES_PER_CHUNK`)
+
+Chunk text is prefixed with the document key and filename to keep citations source-aware:
 
 ```typescript
-function chunkPages(pages: Array<{ page: number; text: string }>, size: number) {
-  const chunks = [];
-  for (let i = 0; i < pages.length; i += size) {
-    const subset = pages.slice(i, i + size);
-    const text = subset
-      .map((page) => `Seite ${page.page}:\n${page.text}`)
-      .join("\n\n");
-    chunks.push({ pages: subset, text });
-  }
-  return chunks;
-}
+// Example format inside a chunk
+Dokument A (Pflichtenheft.pdf) — Seite 1:
+<page text>
+
+Dokument B (Anhang.docx) — Seite 2:
+<page text>
 ```
 
 **Rationale:**

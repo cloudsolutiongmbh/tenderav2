@@ -11,7 +11,7 @@ interface UploadDropzoneProps {
 	maxFiles?: number;
 }
 
-const DEFAULT_MAX_TOTAL_MB = 200;
+const DEFAULT_MAX_TOTAL_MB = 400;
 
 export function UploadDropzone({
 	maxTotalSizeMb = DEFAULT_MAX_TOTAL_MB,

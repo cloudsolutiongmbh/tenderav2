@@ -176,7 +176,7 @@ tenderav2/
    ```env
    VITE_CONVEX_URL=https://your-deployment.convex.cloud
    VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
-   VITE_MAX_UPLOAD_MB=200
+   VITE_MAX_UPLOAD_MB=400
    ```
 
    **Backend** (`packages/backend/.env.local`):
@@ -196,7 +196,7 @@ tenderav2/
 
    # Analysis configuration
    CONVEX_MAX_ACTIVE_RUNS_PER_ORG=1
-   MAX_UPLOAD_MB=200
+   MAX_UPLOAD_MB=400
    ```
 
 4. **Set up Clerk**
@@ -241,7 +241,7 @@ tenderav2/
 1. Go to **Dokumente** tab
 2. Drag & drop or click to upload:
    - Supported formats: **PDF**, **DOCX**, **TXT**
-   - Max total size: 200 MB (configurable)
+   - Max total size: 400 MB (configurable)
 3. Wait for extraction (happens client-side)
 4. Click **Standard-Analyse starten** or **Kriterien-Analyse starten**
 
@@ -426,7 +426,7 @@ All queries and mutations filter by `orgId` to prevent cross-org data access.
 - **Criteria analysis**: 1-2 minutes (per template)
 
 **Optimization strategies:**
-- Chunking large documents (8-12 pages per LLM call)
+- Chunking large documents (~15 pages per LLM call, configurable)
 - Parallel processing where possible
 - Convex live queries for real-time UI updates
 - Client-side extraction to reduce server load

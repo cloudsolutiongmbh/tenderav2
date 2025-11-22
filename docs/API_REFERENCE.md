@@ -984,7 +984,7 @@ try {
 | Resource | Limit | Enforcement |
 |----------|-------|-------------|
 | Active analysis runs per org | 1 (configurable) | Backend queue system |
-| Document size per project | 200 MB | Client + server validation |
+| Document size per project | 400 MB | Client + server validation |
 | LLM requests | Provider-dependent | OpenAI/Anthropic rate limits |
 | Convex DB operations | Plan-dependent | Convex platform limits |
 

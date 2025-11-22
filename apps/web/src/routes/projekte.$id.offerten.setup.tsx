@@ -18,7 +18,7 @@ export const Route = createFileRoute("/projekte/$id/offerten/setup")({
 	component: OffertenSetupPage,
 });
 
-const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "200", 10);
+const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "400", 10);
 const OFFER_DOCUMENT_LIMIT = 8;
 
 interface PflichtenheftUploadState {
