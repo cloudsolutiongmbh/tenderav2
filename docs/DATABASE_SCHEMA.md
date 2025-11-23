@@ -393,7 +393,9 @@
 **Citation Object:**
 ```typescript
 {
-  documentId?: Id<"documents">;  // Optional (for future deep linking)
+  documentId?: Id<"documents">;
+  documentKey?: string;
+  documentName?: string;
   page: number;                  // 1-indexed
   quote: string;                 // Short excerpt from source
 }

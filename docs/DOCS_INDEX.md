@@ -129,8 +129,8 @@ This index provides quick access to all documentation for the Tendera codebase. 
 - Telemetry and cost optimization
 
 **Key Topics:**
-- **Citation Requirement:** Every fact must include `{page, quote}`
-- **Chunking Strategy:** 10 pages per LLM call
+- **Citation Requirement:** Every fact must include `{documentKey, page, quote}` (with document metadata carried through)
+- **Chunking Strategy:** ~15 pages per LLM call (configurable)
 - **Temperature Settings:** 0.1-0.3 for deterministic outputs
 - **Zod Validation:** Runtime schema validation
 
@@ -193,30 +193,20 @@ Roadmap tracking has moved to the internal GitHub Projects board. Historical pla
 
 ### [issues.md](../issues.md)
 **Audience:** All team members
-**Purpose:** Known issues and bug tracking
+**Purpose:** Known issues and bug tracking (living document; priorities change frequently)
 
 **Contents:**
 - Prioritized issue list (Critical → Low)
 - Issue descriptions with code references
-- Impact analysis
-- Fix recommendations
-- Tracking status
+- Impact analysis and recommendations
 
-**Status:** Contains 25 documented issues with priorities
+**Status:** Actively maintained; review file for current counts and priorities.
 
 ---
 
 ## 📝 Supporting Documents
 
-### [PRD.txt](../PRD.txt)
-**Audience:** Product Managers, Stakeholders
-**Purpose:** Original product requirements document
-
-**Contents:**
-- Problem statement
-- User stories
-- Feature requirements
-- Technical constraints
+Historical PRDs were removed to avoid drift. The current source of truth is the codebase and this documentation set; new product requirements are tracked in the private backlog.
 
 ---
 

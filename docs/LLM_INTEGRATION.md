@@ -104,7 +104,7 @@ const response = await callLlm({
 
 1. **German Language:** All prompts and expected outputs in German
 2. **Strict JSON:** Enforce JSON output format (no prose)
-3. **Citation Requirement:** Every fact must include `{page, quote}`
+3. **Citation Requirement:** Every fact must include `{documentKey, page, quote}` (document metadata preserved end-to-end)
 4. **Schema Definition:** Explicit JSON schema in system prompt
 5. **Anti-Hallucination:** "Answer only from provided pages" instruction
 
@@ -692,7 +692,7 @@ const totalCost = inputCost + outputCost;
 
 ### Optimization Strategies
 
-1. **Chunking:** Reduce context window by processing 10 pages at a time
+1. **Chunking:** Reduce context window by processing ~15 pages at a time (configurable via `CONVEX_ANALYSIS_PAGES_PER_CHUNK`)
 2. **Model Selection:** Use `gpt-4o-mini` for cost-sensitive operations
 3. **Backpressure:** Limit concurrent runs to avoid rate limits and cost spikes
 4. **Prompt Caching:** (Future) Cache common system prompts

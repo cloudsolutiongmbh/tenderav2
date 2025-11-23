@@ -362,8 +362,16 @@ Deletes a document, its pages, and storage blob.
 **Cascades to:**
 - docPages (all pages for this document)
 - Storage blob (via `ctx.storage.delete`)
+- Offer comparison data linked to the document (offers, offerCriterionJobs, offerCriteriaResults)
 
-**Returns:** `void`
+**Returns:**
+```json
+{
+  "success": true,
+  "removedPages": number,
+  "removedOffers": number
+}
+```
 
 ---
 
