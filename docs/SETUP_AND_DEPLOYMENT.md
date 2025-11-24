@@ -458,7 +458,6 @@ tests/
 
 **Security:**
 - [ ] Fix all CRITICAL issues in `SECURITY_AND_ISSUES.md`
-- [ ] Verify `CONVEX_TEST_BYPASS_AUTH` is NOT set
 - [ ] Rotate API keys from development
 - [ ] Enable Clerk production settings
 - [ ] Configure CSP headers
@@ -504,9 +503,6 @@ CLERK_JWT_ISSUER_DOMAIN=your-prod-app.clerk.accounts.dev
 LLM_PROVIDER=OPENAI
 LLM_MODEL=gpt-4o-mini
 OPENAI_API_KEY=sk-prod-...
-
-# ⚠️ CRITICAL: Ensure this is NOT set!
-# CONVEX_TEST_BYPASS_AUTH=1
 
 # Production tuning
 CONVEX_MAX_ACTIVE_RUNS_PER_ORG=2
