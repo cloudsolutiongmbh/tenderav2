@@ -85,7 +85,7 @@ added 1234 packages in 45s
 
 #### 3.2 Create Convex JWT Template
 
-1. In Clerk dashboard, go to **JWT Templates**
+1. In Clerk dashboard, go to **Configure > JWT Templates**
 2. Click **"New Template"**
 3. Name: `convex`
 4. Add custom claim:
@@ -98,7 +98,7 @@ added 1234 packages in 45s
 
 #### 3.3 Copy Clerk Credentials
 
-1. Go to **API Keys**
+1. Go to **Configure > API Keys**
 2. Copy **Publishable Key** (starts with `pk_test_...`)
 3. Copy **JWT Issuer Domain** (e.g., `your-app.clerk.accounts.dev`)
 
