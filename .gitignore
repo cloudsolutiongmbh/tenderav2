@@ -9,3 +9,4 @@ test-results/
 # Local env files (examples are tracked)
 apps/web/.env
 packages/backend/.env.local
+/packages/backend/convex/_generated
