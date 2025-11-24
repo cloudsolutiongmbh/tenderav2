@@ -129,52 +129,6 @@ export const resolve = query({
 
 ---
 
-### 🔴 Issue #3: Infinite Loop in Token Generation
-
-**Severity:** CRITICAL - Availability
-**File:** `packages/backend/convex/shares.ts:27-36`
-**Status:** ⚠️ UNFIXED
-
-**Description:**
-```typescript
-let token: string;
-while (true) {  // ❌ No timeout protection
-  token = generateShareToken();
-  const existing = await ctx.db.query("shares")
-    .withIndex("by_token", (q) => q.eq("token", token))
-    .first();
-  if (!existing) break;
-}
-```
-
-**Impact:**
-- If collision rate is high (shouldn't happen with 256 bits, but...)
-- Race condition: Two simultaneous requests can both see `!existing` and insert duplicate tokens
-- DoS vector: Attacker creates many shares simultaneously
-
-**Fix:**
-```typescript
-const MAX_RETRIES = 10;
-let token: string;
-
-for (let i = 0; i < MAX_RETRIES; i++) {
-  token = generateShareToken();
-  const existing = await ctx.db.query("shares")
-    .withIndex("by_token", (q) => q.eq("token", token))
-    .first();
-
-  if (!existing) break;
-
-  if (i === MAX_RETRIES - 1) {
-    throw new Error("Token-Generierung fehlgeschlagen nach mehreren Versuchen.");
-  }
-}
-```
-
-**Priority:** 🔴 IMMEDIATE
-
----
-
 ### 🔴 Issue #4: No Transaction for Project Delete
 
 **Severity:** CRITICAL - Data Integrity

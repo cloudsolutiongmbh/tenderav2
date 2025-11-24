@@ -148,7 +148,6 @@ This index provides quick access to all documentation for the Tendera codebase. 
 - **5 CRITICAL Issues:**
   1. No transaction for project delete
   1. Infinite loop in token creation
-  1. Auth bypass via environment variable
   1. Unbounded queries causing memory overflow
 - **10 HIGH Priority Issues**
 - **10 MEDIUM Priority Issues**
