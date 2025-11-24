@@ -147,10 +147,9 @@ This index provides quick access to all documentation for the Tendera codebase. 
 - Authentication and authorization flow
 - **5 CRITICAL Issues:**
   1. Auth bypass via environment variable
-  2. Weak token generation fallback
-  3. Infinite loop in token creation
-  4. No transaction for project delete
-  5. Unbounded queries causing memory overflow
+  1. Weak token generation fallback
+  1. No transaction for project delete
+  1. Unbounded queries causing memory overflow
 - **10 HIGH Priority Issues**
 - **10 MEDIUM Priority Issues**
 - Mitigation roadmap
