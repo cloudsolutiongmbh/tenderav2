@@ -129,50 +129,6 @@ export const resolve = query({
 
 ---
 
-### 🔴 Issue #2: Weak Token Generation Fallback
-
-**Severity:** CRITICAL - Security Vulnerability
-**File:** `packages/backend/convex/shares.ts:147-156`
-**Status:** ⚠️ UNFIXED
-
-**Description:**
-```typescript
-function fillRandomBytes(bytes: Uint8Array) {
-  if (typeof globalThis.crypto?.getRandomValues === "function") {
-    globalThis.crypto.getRandomValues(bytes);
-    return;
-  }
-
-  // ❌ FALLBACK: Math.random() is NOT cryptographically secure
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = Math.floor(Math.random() * 256);
-  }
-}
-```
-
-**Impact:**
-- Fallback uses `Math.random()`, which is **predictable**
-- Attacker can brute-force or guess share tokens
-- Unauthorized access to tender documents
-
-**Fix:**
-```typescript
-function fillRandomBytes(bytes: Uint8Array) {
-  if (typeof globalThis.crypto?.getRandomValues === "function") {
-    globalThis.crypto.getRandomValues(bytes);
-    return;
-  }
-  throw new Error(
-    "Kryptographisch sichere Zufallszahlen nicht verfügbar. " +
-    "Token-Generierung abgebrochen."
-  );
-}
-```
-
-**Priority:** 🔴 IMMEDIATE
-
----
-
 ### 🔴 Issue #3: Infinite Loop in Token Generation
 
 **Severity:** CRITICAL - Availability
@@ -472,10 +428,9 @@ Load all runs for org, group by projectId in-memory.
 **Must complete before production:**
 
 1. ✅ Fix auth bypass (Issue #1)
-2. ✅ Fix weak token generation (Issue #2)
-3. ✅ Fix infinite loop in token creation (Issue #3)
-4. ✅ Add transaction-like logic for project delete (Issue #4)
-5. ✅ Add query limits to prevent memory overflow (Issue #5)
+1. ✅ Fix infinite loop in token creation (Issue #3)
+1. ✅ Add transaction-like logic for project delete (Issue #4)
+1. ✅ Add query limits to prevent memory overflow (Issue #5)
 
 **Verification:**
 - Security audit of deployment environment
