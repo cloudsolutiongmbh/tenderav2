@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
+import type { Id } from "@tendera/backend/convex/_generated/dataModel";
 
 interface EditableCriterion {
 	localId: string;
@@ -62,7 +63,7 @@ function TemplateDetailPage() {
 
 	const template = useQuery(
 		api.templates.get,
-		auth.authReady && !isNew ? { templateId: id as any } : "skip",
+		auth.authReady && !isNew ? { templateId: id as Id<"templates"> } : "skip",
 	);
 
     const upsertTemplate = useMutation(api.templates.upsert);
@@ -117,7 +118,7 @@ function TemplateDetailPage() {
         if (!ok) return;
         setDeleting(true);
         try {
-            await removeTemplate({ templateId: template._id as any });
+            await removeTemplate({ templateId: template._id as Id<"templates"> });
             toast.success("Kriterienkatalog gelöscht.");
             navigate({ to: "/templates" });
         } catch (error) {

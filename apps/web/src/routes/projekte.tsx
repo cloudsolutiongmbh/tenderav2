@@ -108,7 +108,7 @@ function ProjektePage() {
 			return;
 		}
 		try {
-			await deleteProject({ projectId: projectId as any });
+			await deleteProject({ projectId: projectId as Id<"projects"> });
 			toast.success("Projekt gelöscht.");
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : "Projekt konnte nicht gelöscht werden.");
