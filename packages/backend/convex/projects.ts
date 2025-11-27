@@ -283,11 +283,13 @@ export const remove = mutation({
         const documents = await ctx.db
             .query("documents")
             .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .filter((q) => q.eq(q.field("orgId"), identity.orgId))
             .collect();
         for (const doc of documents) {
             const pages = await ctx.db
                 .query("docPages")
                 .withIndex("by_documentId", (q) => q.eq("documentId", doc._id))
+                .filter((q) => q.eq(q.field("orgId"), identity.orgId))
                 .collect();
             for (const page of pages) {
                 await ctx.db.delete(page._id);
@@ -295,6 +297,7 @@ export const remove = mutation({
             try {
                 await ctx.storage.delete(doc.storageId);
             } catch (e) {
+                console.error(e);
                 // ignore storage delete failures
             }
             await ctx.db.delete(doc._id);
