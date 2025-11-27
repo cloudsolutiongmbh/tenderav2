@@ -19,6 +19,7 @@ import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import type { Citation } from "@/types/citation";
+import type { Id } from "@tendera/backend/convex/_generated/dataModel";
 
 interface StandardMilestone {
 	title: string;
@@ -62,13 +63,13 @@ function ProjectStandardPage() {
 	const auth = useOrgAuth();
 	const project = useQuery(
 		api.projects.get,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 	const standard = useQuery(
 		api.analysis.getLatest,
 		auth.authReady
 			? {
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				type: "standard",
 			}
 			: "skip",
@@ -110,7 +111,7 @@ function ProjectStandardPage() {
 		if (!ok) return;
 		setDeleting(true);
 		try {
-			await removeProject({ projectId: projectId as any });
+			await removeProject({ projectId: projectId as Id<"projects"> });
 			toast.success("Projekt gelöscht.");
 			navigate({ to: "/projekte" });
 		} catch (error) {
@@ -159,7 +160,7 @@ function ProjectStandardPage() {
 			<section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
 				<div className="space-y-6">
 					<SummaryCard
-						summary={standardResult?.summary}
+						summary={standardResult?.summary ?? undefined}
 						isLoading={isLoading}
 					/>
 					<MilestonesCard

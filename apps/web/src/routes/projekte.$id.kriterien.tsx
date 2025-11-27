@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
+import type { Doc, Id } from "@tendera/backend/convex/_generated/dataModel";
 
 interface RunSummary {
 	status: AnalysisStatus;
@@ -38,20 +39,20 @@ function ProjectCriteriaPage() {
 	const auth = useOrgAuth();
 	const project = useQuery(
 		api.projects.get,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 	const criteriaResult = useQuery(
 		api.analysis.getLatest,
 		auth.authReady
 			? {
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				type: "criteria",
 			}
 			: "skip",
 	);
 	const documents = useQuery(
 		api.documents.listByProject,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 	const templates = useQuery(
 		api.templates.list,
@@ -60,12 +61,12 @@ function ProjectCriteriaPage() {
 	const templateDoc = useQuery(
 		api.templates.get,
 		auth.authReady && project?.project.templateId
-			? { templateId: project.project.templateId as any }
+			? { templateId: project.project.templateId as Id<"templates"> }
 			: "skip",
 	);
 
 	const templateCriteriaMap = useMemo(() => {
-		const map = new Map<string, any>();
+		const map = new Map<string, Doc<"templates">["criteria"][number]>();
 		if (templateDoc) {
 			for (const criterion of templateDoc.criteria) {
 				map.set(criterion.key, criterion);
@@ -166,8 +167,8 @@ function ProjectCriteriaPage() {
 		setAssigningTemplate(true);
 		try {
 			await setTemplate({
-				projectId: projectId as any,
-				templateId: templateId ? (templateId as any) : undefined,
+				projectId: projectId as Id<"projects">,
+				templateId: templateId ? (templateId as Id<"templates">) : undefined,
 			});
 			toast.success("Kriterienkatalog aktualisiert.");
 		} catch (error) {
@@ -189,11 +190,11 @@ function ProjectCriteriaPage() {
             return;
         }
         try {
-            const res = (await startAnalysis({ projectId: projectId as any, type: "criteria" })) as
+            const res = (await startAnalysis({ projectId: projectId as Id<"projects">, type: "criteria" })) as
                 | { status: "läuft" | "wartet"; runId: string }
                 | undefined;
             if (res?.status === "läuft") {
-                await runCriteriaForProject({ projectId: projectId as any });
+                await runCriteriaForProject({ projectId: projectId as Id<"projects"> });
             }
             toast.success("Kriterien-Analyse gestartet.");
         } catch (error) {
@@ -212,7 +213,7 @@ function ProjectCriteriaPage() {
         if (!ok) return;
         setDeleting(true);
         try {
-            await removeProject({ projectId: projectId as any });
+            await removeProject({ projectId: projectId as Id<"projects"> });
             toast.success("Projekt gelöscht.");
             navigate({ to: "/projekte" });
         } catch (error) {

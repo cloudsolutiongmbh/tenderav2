@@ -25,6 +25,7 @@ import { useOrgAuth } from "@/hooks/useOrgAuth";
 import { Grid3x3, List, Trash2, Search, X } from "lucide-react";
 
 import { extractDocumentPages } from "@/lib/extract-text";
+import type { Id } from "@tendera/backend/convex/_generated/dataModel";
 
 const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "400", 10);
 
@@ -108,7 +109,7 @@ function ProjektePage() {
 			return;
 		}
 		try {
-			await deleteProject({ projectId: projectId as any });
+			await deleteProject({ projectId: projectId as Id<"projects"> });
 			toast.success("Projekt gelöscht.");
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : "Projekt konnte nicht gelöscht werden.");
@@ -198,7 +199,7 @@ function ProjektePage() {
 
 						return (
 							<Link
-								to={mainRoute as any}
+								to={mainRoute}
 								params={{ id: project._id }}
 								key={project._id}
 								className="block"
@@ -297,7 +298,7 @@ function ProjektePage() {
 
 						return (
 							<Link
-								to={mainRoute as any}
+								to={mainRoute}
 								params={{ id: project._id }}
 								key={project._id}
 								className="block"
@@ -470,26 +471,26 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 			}
 
 			const attached = await attachDocument({
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				filename: file.name,
 				mimeType: file.type || "application/octet-stream",
 				size: file.size,
-				storageId: json.storageId as any,
-				role: options.role as any,
+				storageId: json.storageId as Id<"_storage">,
+				role: options.role,
 			});
 
 			const pages = await extractDocumentPages(file);
 			if (pages.length > 0) {
 				await bulkInsertPages({
-					documentId: attached?._id as any,
+					documentId: attached?._id as Id<"documents">,
 					pages: pages.map((page) => ({ page: page.page, text: page.text })),
 				});
 				await markDocumentExtracted({
-					documentId: attached?._id as any,
+					documentId: attached?._id as Id<"documents">,
 					pageCount: pages.length,
 				});
 			} else {
-				await markDocumentExtracted({ documentId: attached?._id as any, pageCount: 0 });
+				await markDocumentExtracted({ documentId: attached?._id as Id<"documents">, pageCount: 0 });
 			}
 
 			return attached;
@@ -500,7 +501,7 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 	const triggerAnalysis = useCallback(
 		async (projectId: string, type: "standard" | "criteria") => {
 			try {
-				const res = (await startAnalysis({ projectId: projectId as any, type })) as
+				const res = (await startAnalysis({ projectId: projectId as Id<"projects">, type })) as
 					| { status: "läuft" | "wartet"; runId: string }
 					| undefined;
 				const label = type === "standard" ? "Standard-Analyse" : "Kriterien-Analyse";
@@ -509,9 +510,9 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 				}
 				if (res.status === "läuft") {
 					if (type === "standard") {
-						await runStandardForProject({ projectId: projectId as any });
+						await runStandardForProject({ projectId: projectId as Id<"projects"> });
 					} else {
-						await runCriteriaForProject({ projectId: projectId as any });
+						await runCriteriaForProject({ projectId: projectId as Id<"projects"> });
 					}
 					toast.success(`${label} gestartet.`);
 				} else {
@@ -532,7 +533,7 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 	const triggerPflichtenheftExtraction = useCallback(
 		async (projectId: string) => {
 			try {
-				const result = await extractPflichtenheftCriteria({ projectId: projectId as any });
+				const result = await extractPflichtenheftCriteria({ projectId: projectId as Id<"projects"> });
 				if (result?.criteriaCount) {
 					toast.success(`Kriterien extrahiert (${result.criteriaCount}).`);
 				} else {
@@ -575,7 +576,7 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 				customer,
 				tags: normalizedTags,
 				projectType,
-				templateId: templateId ? (templateId as any) : undefined,
+				templateId: templateId ? (templateId as Id<"templates">) : undefined,
 			})) as string | undefined;
 
 			if (!projectId) {
@@ -607,8 +608,8 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 						if (document?._id) {
 							try {
 								await ensureOfferFromDocument({
-									projectId: projectId as any,
-									documentId: document._id as any,
+									projectId: projectId as Id<"projects">,
+									documentId: document._id as Id<"documents">,
 								});
 							} catch (error) {
 								console.error(error);

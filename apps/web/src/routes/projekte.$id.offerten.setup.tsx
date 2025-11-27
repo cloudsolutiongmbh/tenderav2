@@ -13,6 +13,7 @@ import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import { UploadDropzone } from "@/components/upload-dropzone";
 import { extractDocumentPages } from "@/lib/extract-text";
+import type { Doc, Id } from "@tendera/backend/convex/_generated/dataModel";
 
 export const Route = createFileRoute("/projekte/$id/offerten/setup")({
 	component: OffertenSetupPage,
@@ -41,22 +42,22 @@ function OffertenSetupPage() {
 
 const project = useQuery(
 	api.projects.get,
-	auth.authReady ? { projectId: projectId as any } : "skip",
+	auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 );
 
 const documents = useQuery(
 	api.documents.listByProject,
-	auth.authReady ? { projectId: projectId as any } : "skip",
+	auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 );
 
 const offers = useQuery(
 	api.offers.list,
-	auth.authReady ? { projectId: projectId as any } : "skip",
+	auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 );
 
 	const extractionStatus = useQuery(
 		api.analysis.getPflichtenheftExtractionStatus,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
 	const createUploadUrl = useMutation(api.documents.createUploadUrl);
@@ -100,7 +101,7 @@ const isExtractionRunning = extractionRunStatus === "wartet" || extractionRunSta
 		[documents],
 	);
 	const offersByDocumentId = useMemo(() => {
-		const map = new Map<string, any>();
+		const map = new Map<string, Doc<"offers">>();
 		for (const offer of offers ?? []) {
 			if (offer.documentId) {
 				map.set(offer.documentId, offer);
@@ -129,7 +130,7 @@ const isUploading = uploadState?.status === "uploading" || uploadState?.status =
 	}, [isExtractionRunning]);
 
 	const ensureOfferForDocument = useCallback(
-		async (document: any, options?: { showToast?: boolean }) => {
+		async (document: Doc<"documents">, options?: { showToast?: boolean }) => {
 			if (!document?._id) {
 				return;
 			}
@@ -143,7 +144,7 @@ const isUploading = uploadState?.status === "uploading" || uploadState?.status =
 			pendingOfferEnsuresRef.current.add(document._id);
 			try {
 				const result = await ensureOfferFromDocument({
-					projectId: projectId as any,
+					projectId: projectId as Id<"projects">,
 					documentId: document._id,
 					anbieterName: deriveOfferName(document.filename),
 				});
@@ -202,27 +203,27 @@ const isUploading = uploadState?.status === "uploading" || uploadState?.status =
 			setUploadState({ status: "processing", filename: file.name });
 
 			const attached = await attachDocument({
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				filename: file.name,
 				mimeType: file.type || "application/octet-stream",
 				size: file.size,
-				storageId: json.storageId as any,
-				role: "pflichtenheft" as any,
+				storageId: json.storageId as Id<"_storage">,
+				role: "pflichtenheft",
 			});
 
 			const pages = await extractDocumentPages(file);
 
 			if (pages.length > 0) {
 				await bulkInsertPages({
-					documentId: attached?._id as any,
+					documentId: attached?._id as Id<"documents">,
 					pages: pages.map((page) => ({ page: page.page, text: page.text })),
 				});
 				await markDocumentExtracted({
-					documentId: attached?._id as any,
+					documentId: attached?._id as Id<"documents">,
 					pageCount: pages.length,
 				});
 			} else {
-				await markDocumentExtracted({ documentId: attached?._id as any, pageCount: 0 });
+				await markDocumentExtracted({ documentId: attached?._id as Id<"documents">, pageCount: 0 });
 			}
 
 			setUploadState({ status: "done", filename: file.name });
@@ -288,30 +289,35 @@ const isUploading = uploadState?.status === "uploading" || uploadState?.status =
 				);
 
 				const attached = await attachDocument({
-					projectId: projectId as any,
+					projectId: projectId as Id<"projects">,
 					filename: file.name,
 					mimeType: file.type || "application/octet-stream",
 					size: file.size,
-					storageId: json.storageId as any,
-					role: "offer" as any,
+					storageId: json.storageId as Id<"_storage">,
+					role: "offer",
 				});
 
 				const pages = await extractDocumentPages(file);
 
 				if (pages.length > 0) {
 					await bulkInsertPages({
-						documentId: attached?._id as any,
+						documentId: attached?._id as Id<"documents">,
 						pages: pages.map((page) => ({ page: page.page, text: page.text })),
 					});
 					await markDocumentExtracted({
-						documentId: attached?._id as any,
+						documentId: attached?._id as Id<"documents">,
 						pageCount: pages.length,
 					});
 				} else {
-					await markDocumentExtracted({ documentId: attached?._id as any, pageCount: 0 });
+					await markDocumentExtracted({ documentId: attached?._id as Id<"documents">, pageCount: 0 });
 				}
 
-				await ensureOfferForDocument(attached, { showToast: true });
+				if (attached) {
+					await ensureOfferForDocument(attached, { showToast: true });
+				}
+				else {
+					toast.error("Dokument konnte nicht angehängt werden");
+				}
 
 				setOfferUploads((prev) =>
 					prev.map((item) =>
@@ -354,20 +360,20 @@ const isUploading = uploadState?.status === "uploading" || uploadState?.status =
 		setRerunning(true);
 		try {
 			const standard = (await startAnalysis({
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				type: "standard",
 			})) as { status: "läuft" | "wartet" } | undefined;
 			if (standard?.status === "läuft") {
-				await runStandardForProject({ projectId: projectId as any });
+				await runStandardForProject({ projectId: projectId as Id<"projects"> });
 			}
 
 			if (hasTemplate) {
 				const criteria = (await startAnalysis({
-					projectId: projectId as any,
+					projectId: projectId as Id<"projects">,
 					type: "criteria",
 				})) as { status: "läuft" | "wartet" } | undefined;
 				if (criteria?.status === "läuft") {
-					await runCriteriaForProject({ projectId: projectId as any });
+					await runCriteriaForProject({ projectId: projectId as Id<"projects"> });
 				}
 			}
 
@@ -394,7 +400,7 @@ const isUploading = uploadState?.status === "uploading" || uploadState?.status =
 
 		setDeletingDocumentId(documentId);
 		try {
-			await removeDocument({ documentId: documentId as any });
+			await removeDocument({ documentId: documentId as Id<"documents"> });
 			toast.success("Dokument gelöscht.");
 			await triggerAnalysisRestart();
 		} catch (error) {
@@ -420,7 +426,7 @@ const handleExtract = async () => {
 
 		setExtracting(true);
 		try {
-			const result = await extractCriteria({ projectId: projectId as any });
+			const result = await extractCriteria({ projectId: projectId as Id<"projects"> });
 			toast.success(`Kriterien erfolgreich extrahiert! ${result.criteriaCount} Kriterien gefunden.`);
 		} catch (error) {
 			toast.error(
@@ -474,7 +480,7 @@ const handleExtract = async () => {
 									<Button
 										variant="ghost"
 										size="icon"
-										onClick={() => handleDeleteDocument(pflichtenheft._id as any)}
+										onClick={() => handleDeleteDocument(pflichtenheft._id as Id<"documents">)}
 										disabled={deletingDocumentId === pflichtenheft._id || isRerunning}
 										title="Pflichtenheft löschen"
 										aria-label="Pflichtenheft löschen"
@@ -585,7 +591,7 @@ const handleExtract = async () => {
 													<Button
 														variant="ghost"
 														size="icon"
-														onClick={() => handleDeleteDocument(doc._id as any)}
+														onClick={() => handleDeleteDocument(doc._id as Id<"documents">)}
 														disabled={deletingDocumentId === doc._id || isRerunning}
 														title="Dokument löschen"
 														aria-label="Dokument löschen"
