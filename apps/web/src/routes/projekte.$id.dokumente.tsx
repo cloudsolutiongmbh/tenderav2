@@ -17,7 +17,7 @@ import { useOrgAuth } from "@/hooks/useOrgAuth";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { cn } from "@/lib/utils";
 
-const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "200", 10);
+const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "400", 10);
 
 export const Route = createFileRoute("/projekte/$id/dokumente")({
 	component: ProjectDocumentsPage,
@@ -68,6 +68,7 @@ const criteriaRun = useQuery(
 	const attachDocument = useMutation(api.documents.attach);
 	const bulkInsertPages = useMutation(api.docPages.bulkInsert);
 	const markDocumentExtracted = useMutation(api.documents.markExtracted);
+	const removeDocument = useMutation(api.documents.remove);
 	const startAnalysis = useMutation(api.projects.startAnalysis);
 	const removeProject = useMutation(api.projects.remove);
 	const runStandardForProject = useAction(api.analysis.runStandardForProject);
@@ -78,6 +79,7 @@ const [uploads, setUploads] = useState<UploadStateItem[]>([]);
 const [isStartingStandard, setStartingStandard] = useState(false);
 const [isStartingCriteria, setStartingCriteria] = useState(false);
 const [isDeleting, setDeleting] = useState(false);
+const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
 const [isExtractingPflichtenheft, setExtractingPflichtenheft] = useState(false);
 	const extractionRunStatus = extractionStatus?.run?.status ?? null;
 	const extractionRunError = extractionStatus?.run?.error ?? null;
@@ -270,6 +272,41 @@ const criteriaHint = !hasTemplate
 		}
 	};
 
+	const handleDeleteDocument = async (documentId: string) => {
+		const doc = (documents ?? []).find((entry) => entry._id === documentId);
+		const friendlyName = doc?.filename ?? "Dokument";
+		const confirmDelete = window.confirm(
+			`${friendlyName} löschen? Die Datei wird vollständig entfernt. Eine erneute Analyse wird empfohlen.`,
+		);
+		if (!confirmDelete) {
+			return;
+		}
+
+		setDeletingDocumentId(documentId);
+		try {
+			await removeDocument({ documentId: documentId as any });
+			toast.success("Dokument gelöscht.");
+
+			const rerun = window.confirm(
+				"Analysen jetzt mit den verbleibenden Dokumenten neu starten?",
+			);
+			if (rerun) {
+				await handleStartAnalysis("standard");
+				if (hasTemplate) {
+					await handleStartAnalysis("criteria");
+				}
+			}
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Dokument konnte nicht gelöscht werden.",
+			);
+		} finally {
+			setDeletingDocumentId(null);
+		}
+	};
+
 const handleExtractPflichtenheft = async () => {
 		if (isExtractionRunActive) {
 			toast.info("Die Extraktion läuft bereits.");
@@ -422,9 +459,25 @@ const handleExtractPflichtenheft = async () => {
 												{formatFileSize(doc.size)} · {doc.pageCount ?? 0} Seiten · hochgeladen am {formatDate(doc.createdAt)}
 											</p>
 										</div>
-										<span className="text-xs text-muted-foreground">
-											{doc.textExtracted ? "Extrahiert" : "Ausstehend"}
-										</span>
+										<div className="flex items-center gap-2">
+											<span className="text-xs text-muted-foreground">
+												{doc.textExtracted ? "Extrahiert" : "Ausstehend"}
+											</span>
+											<Button
+												variant="ghost"
+												size="icon"
+												onClick={() => handleDeleteDocument(doc._id as any)}
+												disabled={deletingDocumentId === doc._id}
+												title="Dokument löschen"
+												aria-label="Dokument löschen"
+											>
+												{deletingDocumentId === doc._id ? (
+													<Loader2 className="h-4 w-4 animate-spin" />
+												) : (
+													<Trash2 className="h-4 w-4" />
+												)}
+											</Button>
+										</div>
 									</div>
 								</li>
 							))}

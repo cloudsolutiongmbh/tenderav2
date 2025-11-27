@@ -104,7 +104,7 @@ const response = await callLlm({
 
 1. **German Language:** All prompts and expected outputs in German
 2. **Strict JSON:** Enforce JSON output format (no prose)
-3. **Citation Requirement:** Every fact must include `{page, quote}`
+3. **Citation Requirement:** Every fact must include `{documentKey, page, quote}` (document metadata preserved end-to-end)
 4. **Schema Definition:** Explicit JSON schema in system prompt
 5. **Anti-Hallucination:** "Answer only from provided pages" instruction
 
@@ -230,20 +230,17 @@ ${chunk.text}`;
 
 ### Document Chunking
 
-**Default:** 10 pages per chunk (`CONVEX_ANALYSIS_PAGES_PER_CHUNK`)
+**Default:** 15 pages per chunk (`CONVEX_ANALYSIS_PAGES_PER_CHUNK`)
+
+Chunk text is prefixed with the document key and filename to keep citations source-aware:
 
 ```typescript
-function chunkPages(pages: Array<{ page: number; text: string }>, size: number) {
-  const chunks = [];
-  for (let i = 0; i < pages.length; i += size) {
-    const subset = pages.slice(i, i + size);
-    const text = subset
-      .map((page) => `Seite ${page.page}:\n${page.text}`)
-      .join("\n\n");
-    chunks.push({ pages: subset, text });
-  }
-  return chunks;
-}
+// Example format inside a chunk
+Dokument A (Pflichtenheft.pdf) — Seite 1:
+<page text>
+
+Dokument B (Anhang.docx) — Seite 2:
+<page text>
 ```
 
 **Rationale:**
@@ -337,6 +334,25 @@ function buildDocumentContext(pages: Array<{ page: number; text: string }>) {
 ```
 
 **Note:** Criteria analysis uses **full document context** (not chunked) to ensure cross-page matching.
+
+### Offer Page Prioritisation
+
+For offer checks we build a ranked view of the offer document before calling the LLM:
+
+1. Collect keywords from the criterion title, description, hints, and explicit keyword list.
+2. Score each offer page by keyword frequency.
+3. Sort by score (desc) and surface the top `CONVEX_OFFER_PAGE_LIMIT` pages first.
+4. Append the remaining pages in natural order so the model still receives the complete document.
+5. If no page matches the keywords, the full document is forwarded unchanged.
+
+This keeps the most relevant evidence upfront while preserving recall and enabling the model to fall back to the rest of the document if our heuristic misses something.
+
+### Offer Job Concurrency
+
+- Each criterion becomes a job in `offerCriterionJobs`.
+- Background workers (`runOfferCriterionWorker`) process jobs in parallel, capped by `CONVEX_MAX_PARALLEL_OFFER_JOBS` (default **3**).
+- Jobs implement exponential backoff with a `retryAfter` timestamp and are retried up to `CONVEX_OFFER_JOB_MAX_ATTEMPTS`.
+- Stale jobs (`status="processing"` for longer than `CONVEX_OFFER_JOB_TIMEOUT_MS`) are recycled automatically.
 
 ---
 
@@ -676,7 +692,7 @@ const totalCost = inputCost + outputCost;
 
 ### Optimization Strategies
 
-1. **Chunking:** Reduce context window by processing 10 pages at a time
+1. **Chunking:** Reduce context window by processing ~15 pages at a time (configurable via `CONVEX_ANALYSIS_PAGES_PER_CHUNK`)
 2. **Model Selection:** Use `gpt-4o-mini` for cost-sensitive operations
 3. **Backpressure:** Limit concurrent runs to avoid rate limits and cost spikes
 4. **Prompt Caching:** (Future) Cache common system prompts

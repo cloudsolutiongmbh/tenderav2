@@ -9,6 +9,7 @@ import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import { CriteriaDetail, CriteriaList } from "@/components/criteria-panel";
 import type { CriteriaDetailData, CriteriaListItem } from "@/components/criteria-panel";
+import type { Citation } from "@/types/citation";
 
 export const Route = createFileRoute("/projekte/$id/offerten/$offerId")({
 	component: OfferDetailPage,
@@ -104,8 +105,7 @@ function OfferDetailPage() {
 			weight: typeof activeResult.weight === "number" ? activeResult.weight : undefined,
 			citations:
 				activeResult.citations?.map((citation) => ({
-					page: citation.page,
-					quote: citation.quote,
+					...citation,
 				})) ?? [],
 		};
 	}, [activeResult]);
@@ -214,7 +214,7 @@ type OfferCriterionResult = {
 	status: OfferStatus;
 	comment?: string | null;
 	weight?: number | null;
-	citations?: { page: number; quote: string; documentId?: string }[];
+	citations?: Citation[];
 	confidence?: number | null;
 };
 

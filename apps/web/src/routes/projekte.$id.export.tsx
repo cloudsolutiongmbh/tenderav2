@@ -13,6 +13,7 @@ import {
 	RequirementsCard,
 	SummaryCard,
 } from "@/components/analysis-cards";
+import { CitationList } from "@/components/citation-list";
 import { ShareLink } from "@/components/share-link";
 import { PdfExportButton } from "@/components/pdf-export-button";
 import { Button } from "@/components/ui/button";
@@ -20,14 +21,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
-
-interface Citation {
-	page: number;
-	quote: string;
-}
+import type { Citation } from "@/types/citation";
 
 interface StandardResultShape {
-	summary: string;
+	summary: string | null;
 	milestones: Array<{ title: string; date?: string; citation?: Citation }>;
 	requirements: Array<{ title: string; category?: string; notes?: string; citation?: Citation }>;
 	metadata: Array<{ label: string; value: string; citation?: Citation }>;
@@ -231,13 +228,9 @@ function ProjectExportPage() {
 									</p>
 								) : null}
 								{item.citations.length > 0 ? (
-									<ul className="mt-3 space-y-1 text-xs text-muted-foreground">
-										{item.citations.map((citation, index) => (
-											<li key={`${citation.page}-${index}`}>
-												Seite {citation.page}: „{citation.quote}“
-											</li>
-										))}
-									</ul>
+									<div className="mt-3">
+										<CitationList citations={item.citations} />
+									</div>
 								) : null}
 							</div>
 						))

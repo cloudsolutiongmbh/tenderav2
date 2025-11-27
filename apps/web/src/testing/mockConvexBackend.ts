@@ -163,7 +163,7 @@ interface BackendState {
 
 const ORG_ID = "test-org";
 const USER_ID = "user-test";
-const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "200");
+const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "400");
 const MAX_UPLOAD_BYTES = Number.isNaN(MAX_UPLOAD_MB)
 	? 200 * 1024 * 1024
 	: MAX_UPLOAD_MB * 1024 * 1024;

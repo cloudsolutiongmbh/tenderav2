@@ -16,6 +16,8 @@ interface LatestRunSummary {
 type LatestRunByType = {
 	standard?: LatestRunSummary;
 	criteria?: LatestRunSummary;
+	pflichtenheft_extract?: LatestRunSummary;
+	offer_check?: LatestRunSummary;
 };
 
 const PROJECT_TYPE_VALUES = ["standard", "offerten"] as const;

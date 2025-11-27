@@ -1,11 +1,17 @@
+import { useEffect } from "react";
+
+import { useNavigate } from "@tanstack/react-router";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SignInButton } from "@clerk/clerk-react";
+import { Button } from "@/components/ui/button";
 import type { OrgAuthStatus } from "@/hooks/useOrgAuth";
 
 interface AuthStateNoticeProps {
 	status: OrgAuthStatus;
 }
 
-const MESSAGES: Record<Exclude<OrgAuthStatus, "ready">, { title: string; description: string }> = {
+const MESSAGES: Record<Extract<OrgAuthStatus, "loading" | "signedOut">, { title: string; description: string }> = {
 	loading: {
 		title: "Anmeldung wird geladen",
 		description: "Bitte einen Moment Geduld…",
@@ -14,14 +20,18 @@ const MESSAGES: Record<Exclude<OrgAuthStatus, "ready">, { title: string; descrip
 		title: "Anmeldung erforderlich",
 		description: "Melde dich bitte an, um diese Seite zu nutzen.",
 	},
-	missingOrg: {
-		title: "Organisation auswählen",
-		description: "Bitte wähle im Menü eine Organisation aus, bevor du fortfährst.",
-	},
 };
 
 export function AuthStateNotice({ status }: AuthStateNoticeProps) {
-	if (status === "ready") {
+	const navigate = useNavigate();
+
+	useEffect(() => {
+		if (status === "missingOrg") {
+			navigate({ to: "/onboarding", replace: true });
+		}
+	}, [navigate, status]);
+
+	if (status === "ready" || status === "missingOrg") {
 		return null;
 	}
 
@@ -35,11 +45,22 @@ export function AuthStateNotice({ status }: AuthStateNoticeProps) {
 					<CardDescription>{description}</CardDescription>
 				</CardHeader>
 				<CardContent className="text-sm text-muted-foreground">
-					{status === "signedOut"
-						? "Über die Schaltfläche oben rechts kannst du dich anmelden."
-						: status === "missingOrg"
-							? "Nutze das Organisations-Menü oben rechts, um eine Organisation zu aktivieren."
-							: "Ladevorgang läuft…"}
+					{status === "signedOut" ? (
+						<div className="flex flex-col gap-3">
+							<p>
+								Melde dich an, um weiterzuarbeiten. Alternativ findest du den Anmelde-Button wie gewohnt unten in der Navigation.
+							</p>
+								<SignInButton
+									mode="redirect"
+									forceRedirectUrl="/onboarding"
+									signUpForceRedirectUrl="/onboarding"
+								>
+									<Button className="w-fit">Jetzt anmelden</Button>
+								</SignInButton>
+						</div>
+					) : (
+						"Ladevorgang läuft…"
+					)}
 				</CardContent>
 			</Card>
 		</div>

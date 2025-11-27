@@ -40,7 +40,7 @@ export function SignedOut({ children }: PropsWithChildren) {
 	return <></>;
 }
 
-export function SignInButton({ children }: PropsWithChildren<{ mode?: string }>) {
+export function SignInButton({ children }: PropsWithChildren<{ mode?: string; forceRedirectUrl?: string; signUpForceRedirectUrl?: string }>) {
 	return <>{children}</>;
 }
 
@@ -48,6 +48,24 @@ export function OrganizationProfile() {
 	return (
 		<div data-testid="mock-organization-profile" className="rounded-md border p-4 text-sm text-muted-foreground">
 			Organisation im Testmodus
+		</div>
+	);
+}
+
+export function OrganizationSwitcher({ children }: PropsWithChildren<{ hidePersonal?: boolean }>) {
+	return (
+		<div data-testid="mock-organization-switcher" className="rounded-md border p-3 text-sm text-muted-foreground">
+			Organisation wechseln (Testmodus)
+			{children}
+		</div>
+	);
+}
+
+export function CreateOrganization({ children }: PropsWithChildren<{ afterCreateOrganizationUrl?: string }>) {
+	return (
+		<div data-testid="mock-create-organization" className="rounded-md border p-3 text-sm text-muted-foreground">
+			Organisation erstellen (Testmodus)
+			{children}
 		</div>
 	);
 }

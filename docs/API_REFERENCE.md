@@ -362,8 +362,16 @@ Deletes a document, its pages, and storage blob.
 **Cascades to:**
 - docPages (all pages for this document)
 - Storage blob (via `ctx.storage.delete`)
+- Offer comparison data linked to the document (offers, offerCriterionJobs, offerCriteriaResults)
 
-**Returns:** `void`
+**Returns:**
+```json
+{
+  "success": true,
+  "removedPages": number,
+  "removedOffers": number
+}
+```
 
 ---
 
@@ -636,18 +644,55 @@ Checks a vendor offer against project criteria.
 **Returns:**
 ```typescript
 {
-  status: "fertig";
-  criteriaChecked: number;
+  queued: true;
+  runId: Id<"analysisRuns">;
 }
 ```
 
 **Process:**
-1. Fetch template criteria
-2. Fetch offer document pages
-3. For each criterion:
-   - Call LLM with offer content and criterion
-   - Parse evaluation result
-   - Store in `offerCriteriaResults`
+1. Validate project, template, offer document access.
+2. Reuse active `offer_check` run if one exists; otherwise create a new run with status `läuft`.
+3. Create (idempotent) per-criterion jobs in `offerCriterionJobs`.
+4. Schedule the background queue (`analysis.kickQueue`) which dispatches worker actions (`runOfferCriterionWorker`) up to `CONVEX_MAX_PARALLEL_OFFER_JOBS`.
+5. Workers evaluate criteria in parallel, upserting results into `offerCriteriaResults` and updating run telemetry.
+6. Run finalizes asynchronously:
+   - `status="fertig"` once all jobs succeed.
+   - `status="fehler"` if any jobs fail permanently (after retries).
+
+Use `analysis.getOfferCheckProgress` (see below) to poll progress on the frontend.
+
+---
+
+### `getOfferCheckProgress` (Query)
+
+**File:** `packages/backend/convex/analysis.ts`  
+**Type:** Query
+
+Fetches the latest offer_check run state for an offer.
+
+**Arguments:**
+```typescript
+{
+  offerId: Id<"offers">;
+}
+```
+
+**Returns:**
+```typescript
+{
+  run: {
+    _id: Id<"analysisRuns">;
+    status: "wartet" | "läuft" | "fertig" | "fehler";
+    processedCount: number;
+    failedCount: number;
+    totalCount: number;
+    startedAt: number | null;
+    finishedAt: number | null;
+  } | null;
+}
+```
+
+Use this query to render progress bars or disable controls while an offer_check run is still in flight.
 
 ---
 
@@ -947,7 +992,7 @@ try {
 | Resource | Limit | Enforcement |
 |----------|-------|-------------|
 | Active analysis runs per org | 1 (configurable) | Backend queue system |
-| Document size per project | 200 MB | Client + server validation |
+| Document size per project | 400 MB | Client + server validation |
 | LLM requests | Provider-dependent | OpenAI/Anthropic rate limits |
 | Convex DB operations | Plan-dependent | Convex platform limits |
 

@@ -55,7 +55,7 @@ Tendera is an AI-powered tender analysis platform for Swiss public procurement. 
 
 ### 3. **Cost Optimization**
 - Backpressure management: configurable concurrent LLM calls per org
-- Chunking strategy: 8-12 pages per LLM request
+- Chunking strategy: ~15 pages per LLM request (configurable)
 - Provider switching (OpenAI ↔ Anthropic) via ENV
 - Telemetry tracking (tokens, latency, costs)
 
@@ -177,7 +177,7 @@ convex/
 │ analysis.runStandard (Convex Action)                            │
 ├─────────────────────────────────────────────────────────────────┤
 │ 1. Fetch docPages for project                                   │
-│ 2. Chunk pages (10 pages per chunk by default)                  │
+│ 2. Chunk pages (15 pages per chunk by default)                  │
 │ 3. For each chunk:                                              │
 │    a. Build strict prompt with anti-hallucination rules         │
 │    b. Call LLM (OpenAI or Anthropic via llm.ts)                │
@@ -328,7 +328,7 @@ Similar to Standard Analysis, but:
 ```env
 VITE_CONVEX_URL=https://your-deployment.convex.cloud
 VITE_CLERK_PUBLISHABLE_KEY=pk_live_...
-VITE_MAX_UPLOAD_MB=200
+VITE_MAX_UPLOAD_MB=400
 ```
 
 **Backend (`packages/backend/.env.local`):**
@@ -348,8 +348,8 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 # Analysis Configuration
 CONVEX_MAX_ACTIVE_RUNS_PER_ORG=1
-CONVEX_ANALYSIS_PAGES_PER_CHUNK=10
-MAX_UPLOAD_MB=200
+CONVEX_ANALYSIS_PAGES_PER_CHUNK=15
+MAX_UPLOAD_MB=400
 ```
 
 ### Scaling Characteristics
@@ -358,7 +358,7 @@ MAX_UPLOAD_MB=200
 |--------|---------|-------|
 | Concurrent Users | ~100 per org | Limited by Convex plan |
 | Analysis Queue | 1 active per org | Configurable via `CONVEX_MAX_ACTIVE_RUNS_PER_ORG` |
-| Document Size | 200 MB total per project | Client-side extraction limits browser memory |
+| Document Size | 400 MB total per project | Client + server validation; client extraction still limited by browser memory |
 | LLM Requests | Rate limited by provider | OpenAI: 10K TPM, Anthropic: varies by plan |
 | Database Size | Unlimited | Convex scales automatically |
 | Storage | Pay-per-GB | Convex pricing |
@@ -446,7 +446,7 @@ Large documents are split into chunks to:
 2. Avoid rate limits
 3. Enable progressive result display
 
-Default: 10 pages per chunk (`CONVEX_ANALYSIS_PAGES_PER_CHUNK`)
+Default: 15 pages per chunk (`CONVEX_ANALYSIS_PAGES_PER_CHUNK`)
 
 ### Backpressure Management
 

@@ -626,7 +626,7 @@ Load all runs for org, group by projectId in-memory.
 ### Performance
 
 1. **Analysis queue:** Max 1 concurrent run per org (configurable)
-2. **Document size:** 200 MB limit per project
+2. **Document size:** 400 MB limit per project (client + server enforcement)
 3. **Share link expiration:** Manual cleanup (no auto-delete)
 
 ---

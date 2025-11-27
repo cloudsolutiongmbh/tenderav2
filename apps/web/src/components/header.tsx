@@ -6,6 +6,8 @@ import {
   SignInButton,
   useUser,
   useClerk,
+  ClerkLoading,
+  ClerkLoaded,
 } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,26 +30,37 @@ export default function Header() {
 	return (
 		<div>
 			<div className="flex flex-row items-center justify-between px-2 py-1">
-				<nav className="flex gap-4 text-lg">
-					{links.map(({ to, label }) => {
-						return (
-							<Link key={to} to={to}>
-								{label}
-							</Link>
-						);
-					})}
-				</nav>
-				<div className="flex items-center gap-2">
-					<ModeToggle />
-					<SignedOut>
-						<SignInButton mode="modal">
-							<Button variant="secondary">Anmelden</Button>
-						</SignInButton>
-					</SignedOut>
-					<SignedIn>
-						<UserMenu />
-					</SignedIn>
-				</div>
+		<nav className="flex gap-4 text-lg">
+			{links.map(({ to, label }) => {
+				return (
+					<Link key={to} to={to}>
+						{label}
+					</Link>
+				);
+			})}
+		</nav>
+		<div className="flex items-center gap-2">
+			<ModeToggle />
+			<ClerkLoading>
+				<Button variant="secondary" asChild>
+					<Link to="/onboarding">Anmelden</Link>
+				</Button>
+			</ClerkLoading>
+			<ClerkLoaded>
+				<SignedOut>
+					<SignInButton
+						mode="redirect"
+						forceRedirectUrl="/onboarding"
+						signUpForceRedirectUrl="/onboarding"
+					>
+						<Button variant="secondary">Anmelden</Button>
+					</SignInButton>
+				</SignedOut>
+				<SignedIn>
+					<UserMenu />
+				</SignedIn>
+			</ClerkLoaded>
+		</div>
 			</div>
 			<hr />
 		</div>

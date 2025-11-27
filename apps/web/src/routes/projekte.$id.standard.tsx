@@ -18,11 +18,7 @@ import { Button } from "@/components/ui/button";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
-
-interface Citation {
-	page: number;
-	quote: string;
-}
+import type { Citation } from "@/types/citation";
 
 interface StandardMilestone {
 	title: string;
@@ -44,7 +40,7 @@ interface StandardMetadataItem {
 }
 
 interface StandardResult {
-	summary: string;
+	summary: string | null;
 	milestones: StandardMilestone[];
 	requirements: StandardRequirement[];
 	metadata: StandardMetadataItem[];

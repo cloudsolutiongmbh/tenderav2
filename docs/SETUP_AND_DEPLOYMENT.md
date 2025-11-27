@@ -148,8 +148,8 @@ VITE_CONVEX_URL=https://your-deployment.convex.cloud
 # Clerk (from Clerk dashboard)
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 
-# Upload limit (default: 200 MB)
-VITE_MAX_UPLOAD_MB=200
+# Upload limit (default: 400 MB)
+VITE_MAX_UPLOAD_MB=400
 ```
 
 #### 5.2 Backend Configuration
@@ -185,8 +185,8 @@ OPENAI_API_KEY=sk-...
 
 # Analysis Configuration
 CONVEX_MAX_ACTIVE_RUNS_PER_ORG=1
-CONVEX_ANALYSIS_PAGES_PER_CHUNK=10
-MAX_UPLOAD_MB=200
+CONVEX_ANALYSIS_PAGES_PER_CHUNK=15
+MAX_UPLOAD_MB=400
 ```
 
 ### 6. Start Development Servers
@@ -240,7 +240,7 @@ VITE v5.x.x  ready in 1234 ms
 |----------|----------|-------------|---------|
 | `VITE_CONVEX_URL` | ✅ | Convex deployment URL | `https://abc123.convex.cloud` |
 | `VITE_CLERK_PUBLISHABLE_KEY` | ✅ | Clerk public key | `pk_test_...` |
-| `VITE_MAX_UPLOAD_MB` | ❌ | Max total upload size | `200` (default) |
+| `VITE_MAX_UPLOAD_MB` | ❌ | Max total upload size | `400` (default) |
 
 #### Backend (`packages/backend/.env.local`)
 
@@ -254,8 +254,12 @@ VITE v5.x.x  ready in 1234 ms
 | `OPENAI_API_KEY` | ⚠️ | OpenAI API key | `sk-...` (if provider=OPENAI) |
 | `ANTHROPIC_API_KEY` | ⚠️ | Anthropic API key | `sk-ant-...` (if provider=ANTHROPIC) |
 | `CONVEX_MAX_ACTIVE_RUNS_PER_ORG` | ❌ | Queue limit | `1` (default) |
-| `CONVEX_ANALYSIS_PAGES_PER_CHUNK` | ❌ | Pages per LLM call | `10` (default) |
-| `MAX_UPLOAD_MB` | ❌ | Server-side upload limit | `200` (default) |
+| `CONVEX_ANALYSIS_PAGES_PER_CHUNK` | ❌ | Pages per LLM call | `15` (default) |
+| `CONVEX_MAX_PARALLEL_OFFER_JOBS` | ❌ | Parallel offer criteria workers per org | `3` (default) |
+| `CONVEX_OFFER_JOB_TIMEOUT_MS` | ❌ | Timeout before recycling a processing job | `120000` |
+| `CONVEX_OFFER_JOB_MAX_ATTEMPTS` | ❌ | Retry attempts per job before failing | `3` |
+| `CONVEX_OFFER_PAGE_LIMIT` | ❌ | Preferred number of top-ranked pages sent first | `8` |
+| `MAX_UPLOAD_MB` | ❌ | Server-side upload limit | `400` (default) |
 
 ### Model Selection Guide
 
@@ -506,8 +510,8 @@ OPENAI_API_KEY=sk-prod-...
 
 # Production tuning
 CONVEX_MAX_ACTIVE_RUNS_PER_ORG=2
-CONVEX_ANALYSIS_PAGES_PER_CHUNK=10
-MAX_UPLOAD_MB=200
+CONVEX_ANALYSIS_PAGES_PER_CHUNK=15
+MAX_UPLOAD_MB=400
 ```
 
 ### Frontend Production Deployment (Vercel)
@@ -535,7 +539,7 @@ In Vercel dashboard:
    ```
    VITE_CONVEX_URL=https://your-prod.convex.cloud
    VITE_CLERK_PUBLISHABLE_KEY=pk_live_...
-   VITE_MAX_UPLOAD_MB=200
+   VITE_MAX_UPLOAD_MB=400
    ```
 
 #### 3. Configure Build Settings
@@ -690,7 +694,7 @@ CONVEX_MAX_ACTIVE_RUNS_PER_ORG=1
 ```bash
 # 1. Check file size
 ls -lh your-file.pdf
-# Should be < 200 MB
+# Should be < 400 MB
 
 # 2. Split large PDFs
 #    Use external tool to split into smaller files

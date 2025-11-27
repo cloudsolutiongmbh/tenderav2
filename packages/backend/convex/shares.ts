@@ -3,7 +3,6 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getIdentityOrThrow } from "./auth";
 import type { Id } from "./_generated/dataModel";
-import { randomFillSync } from "crypto";
 
 const DEFAULT_TTL_DAYS = 7;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -154,11 +153,6 @@ function generateShareToken(length = 32) {
 function fillRandomBytes(bytes: Uint8Array) {
 	if (typeof globalThis.crypto?.getRandomValues === "function") {
 		globalThis.crypto.getRandomValues(bytes);
-		return;
-	}
-
-	if (typeof randomFillSync === "function") {
-		randomFillSync(bytes);
 		return;
 	}
 

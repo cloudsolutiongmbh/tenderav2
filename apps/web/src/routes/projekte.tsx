@@ -26,7 +26,7 @@ import { Grid3x3, List, Trash2, Search, X } from "lucide-react";
 
 import { extractDocumentPages } from "@/lib/extract-text";
 
-const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "200", 10);
+const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "400", 10);
 
 interface TemplateOption {
 	_id: string;
@@ -53,6 +53,8 @@ interface ListedProject {
 	runs?: {
 		standard?: RunSummary;
 		criteria?: RunSummary;
+		pflichtenheft_extract?: RunSummary;
+		offer_check?: RunSummary;
 	};
 }
 
@@ -591,12 +593,13 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 				}
 			}
 
-			if (projectType === "offerten") {
-				if (pflichtenheftFile) {
-					toast.info("Pflichtenheft wird hochgeladen …");
-					await uploadAndExtract(projectId, pflichtenheftFile, { role: "pflichtenheft" });
-					await triggerPflichtenheftExtraction(projectId);
-				}
+                        if (projectType === "offerten") {
+                                if (pflichtenheftFile) {
+                                        toast.info("Pflichtenheft wird hochgeladen …");
+                                        await uploadAndExtract(projectId, pflichtenheftFile, { role: "pflichtenheft" });
+                                        toast.info("Kriterien-Extraktion wird gestartet …");
+                                        void triggerPflichtenheftExtraction(projectId);
+                                }
 				if (offerFiles.length > 0) {
 					toast.info("Angebotsdokumente werden hochgeladen …");
 					for (const file of offerFiles) {
@@ -631,29 +634,32 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 		}
 	};
 
-	return (
-		<form className="grid gap-4" onSubmit={handleSubmit}>
-			<Input
-				placeholder="Projektname"
-				value={name}
-				onChange={(event) => setName(event.target.value)}
-				required
-				disabled={isSubmitting}
-			/>
-			<Input
-				placeholder="Kunde/Behörde"
-				value={customer}
-				onChange={(event) => setCustomer(event.target.value)}
-				required
-				disabled={isSubmitting}
-			/>
-			<Input
-				placeholder="Interne Tags (Komma-getrennt)"
-				value={tags}
-				onChange={(event) => setTags(event.target.value)}
-				disabled={isSubmitting}
-			/>
-			<div className="space-y-2">
+        return (
+                <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+                        <Input
+                                placeholder="Projektname"
+                                value={name}
+                                onChange={(event) => setName(event.target.value)}
+                                required
+                                disabled={isSubmitting}
+                                className="md:col-span-1"
+                        />
+                        <Input
+                                placeholder="Kunde/Behörde"
+                                value={customer}
+                                onChange={(event) => setCustomer(event.target.value)}
+                                required
+                                disabled={isSubmitting}
+                                className="md:col-span-1"
+                        />
+                        <Input
+                                placeholder="Interne Tags (Komma-getrennt)"
+                                value={tags}
+                                onChange={(event) => setTags(event.target.value)}
+                                disabled={isSubmitting}
+                                className="md:col-span-2"
+                        />
+                        <div className="space-y-2 md:col-span-2">
 				<label className="text-sm font-medium">Projekt-Typ</label>
 				<select
 					className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
@@ -670,8 +676,8 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 						: "Vergleiche Angebote gegen ein Pflichtenheft. Du kannst Dokumente direkt hier hochladen."}
 				</p>
 			</div>
-			{projectType === "standard" ? (
-				<div className="space-y-3">
+                        {projectType === "standard" ? (
+                                <div className="space-y-3 md:col-span-2">
 					<select
 						className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
 						value={templateId}
@@ -721,8 +727,8 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 					</div>
 				</div>
 			) : (
-				<div className="space-y-6">
-					<div className="space-y-2">
+                                <div className="space-y-6 md:col-span-2 md:grid md:grid-cols-2 md:gap-6">
+                                        <div className="space-y-2">
 						<p className="text-sm font-medium">Pflichtenheft (1 Datei)</p>
 						<UploadDropzone
 							onFilesAccepted={handlePflichtenheftAccepted}
@@ -750,7 +756,7 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 							</p>
 						)}
 					</div>
-					<div className="space-y-2">
+                                        <div className="space-y-2">
 						<p className="text-sm font-medium">Angebote (mehrere Dateien möglich)</p>
 						<UploadDropzone
 							onFilesAccepted={handleOfferAccepted}
@@ -786,7 +792,7 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 					</div>
 				</div>
 			)}
-			<DialogFooter>
+                        <DialogFooter className="md:col-span-2">
 				<DialogClose asChild>
 					<Button type="button" variant="outline" disabled={isSubmitting}>
 						Abbrechen
@@ -817,7 +823,12 @@ function getLatestRun(runs?: ListedProject["runs"] | null) {
 		return null;
 	}
 
-	const candidates = [runs.standard, runs.criteria].filter(Boolean) as RunSummary[];
+	const candidates = [
+		runs.standard,
+		runs.criteria,
+		runs.pflichtenheft_extract,
+		runs.offer_check,
+	].filter(Boolean) as RunSummary[];
 	if (candidates.length === 0) {
 		return null;
 	}
@@ -837,6 +848,12 @@ function getRunLabel(runs: ListedProject["runs"] | undefined, runId?: string) {
 	if (runs.criteria && runs.criteria._id === runId) {
 		return "Letzte Analyse: Kriterien";
 	}
+	if (runs.pflichtenheft_extract && runs.pflichtenheft_extract._id === runId) {
+		return "Letzte Analyse: Pflichtenheft-Extraktion";
+	}
+	if (runs.offer_check && runs.offer_check._id === runId) {
+		return "Letzte Analyse: Angebotsvergleich";
+	}
 	return "Letzte Analyse";
 }
 
@@ -847,6 +864,20 @@ function getLastActivity(createdAt: number, runs?: ListedProject["runs"]) {
 	}
 	if (runs?.criteria) {
 		timestamps.push(runs.criteria.finishedAt ?? runs.criteria.startedAt ?? runs.criteria.createdAt);
+	}
+	if (runs?.pflichtenheft_extract) {
+		timestamps.push(
+			runs.pflichtenheft_extract.finishedAt
+				?? runs.pflichtenheft_extract.startedAt
+				?? runs.pflichtenheft_extract.createdAt,
+		);
+	}
+	if (runs?.offer_check) {
+		timestamps.push(
+			runs.offer_check.finishedAt
+				?? runs.offer_check.startedAt
+				?? runs.offer_check.createdAt,
+		);
 	}
 	return Math.max(...timestamps);
 }
