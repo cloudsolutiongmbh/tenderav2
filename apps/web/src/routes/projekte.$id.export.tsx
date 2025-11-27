@@ -22,6 +22,7 @@ import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import type { Citation } from "@/types/citation";
+import type { Id } from "@tendera/backend/convex/_generated/dataModel";
 
 interface StandardResultShape {
 	summary: string | null;
@@ -55,13 +56,13 @@ function ProjectExportPage() {
 	const auth = useOrgAuth();
 	const project = useQuery(
 		api.projects.get,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 	const standard = useQuery(
 		api.analysis.getLatest,
 		auth.authReady
 			? {
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				type: "standard",
 			}
 			: "skip",
@@ -70,7 +71,7 @@ function ProjectExportPage() {
 		api.analysis.getLatest,
 		auth.authReady
 			? {
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				type: "criteria",
 			}
 			: "skip",
@@ -114,7 +115,7 @@ function ProjectExportPage() {
 		setCreatingShare(true);
 		try {
 			const { token, expiresAt } = await createShare({
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				ttlDays,
 			});
 			setShareInfo({ token, expiresAt });
@@ -135,7 +136,7 @@ function ProjectExportPage() {
 		if (!ok) return;
 		setDeleting(true);
 		try {
-			await removeProject({ projectId: projectId as any });
+			await removeProject({ projectId: projectId as Id<"projects"> });
 			toast.success("Projekt gelöscht.");
 			navigate({ to: "/projekte" });
 		} catch (error) {

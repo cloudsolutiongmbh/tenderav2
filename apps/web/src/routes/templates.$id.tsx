@@ -206,7 +206,7 @@ function TemplateDetailPage() {
 		setSaving(true);
 		try {
 			const templateId = await upsertTemplate({
-				templateId: hasExistingTemplate ? (template?._id as any) : undefined,
+				templateId: hasExistingTemplate ? (template?._id as Id<"templates">) : undefined,
 				name: name.trim(),
 				description: description.trim() || undefined,
 				language: language.trim(),

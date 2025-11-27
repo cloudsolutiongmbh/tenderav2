@@ -411,7 +411,7 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 }
 
 interface ComparisonTableProps {
-	comparison: ReturnType<typeof api.offerCriteria.getComparison>;
+	comparison: typeof api.offerCriteria.getComparison._returnType;
 }
 
 function ComparisonTable({ comparison }: ComparisonTableProps) {
@@ -429,7 +429,7 @@ function ComparisonTable({ comparison }: ComparisonTableProps) {
 				<thead>
 					<tr className="border-b">
 						<th className="px-4 py-3 text-left font-medium">Kriterium</th>
-						{comparison.offers.map((offer: Doc<"offers">) => (
+						{comparison.offers.map((offer) => (
 							<th key={offer._id} className="px-4 py-3 text-center font-medium">
 								{offer.anbieterName}
 							</th>
@@ -437,7 +437,7 @@ function ComparisonTable({ comparison }: ComparisonTableProps) {
 					</tr>
 				</thead>
 				<tbody>
-					{comparison.criteria.map((criterion: Doc<"templates">["criteria"][number]) => (
+					{comparison.criteria.map((criterion) => (
 						<tr key={criterion.key} className="border-b hover:bg-muted/50">
 							<td className="px-4 py-3">
 								<div>
@@ -447,7 +447,7 @@ function ComparisonTable({ comparison }: ComparisonTableProps) {
 									)}
 								</div>
 							</td>
-							{comparison.offers.map((offer: Doc<"offers">) => {
+							{comparison.offers.map((offer) => {
 								const result = comparison.matrix[criterion.key]?.[offer._id];
 								return (
 									<td key={offer._id} className="px-4 py-3 text-center">
