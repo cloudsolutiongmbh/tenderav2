@@ -503,7 +503,7 @@ export const getOfferCheckProgress = query({
 				startedAt: run.startedAt ?? null,
 				finishedAt: run.finishedAt ?? null,
 			},
-		} as const;
+		};
 	},
 });
 
