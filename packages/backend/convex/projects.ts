@@ -196,17 +196,15 @@ export const setTemplate = mutation({
 			throw new Error("Projekt nicht gefunden.");
 		}
 
-		let normalizedTemplate: Id<"templates"> | undefined = undefined;
 		if (templateId) {
 			const template = await ctx.db.get(templateId);
 			if (!template || template.orgId !== identity.orgId) {
 				throw new Error("Template gehört nicht zur Organisation.");
 			}
-			normalizedTemplate = templateId;
 		}
 
 		await ctx.db.patch(projectId, {
-			templateId: normalizedTemplate,
+			templateId: templateId,
 		});
 
 		return { success: true };
