@@ -188,6 +188,7 @@ export const ensureFromDocument = mutation({
 			.query("offers")
 			.withIndex("by_projectId", (q) => q.eq("projectId", args.projectId))
 			.filter((q) => q.eq(q.field("documentId"), args.documentId))
+			.filter((q) => q.eq(q.field("orgId"), orgId))
 			.first();
 
 		if (existing) {
