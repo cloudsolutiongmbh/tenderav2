@@ -196,17 +196,15 @@ export const setTemplate = mutation({
 			throw new Error("Projekt nicht gefunden.");
 		}
 
-		let normalizedTemplate: Id<"templates"> | undefined = undefined;
 		if (templateId) {
 			const template = await ctx.db.get(templateId);
 			if (!template || template.orgId !== identity.orgId) {
 				throw new Error("Template gehört nicht zur Organisation.");
 			}
-			normalizedTemplate = templateId;
 		}
 
 		await ctx.db.patch(projectId, {
-			templateId: normalizedTemplate,
+			templateId: templateId,
 		});
 
 		return { success: true };
@@ -228,6 +226,7 @@ export const remove = mutation({
         const shares = await ctx.db
             .query("shares")
             .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .filter((q) => q.eq(q.field("orgId"), identity.orgId))
             .collect();
         for (const share of shares) {
             await ctx.db.delete(share._id);
@@ -236,7 +235,8 @@ export const remove = mutation({
         // Delete comments
         const comments = await ctx.db
             .query("comments")
-            .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .withIndex("by_projectId", (q) => q.eq("projectId", projectId))	
+            .filter((q) => q.eq(q.field("orgId"), identity.orgId))
             .collect();
         for (const comment of comments) {
             await ctx.db.delete(comment._id);
@@ -246,12 +246,14 @@ export const remove = mutation({
         const offers = await ctx.db
             .query("offers")
             .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .filter((q) => q.eq(q.field("orgId"), identity.orgId))
             .collect();
         for (const offer of offers) {
             // Delete offer criteria results
             const offerResults = await ctx.db
                 .query("offerCriteriaResults")
                 .withIndex("by_offerId", (q) => q.eq("offerId", offer._id))
+                .filter((q) => q.eq(q.field("orgId"), identity.orgId))
                 .collect();
             for (const result of offerResults) {
                 await ctx.db.delete(result._id);
@@ -263,6 +265,7 @@ export const remove = mutation({
         const results = await ctx.db
             .query("analysisResults")
             .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .filter((q) => q.eq(q.field("orgId"), identity.orgId))
             .collect();
         for (const res of results) {
             await ctx.db.delete(res._id);
@@ -270,6 +273,7 @@ export const remove = mutation({
         const runs = await ctx.db
             .query("analysisRuns")
             .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .filter((q) => q.eq(q.field("orgId"), identity.orgId))
             .collect();
         for (const run of runs) {
             await ctx.db.delete(run._id);
@@ -279,11 +283,13 @@ export const remove = mutation({
         const documents = await ctx.db
             .query("documents")
             .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+            .filter((q) => q.eq(q.field("orgId"), identity.orgId))
             .collect();
         for (const doc of documents) {
             const pages = await ctx.db
                 .query("docPages")
                 .withIndex("by_documentId", (q) => q.eq("documentId", doc._id))
+                .filter((q) => q.eq(q.field("orgId"), identity.orgId))
                 .collect();
             for (const page of pages) {
                 await ctx.db.delete(page._id);
@@ -291,6 +297,7 @@ export const remove = mutation({
             try {
                 await ctx.storage.delete(doc.storageId);
             } catch (e) {
+                console.error(e);
                 // ignore storage delete failures
             }
             await ctx.db.delete(doc._id);

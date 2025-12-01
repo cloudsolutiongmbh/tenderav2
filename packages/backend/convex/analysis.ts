@@ -328,14 +328,15 @@ export const runCriteria = action({
 			internal.analysis.getProjectForAnalysis,
 			{ projectId: args.projectId },
 		)) as Doc<"projects"> | null;
-		const template = (await ctx.runQuery(
-			internal.analysis.getTemplateForAnalysis,
-			{ templateId: args.templateId },
-		)) as Doc<"templates"> | null;
 
 		if (!project || project.orgId !== identity.orgId) {
 			throw new ConvexError("Projekt nicht gefunden.");
 		}
+
+		const template = (await ctx.runQuery(
+			internal.analysis.getTemplateForAnalysis,
+			{ templateId: args.templateId },
+		)) as Doc<"templates"> | null;
 		if (!template || template.orgId !== identity.orgId) {
 			throw new ConvexError("Template nicht gefunden.");
 		}
