@@ -1836,7 +1836,7 @@ export const kickQueue = internalAction({
     },
 });
 
-export const cleanStaleRuns = internalAction({
+export const cleanStaleRuns = internalMutation({
     args: {
         orgId: v.string(),
         timeoutMs: v.number(),
