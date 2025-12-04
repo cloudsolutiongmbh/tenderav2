@@ -228,13 +228,6 @@ export const syncRunStatus = mutation({
 		),
 	},
 	handler: async (ctx, args) => {
-		const identity = await getIdentityOrThrow(ctx);
-		const orgId = identity.orgId;
-
-		const offer = await ctx.db.get(args.offerId);
-		if (!offer || offer.orgId !== orgId) {
-			throw new Error("Offer not found or access denied");
-		}
 
 		await ctx.db.patch(args.offerId, {
 			latestRunId: args.runId,
