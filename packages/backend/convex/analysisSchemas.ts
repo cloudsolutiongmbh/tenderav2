@@ -36,10 +36,10 @@ export const standardResultSchema = z.object({
 
 export const criteriaItemSchema = z.object({
     status: z.enum(["gefunden", "nicht_gefunden", "teilweise"]),
-    comment: z.string().optional(),
-    answer: z.string().optional(),
+    comment: z.string().nullable().optional(),
+    answer: z.string().nullable().optional(),
     citations: z.array(citationSchema).min(0),
-    score: z.number().optional(),
+    score: z.number().nullable().optional(),
 });
 
 // Lightweight JSON Schemas for Responses API structured outputs
