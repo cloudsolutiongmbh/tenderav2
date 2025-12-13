@@ -10,6 +10,7 @@ import { useOrgAuth } from "@/hooks/useOrgAuth";
 import { CriteriaDetail, CriteriaList } from "@/components/criteria-panel";
 import type { CriteriaDetailData, CriteriaListItem } from "@/components/criteria-panel";
 import type { Citation } from "@/types/citation";
+import type { Id } from "@tendera/backend/convex/_generated/dataModel";
 
 export const Route = createFileRoute("/projekte/$id/offerten/$offerId")({
 	component: OfferDetailPage,
@@ -21,22 +22,22 @@ function OfferDetailPage() {
 
 	const project = useQuery(
 		api.projects.get,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
 	const offer = useQuery(
 		api.offers.get,
-		auth.authReady ? { offerId: offerId as any } : "skip",
+		auth.authReady ? { offerId: offerId as Id<"offers"> } : "skip",
 	);
 
 	const results = useQuery(
 		api.offerCriteria.getByOffer,
-		auth.authReady ? { offerId: offerId as any } : "skip",
+		auth.authReady ? { offerId: offerId as Id<"offers"> } : "skip",
 	) as OfferCriterionResultRecord[] | undefined;
 
 	const metrics = useQuery(
 		api.offers.computeMetrics,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
 	if (auth.orgStatus !== "ready") {

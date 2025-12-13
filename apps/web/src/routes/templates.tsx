@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import { Grid3x3, List, Trash2, Search } from "lucide-react";
+import type { Id } from "@tendera/backend/convex/_generated/dataModel";
 
 interface TemplateSummary {
 	_id: string;
@@ -78,7 +79,7 @@ function TemplatesPage() {
             return;
         }
         try {
-            await deleteTemplate({ templateId: templateId as any });
+            await deleteTemplate({ templateId: templateId as Id<"templates"> });
             toast.success("Kriterienkatalog gelöscht.");
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Kriterienkatalog konnte nicht gelöscht werden.");

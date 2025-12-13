@@ -16,6 +16,7 @@ import { AuthStateNotice } from "@/components/auth-state-notice";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { cn } from "@/lib/utils";
+import type { Id } from "@tendera/backend/convex/_generated/dataModel";
 
 const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "400", 10);
 
@@ -35,17 +36,17 @@ function ProjectDocumentsPage() {
 	const auth = useOrgAuth();
 	const project = useQuery(
 		api.projects.get,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 	const documents = useQuery(
 		api.documents.listByProject,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 	const standardRun = useQuery(
 		api.analysis.getLatest,
 		auth.authReady
 			? {
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				type: "standard",
 			}
 			: "skip",
@@ -54,14 +55,14 @@ const criteriaRun = useQuery(
 	api.analysis.getLatest,
 	auth.authReady
 		? {
-			projectId: projectId as any,
+			projectId: projectId as Id<"projects">,
 			type: "criteria",
 		}
 		: "skip",
 );
 	const extractionStatus = useQuery(
 		api.analysis.getPflichtenheftExtractionStatus,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
 	const createUploadUrl = useMutation(api.documents.createUploadUrl);
@@ -166,27 +167,27 @@ const criteriaHint = !hasTemplate
 
 				const role = shouldAssignPflichtenheft && !assignedPflichtenheft ? "pflichtenheft" : undefined;
 				const attached = await attachDocument({
-					projectId: projectId as any,
+					projectId: projectId as Id<"projects">,
 					filename: file.name,
 					mimeType: file.type || "application/octet-stream",
 					size: file.size,
-					storageId: json.storageId as any,
-					role: role as any,
+					storageId: json.storageId as Id<"_storage">,
+					role: role
 				});
 
 				const pages = await extractDocumentPages(file);
 
 				if (pages.length > 0) {
 					await bulkInsertPages({
-						documentId: attached?._id as any,
+						documentId: attached?._id as Id<"documents">,
 						pages: pages.map((page) => ({ page: page.page, text: page.text })),
 					});
 					await markDocumentExtracted({
-						documentId: attached?._id as any,
+						documentId: attached?._id as Id<"documents">,
 						pageCount: pages.length,
 					});
 				} else {
-					await markDocumentExtracted({ documentId: attached?._id as any, pageCount: 0 });
+					await markDocumentExtracted({ documentId: attached?._id as Id<"documents">, pageCount: 0 });
 				}
 
 				setUploads((prev) =>
@@ -232,7 +233,7 @@ const criteriaHint = !hasTemplate
         if (!ok) return;
         setDeleting(true);
         try {
-            await removeProject({ projectId: projectId as any });
+            await removeProject({ projectId: projectId as Id<"projects"> });
             toast.success("Projekt gelöscht.");
             navigate({ to: "/projekte" });
         } catch (error) {
@@ -245,15 +246,15 @@ const criteriaHint = !hasTemplate
     const handleStartAnalysis = async (type: "standard" | "criteria") => {
         try {
             type === "standard" ? setStartingStandard(true) : setStartingCriteria(true);
-            const res = (await startAnalysis({ projectId: projectId as any, type })) as
+            const res = (await startAnalysis({ projectId: projectId as Id<"projects">, type })) as
                 | { status: "läuft" | "wartet"; runId: string }
                 | undefined;
             // Trigger the actual analysis run via Convex action only if started immediately
             if (res?.status === "läuft") {
                 if (type === "standard") {
-                    await runStandardForProject({ projectId: projectId as any });
+                    await runStandardForProject({ projectId: projectId as Id<"projects"> });
                 } else {
-                    await runCriteriaForProject({ projectId: projectId as any });
+                    await runCriteriaForProject({ projectId: projectId as Id<"projects"> });
                 }
             }
             toast.success(
@@ -284,7 +285,7 @@ const criteriaHint = !hasTemplate
 
 		setDeletingDocumentId(documentId);
 		try {
-			await removeDocument({ documentId: documentId as any });
+			await removeDocument({ documentId: documentId as Id<"documents"> });
 			toast.success("Dokument gelöscht.");
 
 			const rerun = window.confirm(
@@ -322,7 +323,7 @@ const handleExtractPflichtenheft = async () => {
 		}
 		setExtractingPflichtenheft(true);
 		try {
-			const result = await extractPflichtenheft({ projectId: projectId as any });
+			const result = await extractPflichtenheft({ projectId: projectId as Id<"projects"> });
 			if (result?.criteriaCount) {
 				toast.success(`Kriterien extrahiert (${result.criteriaCount}).`);
 			} else {
@@ -466,7 +467,7 @@ const handleExtractPflichtenheft = async () => {
 											<Button
 												variant="ghost"
 												size="icon"
-												onClick={() => handleDeleteDocument(doc._id as any)}
+												onClick={() => handleDeleteDocument(doc._id as Id<"documents">)}
 												disabled={deletingDocumentId === doc._id}
 												title="Dokument löschen"
 												aria-label="Dokument löschen"

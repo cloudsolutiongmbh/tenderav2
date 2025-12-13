@@ -17,6 +17,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
+import type { Doc, Id } from "@tendera/backend/convex/_generated/dataModel";
 
 export const Route = createFileRoute("/projekte/$id/offerten/")({
 	component: OffertenIndexPage,
@@ -28,27 +29,27 @@ function OffertenIndexPage() {
 
 	const project = useQuery(
 		api.projects.get,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
 	const offers = useQuery(
 		api.offers.list,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
 	const documents = useQuery(
 		api.documents.listByProject,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
 	const metrics = useQuery(
 		api.offers.computeMetrics,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
 	const comparison = useQuery(
 		api.offerCriteria.getComparison,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
 	if (auth.orgStatus !== "ready") {
@@ -74,7 +75,7 @@ function OffertenIndexPage() {
 	const pflichtenheftExtracted = Boolean(pflichtenheft?.textExtracted);
 	const offersCount = offers?.length ?? 0;
 	const documentsById = useMemo(() => {
-		const map = new Map<string, any>();
+		const map = new Map<Id<"documents">, Doc<"documents">>();
 		for (const doc of documents ?? []) {
 			map.set(doc._id, doc);
 		}
@@ -235,10 +236,10 @@ function OffertenIndexPage() {
 }
 
 interface OfferCardProps {
-	offer: any;
-	metric?: any;
+	offer: Doc<"offers">;
+	metric?: Doc<"offers">["metrics"][number];
 	projectId: string;
-	document?: any;
+	document?: Doc<"documents">;
 }
 
 function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
@@ -265,7 +266,7 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 		setChecking(true);
 		try {
 			await checkOffer({
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				offerId: offer._id,
 			});
 			toast.success("Prüfung gestartet – Ergebnisse folgen gleich.");
@@ -410,7 +411,7 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 }
 
 interface ComparisonTableProps {
-	comparison: any;
+	comparison: typeof api.offerCriteria.getComparison._returnType;
 }
 
 function ComparisonTable({ comparison }: ComparisonTableProps) {
@@ -428,7 +429,7 @@ function ComparisonTable({ comparison }: ComparisonTableProps) {
 				<thead>
 					<tr className="border-b">
 						<th className="px-4 py-3 text-left font-medium">Kriterium</th>
-						{comparison.offers.map((offer: any) => (
+						{comparison.offers.map((offer) => (
 							<th key={offer._id} className="px-4 py-3 text-center font-medium">
 								{offer.anbieterName}
 							</th>
@@ -436,7 +437,7 @@ function ComparisonTable({ comparison }: ComparisonTableProps) {
 					</tr>
 				</thead>
 				<tbody>
-					{comparison.criteria.map((criterion: any) => (
+					{comparison.criteria.map((criterion) => (
 						<tr key={criterion.key} className="border-b hover:bg-muted/50">
 							<td className="px-4 py-3">
 								<div>
@@ -446,7 +447,7 @@ function ComparisonTable({ comparison }: ComparisonTableProps) {
 									)}
 								</div>
 							</td>
-							{comparison.offers.map((offer: any) => {
+							{comparison.offers.map((offer) => {
 								const result = comparison.matrix[criterion.key]?.[offer._id];
 								return (
 									<td key={offer._id} className="px-4 py-3 text-center">
