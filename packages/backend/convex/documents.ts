@@ -41,6 +41,7 @@ export const attach = mutation({
 		const existingDocuments = await ctx.db
 			.query("documents")
 			.withIndex("by_projectId", (q) => q.eq("projectId", args.projectId))
+			.filter((q) => q.eq(q.field("orgId"), identity.orgId))
 			.collect();
 
 		const totalSize = existingDocuments.reduce((sum, doc) => sum + doc.size, 0) + args.size;
@@ -81,6 +82,7 @@ export const listByProject = query({
 		return await ctx.db
 			.query("documents")
 			.withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+			.filter((q) => q.eq(q.field("orgId"), identity.orgId))
 			.collect();
 	},
 });
@@ -121,6 +123,7 @@ export const remove = mutation({
 		const pages = await ctx.db
 			.query("docPages")
 			.withIndex("by_documentId", (q) => q.eq("documentId", documentId))
+			.filter((q) => q.eq(q.field("orgId"), identity.orgId))
 			.collect();
 
 		// Remove any offers linked to this document (including results and jobs)
@@ -135,6 +138,7 @@ export const remove = mutation({
 			const results = await ctx.db
 				.query("offerCriteriaResults")
 				.withIndex("by_offerId", (q) => q.eq("offerId", offer._id))
+				.filter((q) => q.eq(q.field("orgId"), identity.orgId))
 				.collect();
 			for (const result of results) {
 				await ctx.db.delete(result._id);
@@ -143,6 +147,7 @@ export const remove = mutation({
 			const jobs = await ctx.db
 				.query("offerCriterionJobs")
 				.withIndex("by_offer", (q) => q.eq("offerId", offer._id))
+				.filter((q) => q.eq(q.field("orgId"), identity.orgId))
 				.collect();
 			for (const job of jobs) {
 				await ctx.db.delete(job._id);
