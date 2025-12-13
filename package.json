@@ -7,7 +7,8 @@
 	],
 	"scripts": {
 		"dev": "turbo dev",
-		"build": "turbo build",
+		"build": "npm run codegen && turbo build",
+		"codegen": "npm run codegen --workspace @tendera/backend",
 		"check-types": "turbo check-types",
 		"dev:native": "turbo -F native dev",
 		"dev:web": "turbo -F web dev",
