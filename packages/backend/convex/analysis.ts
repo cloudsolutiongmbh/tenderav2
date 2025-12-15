@@ -17,7 +17,7 @@ import {
     offerCheckResultSchema,
 } from "./analysisSchemas";
 
-const PAGES_PER_CHUNK = Number.parseInt(process.env.CONVEX_ANALYSIS_PAGES_PER_CHUNK ?? "15");
+const PAGES_PER_CHUNK = Number.parseInt(process.env.CONVEX_ANALYSIS_PAGES_PER_CHUNK ?? "80");
 const MAX_PARALLEL_OFFER_JOBS = Math.max(
 	1,
 	Number.parseInt(process.env.CONVEX_MAX_PARALLEL_OFFER_JOBS ?? "3"),
@@ -33,6 +33,16 @@ const OFFER_JOB_MAX_ATTEMPTS = Math.max(
 const OFFER_PAGE_LIMIT = Math.max(
         1,
         Number.parseInt(process.env.CONVEX_OFFER_PAGE_LIMIT ?? "8"),
+);
+
+const MAX_ACTIVE_RUNS_PER_ORG = Math.max(
+	1,
+	Number.parseInt(process.env.CONVEX_MAX_ACTIVE_RUNS_PER_ORG ?? "10"),
+);
+
+const MAX_ACTIVE_RUNS_PER_PROJECT = Math.max(
+	1,
+	Number.parseInt(process.env.CONVEX_MAX_ACTIVE_RUNS_PER_PROJECT ?? "1"),
 );
 
 function deduplicateCriteriaByKey<T extends { key: string }>(criteria: T[]): T[] {
@@ -810,9 +820,10 @@ async function analyseStandardChunk(
 	lookup: DocumentLookup,
 ) {
 	const systemPrompt = `Developer message
-Du bist ein deutscher KI-Assistent zur strukturierten Analyse von HSE-Ausschreibungsunterlagen. Deine einzige Aufgabe ist es, basierend ausschließlich auf den gelieferten Dokumentseiten genau EIN valides JSON-Objekt gemäß der beschriebenen Struktur auszugeben.
+Du bist ein deutscher KI-Assistent zur strukturierten Analyse von Ausschreibungsunterlagen und Pflichtenheften. Deine einzige Aufgabe ist es, basierend ausschließlich auf den gelieferten Dokumentseiten genau EIN valides JSON-Objekt gemäß der beschriebenen Struktur auszugeben.
 <code_editing_rules>
 <guiding_principles>
+- **Business-Fokus**: Priorisiere Informationen, die für Geschäftsentscheidungen relevant sind: Projektumfang, kommerzielle Bedingungen, Vertragsanforderungen, kritische Termine, Qualifikationsanforderungen. Operative Details (z.B. Sicherheitsvorschriften auf Baustellen, Arbeitskleidung) sind nachrangig.
 - **Exaktheit und Belegbarkeit**: Jede extrahierte Information muss durch ein Zitat aus dem Quelldokument belegt werden, sofern eine Quelle existiert. Annahmen sind zu vermeiden.
 - **Vollständigkeit**: Alle Felder des Ziel-JSON-Schemas müssen ausgefüllt werden. Wenn keine Information gefunden wird, ist explizit \`null\` zu verwenden.
 - **Strukturtreue**: Halte dich strikt an das vorgegebene JSON-Format, die Feldnamen und die Datentypen. Keine zusätzlichen Felder oder abweichenden Strukturen.
@@ -847,7 +858,7 @@ Abbruchbedingung:
 ## Output Format
 Das auszugebende JSON-Objekt sieht wie folgt aus:
 {
-"summary": string | null, // Eine prägnante, neutrale und faktische Zusammenfassung des Projekts in 3-5 Sätzen. Konzentriere dich auf die wichtigsten Ziele, den Umfang, die Hauptanforderungen und den Zeitplan. Gib nur die Fakten aus dem Dokument wieder.
+"summary": string | null, // Executive Summary für Entscheidungsträger in 3-5 Sätzen. Fokussiere auf: (1) Projektgegenstand und Leistungsumfang, (2) Auftraggeber und Vergabeart, (3) Wichtigste Fristen (Abgabe, Zuschlag, Projektstart), (4) Kommerzielle oder vertragliche Besonderheiten. IGNORIERE operative Details wie Sicherheitsvorschriften, Arbeitskleidung oder Verhaltensregeln auf der Baustelle.
 "milestones": [ // Eine Liste der wichtigsten projektbezogenen Termine und Fristen. WICHTIG: Extrahiere NUR Termine, die sich auf das Projekt selbst beziehen (z.B. Angebotsabgabe, Projektstart, Abgabefrist, Inbetriebnahme, Abnahme, wichtige Projektphasen). IGNORIERE Dokument-Metadaten wie "Dokument erstellt", "Dokument Version", "Erstellt am" oder ähnliche administrative Datumsangaben.
 {
 "title": string, // Der Name des Meilensteins (z.B. "Angebotsabgabe", "Projektstart", "Inbetriebnahme"). NIEMALS "Dokument erstellt" oder "Dokument Version".
@@ -1785,10 +1796,6 @@ export const kickQueue = internalAction({
             return;
         }
 
-        const maxActiveRaw = process.env.CONVEX_MAX_ACTIVE_RUNS_PER_ORG ?? "1";
-        const parsed = Number.parseInt(maxActiveRaw, 10);
-        const maxActive = Number.isNaN(parsed) ? 1 : Math.max(1, parsed);
-
         const dispatch = async (run: Doc<"analysisRuns">) => {
             try {
                 switch (run.type) {
@@ -1818,6 +1825,7 @@ export const kickQueue = internalAction({
             }
         };
 
+        // Dispatch any runs marked "läuft" but not yet dispatched
         const pendingDispatch = otherRuns.filter(
             (run) => run.status === "läuft" && !run.dispatchedAt,
         );
@@ -1825,18 +1833,44 @@ export const kickQueue = internalAction({
             await dispatch(run);
         }
 
-        let activeCount = otherRuns.filter((run) => run.status === "läuft").length;
+        // Calculate active counts per project
+        const activeByProject = new Map<string, number>();
+        for (const run of otherRuns) {
+            if (run.status === "läuft") {
+                const current = activeByProject.get(run.projectId) ?? 0;
+                activeByProject.set(run.projectId, current + 1);
+            }
+        }
+
+        // Get total org-wide active count
+        let totalActiveCount = otherRuns.filter((run) => run.status === "läuft").length;
+
+        // Get queued runs sorted by queuedAt (FIFO)
         const queued = otherRuns
             .filter((run) => run.status === "wartet")
             .sort((a, b) => (a.queuedAt ?? 0) - (b.queuedAt ?? 0));
 
+        // Dispatch queued runs respecting both org-wide and per-project limits
         for (const run of queued) {
-            if (activeCount >= maxActive) {
+            // Check org-wide limit (safety cap)
+            if (totalActiveCount >= MAX_ACTIVE_RUNS_PER_ORG) {
                 break;
             }
 
+            // Check per-project limit
+            const projectActiveCount = activeByProject.get(run.projectId) ?? 0;
+            if (projectActiveCount >= MAX_ACTIVE_RUNS_PER_PROJECT) {
+                // Skip this run - its project already has max active runs
+                continue;
+            }
+
+            // Start the run
             await ctx.runMutation(internal.analysis.markRunStarted, { runId: run._id });
-            activeCount += 1;
+
+            // Update counts
+            totalActiveCount += 1;
+            activeByProject.set(run.projectId, projectActiveCount + 1);
+
             await dispatch(run);
         }
     },

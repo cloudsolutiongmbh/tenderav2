@@ -27,7 +27,11 @@ const projectTypeValidator = v.union(
 );
 
 const MAX_ACTIVE_RUNS_PER_ORG = Number.parseInt(
-	process.env.CONVEX_MAX_ACTIVE_RUNS_PER_ORG ?? "1",
+	process.env.CONVEX_MAX_ACTIVE_RUNS_PER_ORG ?? "10",
+);
+
+const MAX_ACTIVE_RUNS_PER_PROJECT = Number.parseInt(
+	process.env.CONVEX_MAX_ACTIVE_RUNS_PER_PROJECT ?? "1",
 );
 
 export const create = mutation({
@@ -137,19 +141,42 @@ export const startAnalysis = mutation({
 			throw new Error("Für die Kriterien-Analyse muss ein Template gewählt sein.");
 		}
 
-		const activeRuns = await ctx.db
+		// Check per-project active runs (excluding offer_check type)
+		const projectRuns = await ctx.db
+			.query("analysisRuns")
+			.withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+			.collect();
+
+		const projectActiveCount = projectRuns.filter(
+			(run) =>
+				run.type !== "offer_check" &&
+				(run.status === "wartet" || run.status === "läuft"),
+		).length;
+
+		// Check org-wide active runs (safety cap)
+		const orgRuns = await ctx.db
 			.query("analysisRuns")
 			.withIndex("by_orgId", (q) => q.eq("orgId", identity.orgId))
 			.collect();
 
-		const activeCount = activeRuns.filter(
-			(run) => run.status === "wartet" || run.status === "läuft",
+		const orgActiveCount = orgRuns.filter(
+			(run) =>
+				run.type !== "offer_check" &&
+				(run.status === "wartet" || run.status === "läuft"),
 		).length;
 
-		const maxActive = Number.isNaN(MAX_ACTIVE_RUNS_PER_ORG)
+		// Determine if run can start immediately (both limits must allow)
+		const maxActivePerProject = Number.isNaN(MAX_ACTIVE_RUNS_PER_PROJECT)
 			? 1
+			: Math.max(1, MAX_ACTIVE_RUNS_PER_PROJECT);
+
+		const maxActivePerOrg = Number.isNaN(MAX_ACTIVE_RUNS_PER_ORG)
+			? 10
 			: Math.max(1, MAX_ACTIVE_RUNS_PER_ORG);
-		const shouldStartImmediately = activeCount < maxActive;
+
+		const shouldStartImmediately =
+			projectActiveCount < maxActivePerProject &&
+			orgActiveCount < maxActivePerOrg;
 		const now = Date.now();
 
 		const runId = await ctx.db.insert("analysisRuns", {
