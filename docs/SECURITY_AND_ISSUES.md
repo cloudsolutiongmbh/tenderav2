@@ -427,7 +427,6 @@ Load all runs for org, group by projectId in-memory.
 
 **Must complete before production:**
 
-1. ✅ Fix auth bypass (Issue #1)
 1. ✅ Fix infinite loop in token creation (Issue #3)
 1. ✅ Add transaction-like logic for project delete (Issue #4)
 1. ✅ Add query limits to prevent memory overflow (Issue #5)
