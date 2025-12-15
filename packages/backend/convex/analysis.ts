@@ -17,7 +17,7 @@ import {
     offerCheckResultSchema,
 } from "./analysisSchemas";
 
-const PAGES_PER_CHUNK = Number.parseInt(process.env.CONVEX_ANALYSIS_PAGES_PER_CHUNK ?? "15");
+const PAGES_PER_CHUNK = Number.parseInt(process.env.CONVEX_ANALYSIS_PAGES_PER_CHUNK ?? "80");
 const MAX_PARALLEL_OFFER_JOBS = Math.max(
 	1,
 	Number.parseInt(process.env.CONVEX_MAX_PARALLEL_OFFER_JOBS ?? "3"),
