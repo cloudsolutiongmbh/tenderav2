@@ -35,6 +35,16 @@ const OFFER_PAGE_LIMIT = Math.max(
         Number.parseInt(process.env.CONVEX_OFFER_PAGE_LIMIT ?? "8"),
 );
 
+const MAX_ACTIVE_RUNS_PER_ORG = Math.max(
+	1,
+	Number.parseInt(process.env.CONVEX_MAX_ACTIVE_RUNS_PER_ORG ?? "10"),
+);
+
+const MAX_ACTIVE_RUNS_PER_PROJECT = Math.max(
+	1,
+	Number.parseInt(process.env.CONVEX_MAX_ACTIVE_RUNS_PER_PROJECT ?? "1"),
+);
+
 function deduplicateCriteriaByKey<T extends { key: string }>(criteria: T[]): T[] {
         const seen = new Set<string>();
         const unique: T[] = [];
@@ -1785,10 +1795,6 @@ export const kickQueue = internalAction({
             return;
         }
 
-        const maxActiveRaw = process.env.CONVEX_MAX_ACTIVE_RUNS_PER_ORG ?? "1";
-        const parsed = Number.parseInt(maxActiveRaw, 10);
-        const maxActive = Number.isNaN(parsed) ? 1 : Math.max(1, parsed);
-
         const dispatch = async (run: Doc<"analysisRuns">) => {
             try {
                 switch (run.type) {
@@ -1818,6 +1824,7 @@ export const kickQueue = internalAction({
             }
         };
 
+        // Dispatch any runs marked "läuft" but not yet dispatched
         const pendingDispatch = otherRuns.filter(
             (run) => run.status === "läuft" && !run.dispatchedAt,
         );
@@ -1825,18 +1832,44 @@ export const kickQueue = internalAction({
             await dispatch(run);
         }
 
-        let activeCount = otherRuns.filter((run) => run.status === "läuft").length;
+        // Calculate active counts per project
+        const activeByProject = new Map<string, number>();
+        for (const run of otherRuns) {
+            if (run.status === "läuft") {
+                const current = activeByProject.get(run.projectId) ?? 0;
+                activeByProject.set(run.projectId, current + 1);
+            }
+        }
+
+        // Get total org-wide active count
+        let totalActiveCount = otherRuns.filter((run) => run.status === "läuft").length;
+
+        // Get queued runs sorted by queuedAt (FIFO)
         const queued = otherRuns
             .filter((run) => run.status === "wartet")
             .sort((a, b) => (a.queuedAt ?? 0) - (b.queuedAt ?? 0));
 
+        // Dispatch queued runs respecting both org-wide and per-project limits
         for (const run of queued) {
-            if (activeCount >= maxActive) {
+            // Check org-wide limit (safety cap)
+            if (totalActiveCount >= MAX_ACTIVE_RUNS_PER_ORG) {
                 break;
             }
 
+            // Check per-project limit
+            const projectActiveCount = activeByProject.get(run.projectId) ?? 0;
+            if (projectActiveCount >= MAX_ACTIVE_RUNS_PER_PROJECT) {
+                // Skip this run - its project already has max active runs
+                continue;
+            }
+
+            // Start the run
             await ctx.runMutation(internal.analysis.markRunStarted, { runId: run._id });
-            activeCount += 1;
+
+            // Update counts
+            totalActiveCount += 1;
+            activeByProject.set(run.projectId, projectActiveCount + 1);
+
             await dispatch(run);
         }
     },
