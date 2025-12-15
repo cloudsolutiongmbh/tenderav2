@@ -17,6 +17,7 @@ export const listByProject = query({
 		return await ctx.db
 			.query("comments")
 			.withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+			.filter((q) => q.eq(q.field("orgId"), identity.orgId))
 			.collect();
 	},
 });

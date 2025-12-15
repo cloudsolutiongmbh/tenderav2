@@ -150,12 +150,12 @@ async function executeStandardAnalysis(
         throw new ConvexError("Keine Dokumentseiten zum Analysieren gefunden.");
     }
 
-    const pages = await fetchDocPages(ctx as any, resolvedDocPageIds, orgId, project._id);
+    const pages = await fetchDocPages(ctx, resolvedDocPageIds, orgId, project._id);
     if (pages.length === 0) {
         throw new ConvexError("Keine Dokumentseiten zum Analysieren gefunden.");
     }
 
-    const run = await acquireRun(ctx as any, project._id, orgId, "standard", {
+    const run = await acquireRun(ctx, project._id, orgId, "standard", {
         userId,
     });
 
@@ -214,7 +214,7 @@ async function executeStandardAnalysis(
 
         return { status: "fertig" as const, resultId };
     } catch (error) {
-        await failRun(ctx as any, run._id, error);
+        await failRun(ctx, run._id, error);
         throw error;
     }
 }
@@ -241,12 +241,12 @@ async function executeCriteriaAnalysis(
         throw new ConvexError("Keine Dokumentseiten zum Analysieren gefunden.");
     }
 
-    const pages = await fetchDocPages(ctx as any, resolvedDocPageIds, orgId, project._id);
+    const pages = await fetchDocPages(ctx, resolvedDocPageIds, orgId, project._id);
     if (pages.length === 0) {
         throw new ConvexError("Keine Dokumentseiten zum Analysieren gefunden.");
     }
 
-    const run = await acquireRun(ctx as any, project._id, orgId, "criteria", {
+    const run = await acquireRun(ctx, project._id, orgId, "criteria", {
         userId,
     });
 
@@ -311,7 +311,7 @@ async function executeCriteriaAnalysis(
 
         return { status: "fertig" as const, resultId };
     } catch (error) {
-        await failRun(ctx as any, run._id, error);
+        await failRun(ctx, run._id, error);
         throw error;
     }
 }
@@ -328,14 +328,15 @@ export const runCriteria = action({
 			internal.analysis.getProjectForAnalysis,
 			{ projectId: args.projectId },
 		)) as Doc<"projects"> | null;
-		const template = (await ctx.runQuery(
-			internal.analysis.getTemplateForAnalysis,
-			{ templateId: args.templateId },
-		)) as Doc<"templates"> | null;
 
 		if (!project || project.orgId !== identity.orgId) {
 			throw new ConvexError("Projekt nicht gefunden.");
 		}
+
+		const template = (await ctx.runQuery(
+			internal.analysis.getTemplateForAnalysis,
+			{ templateId: args.templateId },
+		)) as Doc<"templates"> | null;
 		if (!template || template.orgId !== identity.orgId) {
 			throw new ConvexError("Template nicht gefunden.");
 		}
@@ -462,12 +463,12 @@ export const getOfferCheckProgress = query({
 		}
 
 		if (!offer.latestRunId) {
-			return { run: null as const };
+			return { run: null };
 		}
 
 		const run = await ctx.db.get(offer.latestRunId);
 		if (!run || run.type !== "offer_check" || run.orgId !== identity.orgId) {
-			return { run: null as const };
+			return { run: null };
 		}
 
 		const jobs = await ctx.db
@@ -503,7 +504,7 @@ export const getOfferCheckProgress = query({
 				startedAt: run.startedAt ?? null,
 				finishedAt: run.finishedAt ?? null,
 			},
-		} as const;
+		};
 	},
 });
 
@@ -1092,13 +1093,13 @@ export const getDocPageIdsForProject = internalQuery({
             .query("documents")
             .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
             .collect();
-        const ids: Id<"docPages">[] = [] as any;
+        const ids: Id<"docPages">[] = [];
         for (const doc of documents) {
             const pages = await ctx.db
                 .query("docPages")
                 .withIndex("by_documentId", (q) => q.eq("documentId", doc._id))
                 .collect();
-            for (const page of pages) ids.push(page._id as any);
+            for (const page of pages) ids.push(page._id);
         }
         return ids;
     },
@@ -1267,13 +1268,14 @@ export const recordCriteriaResult = internalMutation({
 					v.literal("nicht_gefunden"),
 					v.literal("teilweise"),
 				),
-				comment: v.optional(v.string()),
-				answer: v.optional(v.string()),
-				score: v.optional(v.number()),
+				comment: v.optional(v.union(v.string(), v.null())),
+				answer: v.optional(v.union(v.string(), v.null())),
+				score: v.optional(v.union(v.number(), v.null())),
 				citations: v.array(
 					v.object({
 						page: v.number(),
 						quote: v.string(),
+						documentKey: v.optional(v.union(v.string(), v.null())),
 					}),
 				),
 			}),
@@ -1304,11 +1306,15 @@ export const recordCriteriaResult = internalMutation({
 					criterionId: item.key,
 					title: item.title,
 					status: item.status,
-					comment: item.comment,
-					answer: item.answer,
-					score: item.score,
+					comment: item.comment ?? undefined,
+					answer: item.answer ?? undefined,
+					score: item.score ?? undefined,
 					weight: item.weight,
-					citations: item.citations,
+					citations: item.citations.map((citation) => ({
+						documentKey: citation.documentKey ?? undefined,
+						page: citation.page,
+						quote: citation.quote,
+					})),
 				})),
 			},
 			standard: undefined,
@@ -1444,7 +1450,7 @@ export const runStandardQueueWorker = internalAction({
         const userId = run.createdBy ?? "system";
 
         try {
-            await executeStandardAnalysis(ctx as any, {
+            await executeStandardAnalysis(ctx, {
                 project,
                 orgId: run.orgId,
                 userId,
@@ -1512,7 +1518,7 @@ export const runCriteriaQueueWorker = internalAction({
         const userId = run.createdBy ?? "system";
 
         try {
-            await executeCriteriaAnalysis(ctx as any, {
+            await executeCriteriaAnalysis(ctx, {
                 project,
                 template,
                 orgId: run.orgId,
@@ -1616,7 +1622,7 @@ export const runOfferCriterionWorker = internalAction({
             )) as Id<"docPages">[];
 
             const pages = await fetchDocPages(
-                ctx as any,
+                ctx,
                 docPageIds,
                 run.orgId,
                 job.projectId as Id<"projects">,
@@ -1836,7 +1842,7 @@ export const kickQueue = internalAction({
     },
 });
 
-export const cleanStaleRuns = internalAction({
+export const cleanStaleRuns = internalMutation({
     args: {
         orgId: v.string(),
         timeoutMs: v.number(),
@@ -2073,10 +2079,10 @@ export const extractPflichtenheftCriteria = action({
 			throw new ConvexError("Keine Pflichtenheft-Dokumente zum Analysieren gefunden.");
 		}
 
-		const run = await acquireRun(ctx as any, project._id, identity.orgId, "pflichtenheft_extract", {
+		const run = await acquireRun(ctx, project._id, identity.orgId, "pflichtenheft_extract", {
 			userId: identity.userId,
 		});
-		const pages = await fetchDocPages(ctx as any, docPageIds, identity.orgId, project._id);
+		const pages = await fetchDocPages(ctx, docPageIds, identity.orgId, project._id);
 
 		if (pages.length === 0) {
 			throw new ConvexError("Keine Dokumentseiten gefunden.");
@@ -2155,7 +2161,7 @@ export const extractPflichtenheftCriteria = action({
 
 			return { status: "fertig", templateId, criteriaCount: criteriaArray.length };
 		} catch (error) {
-			await failRun(ctx as any, run._id, error);
+			await failRun(ctx, run._id, error);
 			throw error;
 		}
 	},

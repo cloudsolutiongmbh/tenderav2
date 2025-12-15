@@ -129,49 +129,6 @@ export const resolve = query({
 
 ---
 
-## Critical Issues (Production Blockers)
-
-### 🔴 Issue #1: Auth Bypass via Environment Variable
-
-**Severity:** CRITICAL - Security Vulnerability
-**File:** `packages/backend/convex/auth.ts:13-29`
-**Status:** ⚠️ UNFIXED
-
-**Description:**
-```typescript
-const TEST_BYPASS = process.env.CONVEX_TEST_BYPASS_AUTH === "1";
-
-export async function getIdentityOrThrow(ctx) {
-  if (TEST_BYPASS) {
-    return {
-      userId: "test-user",
-      orgId: process.env.TEST_ORG_ID || "test-org",
-      email: "test@example.com",
-    };
-  }
-  // ... normal auth
-}
-```
-
-**Impact:**
-- If `CONVEX_TEST_BYPASS_AUTH=1` is set in production, **ALL authentication is disabled**
-- Any client can access any organization's data
-- Complete data breach possible
-
-**Fix:**
-```typescript
-const IS_PRODUCTION = process.env.CONVEX_DEPLOYMENT_TYPE === "production";
-const TEST_BYPASS = !IS_PRODUCTION && process.env.CONVEX_TEST_BYPASS_AUTH === "1";
-
-if (TEST_BYPASS && IS_PRODUCTION) {
-  throw new Error("FATAL: Auth-Bypass darf nicht in Production aktiv sein!");
-}
-```
-
-**Priority:** 🔴 IMMEDIATE - Deploy hotfix before production launch
-
----
-
 ### 🔴 Issue #2: Weak Token Generation Fallback
 
 **Severity:** CRITICAL - Security Vulnerability
@@ -568,11 +525,10 @@ Load all runs for org, group by projectId in-memory.
 
 ### For Operators
 
-1. **Audit environment variables** - Ensure `CONVEX_TEST_BYPASS_AUTH` is NOT set in production
-2. **Monitor costs** - Track LLM token usage per organization
-3. **Review telemetry** - Check for unusual analysis patterns
-4. **Backup regularly** - Convex export schedule
-5. **Rotate secrets** - API keys, JWT signing keys
+1. **Monitor costs** - Track LLM token usage per organization
+2. **Review telemetry** - Check for unusual analysis patterns
+3. **Backup regularly** - Convex export schedule
+4. **Rotate secrets** - API keys, JWT signing keys
 
 ### For Reviewers
 

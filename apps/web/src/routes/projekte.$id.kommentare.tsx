@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
+import type { Id } from "@tendera/backend/convex/_generated/dataModel";
 
 interface MilestoneOption {
 	id: string;
@@ -41,17 +42,17 @@ function ProjectCommentsPage() {
 	const auth = useOrgAuth();
 	const project = useQuery(
 		api.projects.get,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 	const comments = useQuery(
 		api.comments.listByProject,
-		auth.authReady ? { projectId: projectId as any } : "skip",
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 	const standard = useQuery(
 		api.analysis.getLatest,
 		auth.authReady
 			? {
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				type: "standard",
 			}
 			: "skip",
@@ -60,7 +61,7 @@ function ProjectCommentsPage() {
 		api.analysis.getLatest,
 		auth.authReady
 			? {
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				type: "criteria",
 			}
 			: "skip",
@@ -136,7 +137,7 @@ function ProjectCommentsPage() {
 		setSubmitting(true);
 		try {
 			await addComment({
-				projectId: projectId as any,
+				projectId: projectId as Id<"projects">,
 				contextType: formState.contextType,
 				referenceId: formState.referenceId,
 				referenceLabel,
@@ -158,7 +159,7 @@ function ProjectCommentsPage() {
 		if (!ok) return;
 		setDeleting(true);
 		try {
-			await removeProject({ projectId: projectId as any });
+			await removeProject({ projectId: projectId as Id<"projects"> });
 			toast.success("Projekt gelöscht.");
 			navigate({ to: "/projekte" });
 		} catch (error) {
