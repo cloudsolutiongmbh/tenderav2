@@ -28,7 +28,7 @@ export const standardResultSchema = z.object({
     metadata: z.array(
         z.object({
             label: z.string().min(1),
-            value: z.string().min(1),
+            value: z.string().nullable(),
             citation: citationSchema.nullable().optional(),
         }),
     ),
@@ -96,7 +96,7 @@ export const standardResultJsonSchema = {
         additionalProperties: false,
         properties: {
           label: { type: "string" },
-          value: { type: "string" },
+          value: { type: ["string", "null"] },
           citation: { anyOf: [citationJsonSchema, { type: "null" }] },
         },
         required: ["label", "value", "citation"],
