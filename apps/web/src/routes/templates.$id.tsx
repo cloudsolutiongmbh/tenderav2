@@ -77,6 +77,8 @@ function TemplateDetailPage() {
 	const [criteria, setCriteria] = useState<EditableCriterion[]>([createEmptyCriterion()]);
     const [isSaving, setSaving] = useState(false);
     const [isDeleting, setDeleting] = useState(false);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [activeSearch, setActiveSearch] = useState("");
 
 	const isLoading = !isNew && template === undefined;
 
@@ -111,6 +113,24 @@ function TemplateDetailPage() {
 	}, [template, isNew]);
 
     const hasExistingTemplate = useMemo(() => !isNew && template !== undefined && template !== null, [isNew, template]);
+
+	const filteredCriteria = useMemo(() => {
+		if (!activeSearch.trim()) return criteria;
+		const query = activeSearch.toLowerCase();
+		return criteria.filter((criterion) => {
+			const searchableText = [
+				criterion.title,
+				criterion.description,
+				criterion.hints,
+				criterion.keywords,
+			].join(" ").toLowerCase();
+			return searchableText.includes(query);
+		});
+	}, [criteria, activeSearch]);
+
+	const handleSearch = () => {
+		setActiveSearch(searchQuery);
+	};
 
     const handleDelete = async () => {
         if (!hasExistingTemplate || !template?._id) return;
@@ -258,6 +278,24 @@ function TemplateDetailPage() {
                         <Link to="/templates" className="rounded-md border px-3 py-1 text-sm">
                             Zurück zur Übersicht
                         </Link>
+						<div className="flex items-center gap-1">
+							<Input
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+								placeholder="im Katalog suchen"
+								className="w-48"
+								disabled={isLoading}
+							/>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={handleSearch}
+								disabled={isLoading}
+							>
+								Suchen
+							</Button>
+						</div>
                         <Button
                             type="button"
                             variant="destructive"
@@ -331,7 +369,12 @@ function TemplateDetailPage() {
 						</Button>
 					</CardHeader>
 					<CardContent className="space-y-4">
-						{criteria.map((criterion) => (
+						{activeSearch && filteredCriteria.length === 0 && (
+							<div className="rounded-lg border border-border/60 p-8 text-center text-muted-foreground">
+								Keine Treffer
+							</div>
+						)}
+						{filteredCriteria.map((criterion) => (
 							<div key={criterion.localId} className="rounded-lg border border-border/60 p-4">
 								<div className="grid gap-3 md:grid-cols-2">
 									<Input
