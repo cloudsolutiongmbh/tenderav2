@@ -1,8 +1,13 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CitationList } from "@/components/citation-list";
-import { StatusBadge } from "@/components/status-badge";
-import { cn } from "@/lib/utils";
 import type { Citation } from "@/types/citation";
+
+const CRITERION_STATUS_CONFIG: Record<CriteriaDetailData["status"], { label: string; className: string }> = {
+	gefunden: { label: "Gefunden", className: "bg-emerald-100 text-emerald-900" },
+	teilweise: { label: "Teilweise", className: "bg-amber-100 text-amber-900" },
+	nicht_gefunden: { label: "Nicht gefunden", className: "bg-rose-100 text-rose-900" },
+	unbekannt: { label: "Nicht bewertet", className: "bg-muted text-muted-foreground" },
+};
 
 export interface CriteriaDetailData {
 	criterionId: string;
@@ -38,7 +43,9 @@ export function CriteriaDetail({ criterion }: CriteriaDetailProps) {
 			<CardHeader className="gap-4 @container/card-header">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<CardTitle className="text-lg">{criterion.title}</CardTitle>
-					<StatusBadge status={mapToAnalysisStatus(criterion.status)} />
+					<span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${CRITERION_STATUS_CONFIG[criterion.status].className}`}>
+						{CRITERION_STATUS_CONFIG[criterion.status].label}
+					</span>
 				</div>
 				{criterion.description ? (
 					<CardDescription>{criterion.description}</CardDescription>
@@ -88,18 +95,6 @@ export function CriteriaDetail({ criterion }: CriteriaDetailProps) {
 			</CardContent>
 		</Card>
 	);
-}
-
-function mapToAnalysisStatus(status: CriteriaDetailData["status"]) {
-	switch (status) {
-		case "gefunden":
-			return "fertig" as const;
-		case "teilweise":
-			return "fertig" as const;
-		case "nicht_gefunden":
-		case "unbekannt":
-			return "fehler" as const;
-	}
 }
 
 function formatPages(pages: number[]) {
