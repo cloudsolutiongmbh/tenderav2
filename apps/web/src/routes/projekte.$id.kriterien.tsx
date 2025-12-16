@@ -240,7 +240,7 @@ function ProjectCriteriaPage() {
 				title: "Kriterien-Analyse",
 				description: "Prüfung Ihrer Dokumente anhand individueller Anforderungen und Kriterien.",
 			}}
-			statusBadge={<StatusBadge status={runSummary?.status ?? "wartet"} />}
+			statusBadge={<StatusBadge status={runSummary?.status} />}
 			actions={
 				<div className="flex flex-wrap items-center gap-2">
 					<Button size="sm" onClick={handleStart} disabled={!hasPages || !hasTemplate}>

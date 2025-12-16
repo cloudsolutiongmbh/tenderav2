@@ -17,11 +17,20 @@ const STATUS_LABEL: Record<AnalysisStatus, string> = {
 };
 
 interface StatusBadgeProps {
-	status: AnalysisStatus;
+	status: AnalysisStatus | null | undefined;
 	className?: string;
 }
 
+/**
+ * Renders a status badge for analysis runs.
+ * Returns null if status is null/undefined - this prevents showing a misleading
+ * "Wartet" badge during loading or when no analysis has been started.
+ */
 export function StatusBadge({ status, className }: StatusBadgeProps) {
+	if (!status) {
+		return null;
+	}
+
 	return (
 		<span
 			className={cn(
