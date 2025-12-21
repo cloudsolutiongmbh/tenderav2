@@ -129,96 +129,6 @@ export const resolve = query({
 
 ---
 
-### 🔴 Issue #2: Weak Token Generation Fallback
-
-**Severity:** CRITICAL - Security Vulnerability
-**File:** `packages/backend/convex/shares.ts:147-156`
-**Status:** ⚠️ UNFIXED
-
-**Description:**
-```typescript
-function fillRandomBytes(bytes: Uint8Array) {
-  if (typeof globalThis.crypto?.getRandomValues === "function") {
-    globalThis.crypto.getRandomValues(bytes);
-    return;
-  }
-
-  // ❌ FALLBACK: Math.random() is NOT cryptographically secure
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = Math.floor(Math.random() * 256);
-  }
-}
-```
-
-**Impact:**
-- Fallback uses `Math.random()`, which is **predictable**
-- Attacker can brute-force or guess share tokens
-- Unauthorized access to tender documents
-
-**Fix:**
-```typescript
-function fillRandomBytes(bytes: Uint8Array) {
-  if (typeof globalThis.crypto?.getRandomValues === "function") {
-    globalThis.crypto.getRandomValues(bytes);
-    return;
-  }
-  throw new Error(
-    "Kryptographisch sichere Zufallszahlen nicht verfügbar. " +
-    "Token-Generierung abgebrochen."
-  );
-}
-```
-
-**Priority:** 🔴 IMMEDIATE
-
----
-
-### 🔴 Issue #3: Infinite Loop in Token Generation
-
-**Severity:** CRITICAL - Availability
-**File:** `packages/backend/convex/shares.ts:27-36`
-**Status:** ⚠️ UNFIXED
-
-**Description:**
-```typescript
-let token: string;
-while (true) {  // ❌ No timeout protection
-  token = generateShareToken();
-  const existing = await ctx.db.query("shares")
-    .withIndex("by_token", (q) => q.eq("token", token))
-    .first();
-  if (!existing) break;
-}
-```
-
-**Impact:**
-- If collision rate is high (shouldn't happen with 256 bits, but...)
-- Race condition: Two simultaneous requests can both see `!existing` and insert duplicate tokens
-- DoS vector: Attacker creates many shares simultaneously
-
-**Fix:**
-```typescript
-const MAX_RETRIES = 10;
-let token: string;
-
-for (let i = 0; i < MAX_RETRIES; i++) {
-  token = generateShareToken();
-  const existing = await ctx.db.query("shares")
-    .withIndex("by_token", (q) => q.eq("token", token))
-    .first();
-
-  if (!existing) break;
-
-  if (i === MAX_RETRIES - 1) {
-    throw new Error("Token-Generierung fehlgeschlagen nach mehreren Versuchen.");
-  }
-}
-```
-
-**Priority:** 🔴 IMMEDIATE
-
----
-
 ### 🔴 Issue #4: No Transaction for Project Delete
 
 **Severity:** CRITICAL - Data Integrity
@@ -471,11 +381,9 @@ Load all runs for org, group by projectId in-memory.
 
 **Must complete before production:**
 
-1. ✅ Fix auth bypass (Issue #1)
-2. ✅ Fix weak token generation (Issue #2)
-3. ✅ Fix infinite loop in token creation (Issue #3)
-4. ✅ Add transaction-like logic for project delete (Issue #4)
-5. ✅ Add query limits to prevent memory overflow (Issue #5)
+1. ✅ Fix infinite loop in token creation (Issue #3)
+1. ✅ Add transaction-like logic for project delete (Issue #4)
+1. ✅ Add query limits to prevent memory overflow (Issue #5)
 
 **Verification:**
 - Security audit of deployment environment
