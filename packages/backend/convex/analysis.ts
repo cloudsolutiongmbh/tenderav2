@@ -5,6 +5,7 @@ import { callLlm } from "./llm";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { ConvexError } from "convex/values";
+import type { RegisteredAction } from "convex/server";
 import { z } from "zod";
 import { internal } from "./_generated/api";
 import {
@@ -62,10 +63,10 @@ function deduplicateCriteriaByKey<T extends { key: string }>(criteria: T[]): T[]
 }
 
 interface CriterionComputation {
-        key: string;
-        title: string;
-        description?: string;
-        hints?: string;
+	key: string;
+	title: string;
+	description?: string;
+	hints?: string;
 	answerType: "boolean" | "skala" | "text";
 	weight: number;
 	required: boolean;
@@ -100,10 +101,9 @@ export const runStandard = action({
 	},
 	handler: async (ctx, args) => {
 		const identity = await getIdentityOrThrow(ctx);
-		const project = (await ctx.runQuery(
-			internal.analysis.getProjectForAnalysis,
-			{ projectId: args.projectId },
-		)) as Doc<"projects"> | null;
+		const project = (await ctx.runQuery(internal.analysis.getProjectForAnalysis, {
+			projectId: args.projectId,
+		})) as Doc<"projects"> | null;
 		if (!project || project.orgId !== identity.orgId) {
 			throw new ConvexError("Projekt nicht gefunden.");
 		}
@@ -288,11 +288,18 @@ async function executeCriteriaAnalysis(
                 documentContext,
             );
             criteriaResults.push({
-                ...criterion,
+                key: criterion.key,
+                title: criterion.title,
+                description: criterion.description ?? undefined,
+                hints: criterion.hints ?? undefined,
+                answerType: criterion.answerType,
+                weight: criterion.weight,
+                required: criterion.required,
+                keywords: criterion.keywords ?? undefined,
                 status: result.status,
-                comment: result.comment,
-                answer: result.answer,
-                score: result.score,
+                comment: result.comment ?? undefined,
+                answer: result.answer ?? undefined,
+                score: result.score ?? undefined,
                 citations: (result.citations ?? []).map(
                     (citation) => normalizeCitationWithDocuments(citation, documentLookup) ?? citation,
                 ),
@@ -418,7 +425,7 @@ export const getLatest = query({
 		runs.sort((a, b) => b.createdAt - a.createdAt);
 		const latest = runs[0];
 
-		let result: any = null;
+		let result: Doc<"analysisResults">["standard"] | Doc<"analysisResults">["criteria"] | null = null;
 		// Surface the most recent completed result even if a newer run is queued or running.
 		for (const run of runs) {
 			if (!run.resultId) {
@@ -427,16 +434,17 @@ export const getLatest = query({
 			const stored = await ctx.db.get(run.resultId);
 			if (stored && stored.orgId === identity.orgId) {
 				if (args.type === "standard") {
-					const standard = stored.standard as Record<string, unknown> | undefined;
+					const standard = stored.standard as
+						| (Record<string, unknown> & { openQuestions?: unknown })
+						| undefined;
 					if (standard && "openQuestions" in standard) {
 						const { openQuestions: _deprecated, ...rest } = standard;
-						await ctx.db.patch(stored._id, { standard: rest });
-						result = rest;
+						result = rest as Doc<"analysisResults">["standard"];
 					} else {
-						result = standard ?? null;
+						result = stored.standard ?? null;
 					}
 				} else {
-					result = stored.criteria;
+					result = stored.criteria ?? null;
 				}
 				break;
 			}
@@ -1279,14 +1287,14 @@ export const recordCriteriaResult = internalMutation({
 					v.literal("nicht_gefunden"),
 					v.literal("teilweise"),
 				),
-				comment: v.optional(v.union(v.string(), v.null())),
-				answer: v.optional(v.union(v.string(), v.null())),
-				score: v.optional(v.union(v.number(), v.null())),
+				comment: v.optional(v.string()),
+				answer: v.optional(v.string()),
+				score: v.optional(v.number()),
 				citations: v.array(
 					v.object({
 						page: v.number(),
 						quote: v.string(),
-						documentKey: v.optional(v.union(v.string(), v.null())),
+						documentKey: v.optional(v.string()),
 					}),
 				),
 			}),
@@ -1763,7 +1771,9 @@ export const kickQueue = internalAction({
 			timeoutMs: OFFER_JOB_TIMEOUT_MS,
 		});
 
-		const runs = await ctx.runQuery(internal.analysis.listRunsByOrg, { orgId });
+			const runs = (await ctx.runQuery(internal.analysis.listRunsByOrg, {
+				orgId,
+			})) as Doc<"analysisRuns">[];
 		if (runs.length === 0) {
 			return;
 		}
@@ -1883,7 +1893,9 @@ export const cleanStaleRuns = internalMutation({
     },
     handler: async (ctx, { orgId, timeoutMs }) => {
         const now = Date.now();
-        const runs = await ctx.runQuery(internal.analysis.listRunsByOrg, { orgId });
+        const runs = (await ctx.runQuery(internal.analysis.listRunsByOrg, {
+            orgId,
+        })) as Doc<"analysisRuns">[];
         const stale = runs.filter(
             (run) =>
                 run.type !== "offer_check" &&
@@ -1933,7 +1945,7 @@ export const cleanStaleRuns = internalMutation({
     },
 });
 
-export const removeStandardOpenQuestions = internalAction({
+export const removeStandardOpenQuestions = internalMutation({
 	args: {
 		orgId: v.optional(v.string()),
 	},
@@ -1954,8 +1966,10 @@ export const removeStandardOpenQuestions = internalAction({
 				continue;
 			}
 
-			const { openQuestions: _deprecated, ...rest } = standard;
-			await ctx.db.patch(entry._id, { standard: rest });
+				const { openQuestions: _deprecated, ...rest } = standard;
+				await ctx.db.patch(entry._id, {
+					standard: rest as Doc<"analysisResults">["standard"],
+				});
 			patched += 1;
 		}
 
@@ -2084,11 +2098,25 @@ function truncate(s: string, n: number) {
 
 // ========== OFFERTEN-VERGLEICH ACTIONS ==========
 
+type PflichtenheftExtractArgs = {
+	projectId: Id<"projects">;
+};
+
+type PflichtenheftExtractResult = {
+	status: "fertig";
+	templateId: Id<"templates">;
+	criteriaCount: number;
+};
+
 /**
  * Extract criteria from Pflichtenheft document
  * Creates a template with extracted Muss- and Kann-Kriterien
  */
-export const extractPflichtenheftCriteria = action({
+export const extractPflichtenheftCriteria: RegisteredAction<
+	"public",
+	PflichtenheftExtractArgs,
+	Promise<PflichtenheftExtractResult>
+> = action({
 	args: {
 		projectId: v.id("projects"),
 	},
@@ -2104,10 +2132,10 @@ export const extractPflichtenheftCriteria = action({
 		}
 
 		// Get Pflichtenheft document pages
-		const docPageIds = (await ctx.runQuery(
-			internal.analysis.getDocPageIdsForProject,
-			{ projectId: args.projectId },
-		)) as Id<"docPages">[];
+			const docPageIds = (await ctx.runQuery(
+				internal.analysis.getDocPageIdsForProject,
+				{ projectId: args.projectId },
+			)) as Id<"docPages">[];
 
 		if (docPageIds.length === 0) {
 			throw new ConvexError("Keine Pflichtenheft-Dokumente zum Analysieren gefunden.");
@@ -2126,15 +2154,8 @@ export const extractPflichtenheftCriteria = action({
 			const { result, usage, latencyMs, meta } = await analysePflichtenheft(pages);
 
 			// Create template from extracted criteria
-			const criteriaArray: Array<{
-				key: string;
-				title: string;
-				description?: string;
-				hints?: string;
-				answerType: "boolean";
-				weight: number;
-				required: boolean;
-			}> = [];
+			type TemplateCriterion = Doc<"templates">["criteria"][number];
+			const criteriaArray: TemplateCriterion[] = [];
 
 			// Add Muss-Kriterien
 			result.mussCriteria.forEach((criterion, idx) => {
@@ -2168,22 +2189,25 @@ export const extractPflichtenheftCriteria = action({
 
 			// Create template
 			const now = Date.now();
-			const templateId = await ctx.runMutation(internal.analysis.createTemplateFromExtraction, {
-				projectId: project._id,
-				orgId: identity.orgId,
-				createdBy: identity.userId,
-				name: `${project.name} - Kriterien`,
-				description: `Automatisch extrahierte Kriterien aus Pflichtenheft`,
-				language: "de",
-				version: "1.0",
-				criteria: criteriaArray,
-			});
+			const templateId: Id<"templates"> = await ctx.runMutation(
+				internal.analysis.createTemplateFromExtraction,
+				{
+					projectId: project._id,
+					orgId: identity.orgId,
+					createdBy: identity.userId,
+					name: `${project.name} - Kriterien`,
+					description: `Automatisch extrahierte Kriterien aus Pflichtenheft`,
+					language: "de",
+					version: "1.0",
+					criteria: criteriaArray,
+				},
+			);
 
 			// Mark run as finished
 			await ctx.runMutation(internal.analysis.finishPflichtenheftRun, {
 				runId: run._id,
 				projectId: project._id,
-				templateId: templateId as Id<"templates">,
+				templateId,
 				telemetry: {
 					provider: meta.provider,
 					model: meta.model,
@@ -2457,6 +2481,21 @@ Typ: ${criterion.required ? "Muss-Kriterium" : "Kann-Kriterium"}
 
 
 // Internal mutations for Offerten-Vergleich
+const templateCriterionInput = v.object({
+	key: v.string(),
+	title: v.string(),
+	description: v.optional(v.string()),
+	hints: v.optional(v.string()),
+	answerType: v.union(
+		v.literal("boolean"),
+		v.literal("skala"),
+		v.literal("text"),
+	),
+	weight: v.number(),
+	required: v.boolean(),
+	keywords: v.optional(v.array(v.string())),
+	sourcePages: v.optional(v.array(v.number())),
+});
 
 export const createTemplateFromExtraction = internalMutation({
 	args: {
@@ -2467,7 +2506,7 @@ export const createTemplateFromExtraction = internalMutation({
 		description: v.string(),
 		language: v.string(),
 		version: v.string(),
-		criteria: v.any(),
+		criteria: v.array(templateCriterionInput),
 	},
 	handler: async (ctx, args) => {
 		const now = Date.now();

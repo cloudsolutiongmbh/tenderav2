@@ -40,20 +40,20 @@ function OffertenSetupPage() {
 	const navigate = useNavigate();
 	const auth = useOrgAuth();
 
-const project = useQuery(
-	api.projects.get,
-	auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
-);
+	const project = useQuery(
+		api.projects.get,
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
+	);
 
-const documents = useQuery(
-	api.documents.listByProject,
-	auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
-);
+	const documents: Doc<"documents">[] | undefined = useQuery(
+		api.documents.listByProject,
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
+	);
 
-const offers = useQuery(
-	api.offers.list,
-	auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
-);
+	const offers: Doc<"offers">[] | undefined = useQuery(
+		api.offers.list,
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
+	);
 
 	const extractionStatus = useQuery(
 		api.analysis.getPflichtenheftExtractionStatus,

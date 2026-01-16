@@ -12,6 +12,10 @@ import type { CriteriaDetailData, CriteriaListItem } from "@/components/criteria
 import type { Citation } from "@/types/citation";
 import type { Id } from "@tendera/backend/convex/_generated/dataModel";
 
+type OfferMetric = typeof api.offers.computeMetrics._returnType extends Array<infer T>
+	? T
+	: never;
+
 export const Route = createFileRoute("/projekte/$id/offerten/$offerId")({
 	component: OfferDetailPage,
 });
@@ -35,7 +39,7 @@ function OfferDetailPage() {
 		auth.authReady ? { offerId: offerId as Id<"offers"> } : "skip",
 	) as OfferCriterionResultRecord[] | undefined;
 
-	const metrics = useQuery(
+	const metrics: OfferMetric[] | undefined = useQuery(
 		api.offers.computeMetrics,
 		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);

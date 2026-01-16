@@ -12,6 +12,7 @@ const criterionValidator = v.object({
 	weight: v.number(),
 	required: v.boolean(),
 	keywords: v.optional(v.array(v.string())),
+	sourcePages: v.optional(v.array(v.number())),
 });
 
 export const list = query({
@@ -137,6 +138,7 @@ function normalizeCriteriaKeys(
 		weight: number;
 		required: boolean;
 		keywords?: string[];
+		sourcePages?: number[];
 	}>,
 	previous?: Array<{
 		key: string;
@@ -147,6 +149,7 @@ function normalizeCriteriaKeys(
 		weight: number;
 		required: boolean;
 		keywords?: string[];
+		sourcePages?: number[];
 	}>,
 ) {
 	const seen = new Set<string>();

@@ -22,6 +22,7 @@ interface DocumentRecord {
 	storageId: string;
 	pageCount?: number;
 	textExtracted: boolean;
+	role?: "pflichtenheft" | "offer" | "support";
 	orgId: string;
 	createdAt: number;
 	updatedAt: number;
@@ -59,6 +60,7 @@ interface TemplateCriterion {
 	weight: number;
 	required: boolean;
 	keywords?: string[];
+	sourcePages?: number[];
 }
 
 interface AnalysisRunRecord {
