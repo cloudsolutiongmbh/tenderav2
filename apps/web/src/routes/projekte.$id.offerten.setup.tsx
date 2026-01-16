@@ -451,6 +451,7 @@ const handleExtract = async () => {
 			projectId={projectId}
 			projectName={project?.project.name}
 			customer={project?.project.customer ?? null}
+			projectType={project?.project.projectType}
 			section={{
 				id: "offerten-setup",
 				title: "Offerten-Vergleich Setup",

@@ -6,17 +6,24 @@ import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
-const projectNavItems = [
+const standardNavItems = [
 	{ id: "standard", label: "Standard", to: "/projekte/$id/standard" },
 	{ id: "kriterien", label: "Kriterien", to: "/projekte/$id/kriterien" },
-	{ id: "offerten", label: "Offertenvergleich", to: "/projekte/$id/offerten" },
 	{ id: "dokumente", label: "Dokumente", to: "/projekte/$id/dokumente" },
 	{ id: "kommentare", label: "Kommentare", to: "/projekte/$id/kommentare" },
 	{ id: "export", label: "Export", to: "/projekte/$id/export" },
 ] as const;
 
+const offertenNavItems = [
+	{ id: "offerten", label: "Offerten", to: "/projekte/$id/offerten" },
+	{ id: "offerten-setup", label: "Setup", to: "/projekte/$id/offerten/setup" },
+	{ id: "kommentare", label: "Kommentare", to: "/projekte/$id/kommentare" },
+	{ id: "export", label: "Export", to: "/projekte/$id/export" },
+] as const;
+
 type ProjectSectionId =
-	| (typeof projectNavItems)[number]["id"]
+	| (typeof standardNavItems)[number]["id"]
+	| (typeof offertenNavItems)[number]["id"]
 	| "offerten"
 	| "offerten-setup"
 	| "offer-detail";
@@ -25,6 +32,7 @@ interface ProjectSectionLayoutProps {
 	projectId: string;
 	projectName?: string | null;
 	customer?: string | null;
+	projectType?: "standard" | "offerten";
 	section: {
 		id: ProjectSectionId;
 		title: string;
@@ -42,6 +50,7 @@ export function ProjectSectionLayout({
 	projectId,
 	projectName,
 	customer,
+	projectType,
 	section,
 	statusBadge,
 	actions,
@@ -50,6 +59,10 @@ export function ProjectSectionLayout({
 	className,
 	contentClassName,
 }: ProjectSectionLayoutProps) {
+	const navItems =
+		projectType === "offerten" ? offertenNavItems : standardNavItems;
+	const activeId = section.id === "offer-detail" ? "offerten" : section.id;
+
 	return (
 		<div className={cn("mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-10 print:max-w-none print:px-12 print:py-8", className)}>
 			<Card className="shadow-sm print:border-none print:shadow-none print:bg-transparent">
@@ -82,8 +95,8 @@ export function ProjectSectionLayout({
 					</div>
 				</div>
 					<nav className="flex flex-wrap gap-2 border-t pt-3 print:hidden">
-						{projectNavItems.map((item) => {
-							const isActive = item.id === section.id;
+						{navItems.map((item) => {
+							const isActive = item.id === activeId;
 							return (
 								<Link
 									key={item.id}

@@ -15,6 +15,7 @@ import { Loader2, Trash2 } from "lucide-react";
 
 import { StatusBadge, type AnalysisStatus } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { AnalysisEmptyState } from "@/components/analysis-empty-state";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { SetupStepsCard } from "@/components/setup-steps-card";
@@ -114,6 +115,8 @@ function ProjectStandardPage() {
 	);
 	const analysisDone = runLatest?.status === "fertig";
 	const analysisRunning = runLatest?.status === "läuft" || runLatest?.status === "wartet";
+	const hasStandardResult = standardResult !== null;
+	const showEmptyState = !isLoading && !hasStandardResult;
 
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
@@ -141,6 +144,7 @@ function ProjectStandardPage() {
 			projectId={projectId}
 			projectName={projectMeta?.name}
 			customer={projectMeta?.customer ?? null}
+			projectType={projectMeta?.projectType}
 			section={{
 				id: "standard",
 				title: "Standard-Analyse",
@@ -172,103 +176,100 @@ function ProjectStandardPage() {
 					: null
 			}
 		>
-			<SetupStepsCard
-				title="So kommst du zum Ergebnis"
-				description="Der schnellste Weg zur Analyse in drei klaren Schritten."
-				steps={[
-					{
-						id: "upload",
-						status: documentsCount > 0 ? "done" : "current",
-						title: "Dokumente hochladen",
-						description:
-							documentsCount > 0
-								? `${documentsCount} Dokument${documentsCount === 1 ? "" : "e"} vorhanden.`
-								: "Lade Ausschreibungsunterlagen hoch, um die Analyse zu starten.",
-					},
-					{
-						id: "extract",
-						status: hasExtractedPages
-							? "done"
-							: documentsCount > 0
-								? "current"
-								: "pending",
-						title: "Text extrahieren",
-						description: hasExtractedPages
-							? "Text wurde extrahiert."
-							: documentsCount > 0
-								? "Textextraktion läuft oder steht noch aus."
-								: "Startet automatisch nach dem Upload.",
-					},
-					{
-						id: "analyse",
-						status: analysisDone
-							? "done"
-							: hasExtractedPages
-								? "current"
-								: "pending",
-						title: "Analyse durchführen",
-						description: analysisDone
-							? "Ergebnisse sind verfügbar."
-							: hasExtractedPages
-								? "Starte die Analyse im Dokumente-Bereich."
-								: "Sobald Text vorliegt, kannst du die Analyse starten.",
-					},
-				]}
-				actions={
-					<Button size="sm" asChild disabled={analysisRunning && !analysisDone}>
-						<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
-							Dokumente öffnen
-						</Link>
-					</Button>
-				}
-			/>
-			<section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-				<div className="space-y-6">
-					<SummaryCard
-						summary={standardResult?.summary ?? undefined}
-						isLoading={isLoading}
-						emptyState={{
-							title: "Noch keine Zusammenfassung",
-							description: analysisRunning
-								? "Die Analyse läuft gerade. Ergebnisse erscheinen hier automatisch."
-								: "Sobald eine Analyse abgeschlossen ist, erscheint hier die Zusammenfassung.",
-							action: (
-								<Button size="sm" variant="outline" asChild>
+			{showEmptyState ? (
+				<AnalysisEmptyState
+					title="Noch keine Analyse gestartet"
+					description={
+						analysisRunning
+							? "Die Analyse läuft gerade. Ergebnisse erscheinen hier automatisch."
+							: "Lade Dokumente hoch, extrahiere Text und starte die Analyse."
+					}
+					action={
+						<Button size="sm" asChild>
+							<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
+								Dokumente öffnen
+							</Link>
+						</Button>
+					}
+				/>
+			) : (
+				<>
+					{!analysisDone && (
+						<SetupStepsCard
+							title="So kommst du zum Ergebnis"
+							description="Der schnellste Weg zur Analyse in drei klaren Schritten."
+							steps={[
+								{
+									id: "upload",
+									status: documentsCount > 0 ? "done" : "current",
+									title: "Dokumente hochladen",
+									description:
+										documentsCount > 0
+											? `${documentsCount} Dokument${documentsCount === 1 ? "" : "e"} vorhanden.`
+											: "Lade Ausschreibungsunterlagen hoch, um die Analyse zu starten.",
+								},
+								{
+									id: "extract",
+									status: hasExtractedPages
+										? "done"
+										: documentsCount > 0
+											? "current"
+											: "pending",
+									title: "Text extrahieren",
+									description: hasExtractedPages
+										? "Text wurde extrahiert."
+										: documentsCount > 0
+											? "Textextraktion läuft oder steht noch aus."
+											: "Startet automatisch nach dem Upload.",
+								},
+								{
+									id: "analyse",
+									status: analysisDone
+										? "done"
+										: hasExtractedPages
+											? "current"
+											: "pending",
+									title: "Analyse durchführen",
+									description: analysisDone
+										? "Ergebnisse sind verfügbar."
+										: hasExtractedPages
+											? "Starte die Analyse im Dokumente-Bereich."
+											: "Sobald Text vorliegt, kannst du die Analyse starten.",
+								},
+							]}
+							actions={
+								<Button size="sm" asChild disabled={analysisRunning && !analysisDone}>
 									<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
 										Dokumente öffnen
 									</Link>
 								</Button>
-							),
-						}}
-					/>
-					<MilestonesCard
-						milestones={standardResult?.milestones ?? []}
-						isLoading={isLoading}
-						emptyState={{
-							title: "Noch keine Meilensteine",
-							description: "Nach der Analyse werden Termine und Fristen hier angezeigt.",
-						}}
-					/>
-					<RequirementsCard
-						requirements={standardResult?.requirements ?? []}
-						isLoading={isLoading}
-						emptyState={{
-							title: "Noch keine Anforderungen",
-							description: "Starte die Analyse, um Anforderungen auszuwerten.",
-						}}
-					/>
-				</div>
-				<div className="space-y-6">
-					<MetadataCard
-						metadata={standardResult?.metadata ?? []}
-						isLoading={isLoading}
-						emptyState={{
-							title: "Noch keine Metadaten",
-							description: "Projekt- und Ausschreibungsdaten erscheinen nach der Analyse.",
-						}}
-					/>
-				</div>
-			</section>
+							}
+						/>
+					)}
+					<section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+						<div className="space-y-6">
+							<SummaryCard
+								summary={standardResult?.summary ?? undefined}
+								isLoading={isLoading}
+							/>
+							<MilestonesCard
+								milestones={standardResult?.milestones ?? []}
+								isLoading={isLoading}
+							/>
+							<RequirementsCard
+								requirements={standardResult?.requirements ?? []}
+								isLoading={isLoading}
+							/>
+						</div>
+						<div className="space-y-6">
+							<MetadataCard
+								metadata={standardResult?.metadata ?? []}
+								isLoading={isLoading}
+							/>
+						</div>
+					</section>
+				</>
+			)}
 		</ProjectSectionLayout>
 	);
 }

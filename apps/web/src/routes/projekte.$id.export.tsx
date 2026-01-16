@@ -151,6 +151,7 @@ function ProjectExportPage() {
 			projectId={projectId}
 			projectName={projectMeta?.name}
 			customer={projectMeta?.customer ?? null}
+			projectType={projectMeta?.projectType}
 			section={{
 				id: "export",
 				title: "Export",

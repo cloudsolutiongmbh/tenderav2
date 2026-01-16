@@ -102,6 +102,7 @@ function OffertenIndexPage() {
 		() => (offers ?? []).filter((offer) => Boolean(offer.documentId)),
 		[offers],
 	);
+	const needsSetup = !hasTemplate || !pflichtenheft;
 	const runnableOffers = useMemo(
 		() =>
 			offersWithDocs.filter(
@@ -111,6 +112,7 @@ function OffertenIndexPage() {
 		[offersWithDocs],
 	);
 	const hasResults = (comparison?.criteria?.length ?? 0) > 0;
+	const showSetupGuide = needsSetup || offersCount === 0 || !hasResults;
 	const documentsById = useMemo(() => {
 		const map = new Map<Id<"documents">, Doc<"documents">>();
 		for (const doc of documents ?? []) {
@@ -205,49 +207,47 @@ function OffertenIndexPage() {
 			projectId={projectId}
 			projectName={project?.project.name}
 			customer={project?.project.customer ?? null}
+			projectType={project?.project.projectType}
 			section={{
 				id: "offerten",
 				title: "Offerten-Vergleich",
 				description: `${offers?.length ?? 0} Angebote im Vergleich`,
 			}}
 			actions={
-				<div className="flex flex-wrap gap-2">
+				needsSetup || offersWithDocs.length === 0 ? (
 					<Button size="sm" asChild>
 						<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
-							Setup öffnen
+							{offersWithDocs.length === 0 ? "Angebote hochladen" : "Setup öffnen"}
 						</Link>
 					</Button>
+				) : (
 					<Button
 						size="sm"
-						variant="outline"
 						onClick={handleCheckAll}
-						disabled={runnableOffers.length === 0 || isCheckingAll || !hasTemplate}
+						disabled={runnableOffers.length === 0 || isCheckingAll}
 					>
 						{isCheckingAll ? "Prüft ..." : "Alle Angebote prüfen"}
 					</Button>
-				</div>
+				)
 			}
 		>
 			<div className="space-y-6">
-				<SetupStepsCard
-					title="Offerten-Vergleich in 4 Schritten"
-					description="Vom Pflichtenheft bis zur Vergleichsmatrix – mit klaren Zwischenständen."
-					steps={setupSteps}
-					actions={
-						<>
-							<Button size="sm" asChild>
-								<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
-									Setup öffnen
-								</Link>
-							</Button>
-							<Button size="sm" variant="outline" asChild>
-								<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
-									Dokumente
-								</Link>
-							</Button>
-						</>
-					}
-				/>
+				{showSetupGuide ? (
+					<SetupStepsCard
+						title="Offerten-Vergleich in 4 Schritten"
+						description="Vom Pflichtenheft bis zur Vergleichsmatrix – mit klaren Zwischenständen."
+						steps={setupSteps}
+						actions={
+							<>
+								<Button size="sm" asChild>
+									<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
+										Setup öffnen
+									</Link>
+								</Button>
+							</>
+						}
+					/>
+				) : null}
 
 				{offers && offers.length === 0 ? (
 					<Card>

@@ -360,6 +360,7 @@ const handleExtractPflichtenheft = async () => {
 			projectId={projectId}
 			projectName={project?.project.name}
 			customer={project?.project.customer ?? null}
+			projectType={project?.project.projectType}
 			section={{
 				id: "dokumente",
 				title: "Dokumente",

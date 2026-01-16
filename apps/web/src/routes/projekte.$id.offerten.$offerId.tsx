@@ -155,6 +155,7 @@ function OfferDetailPage() {
 			projectId={projectId}
 			projectName={project?.project.name}
 			customer={project?.project.customer ?? null}
+			projectType={project?.project.projectType}
 			section={{
 				id: "offer-detail",
 				title: offer?.anbieterName ?? "Angebot",

@@ -160,6 +160,7 @@ function ProjectCriteriaPage() {
 	);
 	const analysisDone = runSummary?.status === "fertig";
 	const analysisRunning = runSummary?.status === "läuft" || runSummary?.status === "wartet";
+	const hasCriteriaResults = isCriteriaResult(criteriaResult?.result);
 
     const [isAssigningTemplate, setAssigningTemplate] = useState(false);
     const [isDeleting, setDeleting] = useState(false);
@@ -230,6 +231,7 @@ function ProjectCriteriaPage() {
 
 	const isLoading =
 		project === undefined || criteriaResult === undefined || documents === undefined || templates === undefined;
+	const showEmptyState = !isLoading && !hasCriteriaResults;
 	const currentTemplate = useMemo(
 		() => templates?.find((entry) => entry._id === project?.project.templateId) ?? null,
 		[templates, project?.project.templateId],
@@ -240,6 +242,7 @@ function ProjectCriteriaPage() {
 			projectId={projectId}
 			projectName={project?.project.name}
 			customer={project?.project.customer ?? null}
+			projectType={project?.project.projectType}
 			section={{
 				id: "kriterien",
 				title: "Kriterien-Analyse",
@@ -275,52 +278,54 @@ function ProjectCriteriaPage() {
 					: null
 			}
 		>
-			<SetupStepsCard
-				title="Kriterien-Analyse in 3 Schritten"
-				description="Wähle einen Katalog, lade Dokumente hoch und starte die Prüfung."
-				steps={[
-					{
-						id: "upload",
-						status: documentsCount > 0 ? "done" : "current",
-						title: "Dokumente hochladen",
-						description:
-							documentsCount > 0
-								? `${documentsCount} Dokument${documentsCount === 1 ? "" : "e"} vorhanden.`
-								: "Lade Ausschreibungsunterlagen hoch, um fortzufahren.",
-					},
-					{
-						id: "template",
-						status: hasTemplate ? "done" : documentsCount > 0 ? "current" : "pending",
-						title: "Kriterienkatalog wählen",
-						description: hasTemplate
-							? "Katalog ist zugewiesen."
-							: "Wähle einen Kriterienkatalog für die Prüfung.",
-					},
-					{
-						id: "analyse",
-						status: analysisDone
-							? "done"
-							: hasTemplate && hasPages
-								? "current"
-								: "pending",
-						title: "Analyse starten",
-						description: analysisDone
-							? "Ergebnisse sind verfügbar."
-							: analysisRunning
-								? "Analyse läuft gerade."
+			{!analysisDone && (
+				<SetupStepsCard
+					title="Kriterien-Analyse in 3 Schritten"
+					description="Wähle einen Katalog, lade Dokumente hoch und starte die Prüfung."
+					steps={[
+						{
+							id: "upload",
+							status: documentsCount > 0 ? "done" : "current",
+							title: "Dokumente hochladen",
+							description:
+								documentsCount > 0
+									? `${documentsCount} Dokument${documentsCount === 1 ? "" : "e"} vorhanden.`
+									: "Lade Ausschreibungsunterlagen hoch, um fortzufahren.",
+						},
+						{
+							id: "template",
+							status: hasTemplate ? "done" : documentsCount > 0 ? "current" : "pending",
+							title: "Kriterienkatalog wählen",
+							description: hasTemplate
+								? "Katalog ist zugewiesen."
+								: "Wähle einen Kriterienkatalog für die Prüfung.",
+						},
+						{
+							id: "analyse",
+							status: analysisDone
+								? "done"
 								: hasTemplate && hasPages
-									? "Starte die Analyse mit einem Klick."
-									: "Sobald Textseiten vorhanden sind, kannst du starten.",
-					},
-				]}
-				actions={
-					<Button size="sm" variant="outline" asChild>
-						<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
-							Dokumente öffnen
-						</Link>
-					</Button>
-				}
-			/>
+									? "current"
+									: "pending",
+							title: "Analyse starten",
+							description: analysisDone
+								? "Ergebnisse sind verfügbar."
+								: analysisRunning
+									? "Analyse läuft gerade."
+									: hasTemplate && hasPages
+										? "Starte die Analyse mit einem Klick."
+										: "Sobald Textseiten vorhanden sind, kannst du starten.",
+						},
+					]}
+					actions={
+						<Button size="sm" variant="outline" asChild>
+							<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
+								Dokumente öffnen
+							</Link>
+						</Button>
+					}
+				/>
+			)}
 
 			<TemplateAssignmentCard
 				isLoading={templates === undefined}
@@ -330,10 +335,14 @@ function ProjectCriteriaPage() {
 				isAssigning={isAssigningTemplate}
 			/>
 
-			{!hasPages ? (
+			{showEmptyState ? (
 				<AnalysisEmptyState
-					title="Noch keine extrahierten Seiten"
-					description="Lade Dokumente hoch und starte die Textextraktion, damit die Kriterienanalyse laufen kann."
+					title="Noch keine Kriterien-Ergebnisse"
+					description={
+						analysisRunning
+							? "Die Analyse läuft gerade. Ergebnisse erscheinen hier automatisch."
+							: "Sobald die Kriterienanalyse abgeschlossen ist, erscheinen die Ergebnisse hier."
+					}
 					action={
 						<Button size="sm" variant="outline" asChild>
 							<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
@@ -344,35 +353,37 @@ function ProjectCriteriaPage() {
 				/>
 			) : null}
 
-			<Card>
-				<CardHeader>
-					<CardTitle>Kriterien</CardTitle>
-					<CardDescription>
-						Ergebnisse der Analyse – Muss-Kriterien zuerst, danach optionale Anforderungen.
-					</CardDescription>
-					<div className="flex flex-wrap gap-2 pt-3 text-xs text-muted-foreground">
-						<StatusPill label="Gefunden" tone="success" value={statusBreakdown.gefunden} />
-						<StatusPill label="Teilweise" tone="warn" value={statusBreakdown.teilweise} />
-						<StatusPill label="Nicht gefunden" tone="error" value={statusBreakdown.nicht_gefunden} />
-						<StatusPill label="Nicht bewertet" tone="muted" value={statusBreakdown.unbekannt} />
-					</div>
-				</CardHeader>
-				<CardContent>
-					{items.length === 0 ? (
-						<AnalysisEmptyState
-							title="Noch keine Kriterien ausgewertet"
-							description="Sobald die Analyse abgeschlossen ist, erscheinen hier die Ergebnisse."
-						/>
-					) : activeCriterion ? (
-						<div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-							<div className="lg:sticky lg:top-28">
-								<CriteriaList items={items} selectedId={selectedId} onSelect={setSelectedId} />
-							</div>
-							<CriteriaDetail criterion={activeCriterion} />
+			{!showEmptyState && (
+				<Card>
+					<CardHeader>
+						<CardTitle>Kriterien</CardTitle>
+						<CardDescription>
+							Ergebnisse der Analyse – Muss-Kriterien zuerst, danach optionale Anforderungen.
+						</CardDescription>
+						<div className="flex flex-wrap gap-2 pt-3 text-xs text-muted-foreground">
+							<StatusPill label="Gefunden" tone="success" value={statusBreakdown.gefunden} />
+							<StatusPill label="Teilweise" tone="warn" value={statusBreakdown.teilweise} />
+							<StatusPill label="Nicht gefunden" tone="error" value={statusBreakdown.nicht_gefunden} />
+							<StatusPill label="Nicht bewertet" tone="muted" value={statusBreakdown.unbekannt} />
 						</div>
-					) : null}
-				</CardContent>
-			</Card>
+					</CardHeader>
+					<CardContent>
+						{items.length === 0 ? (
+							<AnalysisEmptyState
+								title="Noch keine Kriterien ausgewertet"
+								description="Sobald die Analyse abgeschlossen ist, erscheinen hier die Ergebnisse."
+							/>
+						) : activeCriterion ? (
+							<div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+								<div className="lg:sticky lg:top-28">
+									<CriteriaList items={items} selectedId={selectedId} onSelect={setSelectedId} />
+								</div>
+								<CriteriaDetail criterion={activeCriterion} />
+							</div>
+						) : null}
+					</CardContent>
+				</Card>
+			)}
 		</ProjectSectionLayout>
 	);
 }
