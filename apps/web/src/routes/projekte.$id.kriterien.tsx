@@ -50,7 +50,7 @@ function ProjectCriteriaPage() {
 			}
 			: "skip",
 	);
-	const documents = useQuery(
+	const documents: Doc<"documents">[] | undefined = useQuery(
 		api.documents.listByProject,
 		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
@@ -58,7 +58,7 @@ function ProjectCriteriaPage() {
 		api.templates.list,
 		auth.authReady ? undefined : "skip",
 	) as TemplateOption[] | undefined;
-	const templateDoc = useQuery(
+	const templateDoc: Doc<"templates"> | undefined = useQuery(
 		api.templates.get,
 		auth.authReady && project?.project.templateId
 			? { templateId: project.project.templateId as Id<"templates"> }

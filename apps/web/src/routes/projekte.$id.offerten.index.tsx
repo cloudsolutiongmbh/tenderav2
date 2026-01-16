@@ -19,6 +19,27 @@ import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import type { Doc, Id } from "@tendera/backend/convex/_generated/dataModel";
 
+type OfferMetric = typeof api.offers.computeMetrics._returnType extends Array<infer T>
+	? T
+	: never;
+
+type OfferStatus = Doc<"offerCriteriaResults">["status"];
+
+type OfferComparison = {
+	criteria: Array<{
+		key: string;
+		title: string;
+		required: boolean;
+		weight: number;
+	}>;
+	offers: Array<{
+		_id: Id<"offers">;
+		anbieterName: string;
+		latestStatus?: Doc<"offers">["latestStatus"];
+	}>;
+	matrix: Record<string, Record<string, { status: OfferStatus }>>;
+};
+
 export const Route = createFileRoute("/projekte/$id/offerten/")({
 	component: OffertenIndexPage,
 });
@@ -32,22 +53,22 @@ function OffertenIndexPage() {
 		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
-	const offers = useQuery(
+	const offers: Doc<"offers">[] | undefined = useQuery(
 		api.offers.list,
 		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
-	const documents = useQuery(
+	const documents: Doc<"documents">[] | undefined = useQuery(
 		api.documents.listByProject,
 		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
-	const metrics = useQuery(
+	const metrics: OfferMetric[] | undefined = useQuery(
 		api.offers.computeMetrics,
 		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
 
-	const comparison = useQuery(
+	const comparison: OfferComparison | undefined = useQuery(
 		api.offerCriteria.getComparison,
 		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
@@ -237,7 +258,7 @@ function OffertenIndexPage() {
 
 interface OfferCardProps {
 	offer: Doc<"offers">;
-	metric?: Doc<"offers">["metrics"][number];
+	metric?: OfferMetric;
 	projectId: string;
 	document?: Doc<"documents">;
 }
@@ -411,7 +432,7 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 }
 
 interface ComparisonTableProps {
-	comparison: typeof api.offerCriteria.getComparison._returnType;
+	comparison: OfferComparison;
 }
 
 function ComparisonTable({ comparison }: ComparisonTableProps) {

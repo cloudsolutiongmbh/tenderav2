@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { getIdentityOrThrow } from "./auth";
 
 export const create = mutation({
@@ -216,7 +216,7 @@ function deriveNameFromFilename(filename: string) {
 	return withoutExtension.trim() || filename;
 }
 
-export const syncRunStatus = mutation({
+export const syncRunStatus = internalMutation({
 	args: {
 		offerId: v.id("offers"),
 		runId: v.id("analysisRuns"),
@@ -258,10 +258,11 @@ export const computeMetrics = query({
 			.collect();
 
 		const metricsPromises = offers.map(async (offer) => {
-			const results = offer.latestRunId
+			const latestRunId = offer.latestRunId;
+			const results = latestRunId
 				? await ctx.db
 						.query("offerCriteriaResults")
-						.withIndex("by_runId", (q) => q.eq("runId", offer.latestRunId))
+						.withIndex("by_runId", (q) => q.eq("runId", latestRunId))
 						.collect()
 				: [];
 

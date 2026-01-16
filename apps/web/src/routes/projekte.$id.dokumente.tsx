@@ -16,7 +16,7 @@ import { AuthStateNotice } from "@/components/auth-state-notice";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { cn } from "@/lib/utils";
-import type { Id } from "@tendera/backend/convex/_generated/dataModel";
+import type { Doc, Id } from "@tendera/backend/convex/_generated/dataModel";
 
 const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "400", 10);
 
@@ -38,7 +38,7 @@ function ProjectDocumentsPage() {
 		api.projects.get,
 		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);
-	const documents = useQuery(
+	const documents: Doc<"documents">[] | undefined = useQuery(
 		api.documents.listByProject,
 		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
 	);

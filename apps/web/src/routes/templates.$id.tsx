@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
-import type { Id } from "@tendera/backend/convex/_generated/dataModel";
+import type { Doc, Id } from "@tendera/backend/convex/_generated/dataModel";
 
 interface EditableCriterion {
 	localId: string;
@@ -61,7 +61,7 @@ function TemplateDetailPage() {
 	const navigate = useNavigate();
 	const auth = useOrgAuth();
 
-	const template = useQuery(
+	const template: Doc<"templates"> | null | undefined = useQuery(
 		api.templates.get,
 		auth.authReady && !isNew ? { templateId: id as Id<"templates"> } : "skip",
 	);

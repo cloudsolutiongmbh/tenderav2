@@ -8,7 +8,8 @@
 		"build": "vite build",
 		"serve": "vite preview",
 		"start": "vite",
-		"check-types": "tsc --noEmit"
+		"routes:gen": "node ./scripts/generate-route-tree.mjs",
+		"check-types": "npm run routes:gen && tsc --noEmit"
 	},
 	"dependencies": {
 		"@clerk/clerk-react": "^5.45.0",
