@@ -541,19 +541,17 @@ export const getPflichtenheftExtractionStatus = query({
 			throw new ConvexError("Projekt nicht gefunden.");
 		}
 
-		const runs = await ctx.db
+		const latest = await ctx.db
 			.query("analysisRuns")
-			.withIndex("by_projectId_type", (q) =>
+			.withIndex("by_projectId_type_createdAt", (q) =>
 				q.eq("projectId", projectId).eq("type", "pflichtenheft_extract"),
 			)
-			.collect();
+			.order("desc")
+			.first();
 
-		if (runs.length === 0) {
+		if (!latest) {
 			return { run: null } as const;
 		}
-
-		runs.sort((a, b) => b.createdAt - a.createdAt);
-		const latest = runs[0];
 
 		return {
 			run: {

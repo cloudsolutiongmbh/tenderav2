@@ -198,6 +198,7 @@ export default defineSchema({
 	})
 		.index("by_projectId", ["projectId"])
 		.index("by_projectId_type", ["projectId", "type"])
+		.index("by_projectId_type_createdAt", ["projectId", "type", "createdAt"])
 		.index("by_orgId", ["orgId"])
 		.index("by_offerId_type", ["offerId", "type"]),
 	analysisResults: defineTable({
