@@ -35,6 +35,10 @@ const OFFER_PAGE_LIMIT = Math.max(
         1,
         Number.parseInt(process.env.CONVEX_OFFER_PAGE_LIMIT ?? "8"),
 );
+const MAX_PROMPT_CHARS = Math.max(
+	10_000,
+	Number.parseInt(process.env.CONVEX_MAX_PROMPT_CHARS ?? "1200000"),
+);
 
 const MAX_ACTIVE_RUNS_PER_ORG = Math.max(
 	1,
@@ -896,13 +900,14 @@ Hinweise:
 - Nicht eindeutig belegbare Inhalte sind wegzulassen oder mit \`null\` zu kennzeichnen.
 - Bei unvollständigem oder fehlendem Kontext sind alle Felder gemäß oben zu behandeln und keine Fehlerhinweise oder Meldungen auszugeben.`;
 
+    const cappedText = limitPromptText(chunk.text, MAX_PROMPT_CHARS);
     const userPrompt = `Lies die folgenden Seiten und liefere genau EIN valides JSON-Objekt (kein Array, keine Erklärungen, keine Kommentare, kein Fließtext).
 
 Dokumente in diesem Chunk:
 ${documentLegend}
 
 Seiten:
-${chunk.text}`;
+${cappedText}`;
 
     const { parsed, usage, latencyMs, provider, model } = await callLlmForJson({
         systemPrompt,
@@ -938,7 +943,8 @@ async function analyseCriterion(
 ) {
 	const systemPrompt =
 		"Du bist ein deutschsprachiger Assistent zur Bewertung von Kriterien in Ausschreibungsunterlagen. Antworte ausschliesslich auf Deutsch und nur auf Basis der bereitgestellten Textauszüge.";
-    const userPrompt = `Bewerte das folgende Kriterium anhand der bereitgestellten Dokumentseiten. Liefere GENAU EIN JSON-OBJEKT (kein Array, keine Erklärungen, kein Markdown) mit folgender Struktur:
+	const cappedContext = limitPromptText(documentContext, MAX_PROMPT_CHARS);
+	const userPrompt = `Bewerte das folgende Kriterium anhand der bereitgestellten Dokumentseiten. Liefere GENAU EIN JSON-OBJEKT (kein Array, keine Erklärungen, kein Markdown) mit folgender Struktur:
 
 {\n  \"status\": \"gefunden\" | \"nicht_gefunden\" | \"teilweise\",\n  \"comment\": string | null,\n  \"answer\": string | null,\n  \"score\": number | null,\n  \"citations\": [ { \"documentKey\": string, \"page\": number, \"quote\": string } ]\n}
 
@@ -958,7 +964,7 @@ Pflicht: ${criterion.required ? "ja" : "nein"}
 Schlüsselwörter: ${(criterion.keywords ?? []).join(", ") || "-"}
 
 Dokumentseiten:
-${documentContext}`;
+${cappedContext}`;
 
     const { parsed, usage, latencyMs, provider, model } = await callLlmForJson({
         systemPrompt,
@@ -1104,24 +1110,51 @@ export const getDocPagesByIds = internalQuery({
 });
 
 export const getDocPageIdsForProject = internalQuery({
-    args: {
-        projectId: v.id("projects"),
-    },
-    handler: async (ctx, { projectId }) => {
-        const documents = await ctx.db
-            .query("documents")
-            .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
-            .collect();
-        const ids: Id<"docPages">[] = [];
-        for (const doc of documents) {
-            const pages = await ctx.db
-                .query("docPages")
-                .withIndex("by_documentId", (q) => q.eq("documentId", doc._id))
-                .collect();
-            for (const page of pages) ids.push(page._id);
-        }
-        return ids;
-    },
+	args: {
+		projectId: v.id("projects"),
+	},
+	handler: async (ctx, { projectId }) => {
+		const documents = await ctx.db
+			.query("documents")
+			.withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+			.collect();
+		const ids: Id<"docPages">[] = [];
+		for (const doc of documents) {
+			const pages = await ctx.db
+				.query("docPages")
+				.withIndex("by_documentId", (q) => q.eq("documentId", doc._id))
+				.collect();
+			for (const page of pages) ids.push(page._id);
+		}
+		return ids;
+	},
+});
+
+export const getPflichtenheftDocPageIdsForProject = internalQuery({
+	args: {
+		projectId: v.id("projects"),
+		orgId: v.string(),
+	},
+	handler: async (ctx, { projectId, orgId }) => {
+		const documents = await ctx.db
+			.query("documents")
+			.withIndex("by_projectId_role", (q) =>
+				q.eq("projectId", projectId).eq("role", "pflichtenheft"),
+			)
+			.filter((q) => q.eq(q.field("orgId"), orgId))
+			.collect();
+
+		const ids: Id<"docPages">[] = [];
+		for (const doc of documents) {
+			const pages = await ctx.db
+				.query("docPages")
+				.withIndex("by_documentId", (q) => q.eq("documentId", doc._id))
+				.filter((q) => q.eq(q.field("orgId"), orgId))
+				.collect();
+			for (const page of pages) ids.push(page._id);
+		}
+		return ids;
+	},
 });
 
 export const acquireRunForAction = internalMutation({
@@ -1655,7 +1688,7 @@ export const runOfferCriterionWorker = internalAction({
                 required: job.required,
                 weight: job.weight,
                 keywords: job.keywords ?? [],
-            });
+            }).slice(0, OFFER_PAGE_LIMIT);
 
             const { result, usage, latencyMs, meta } = await checkOfferCriterion(
                 orderedPages,
@@ -2055,7 +2088,7 @@ function buildDocumentContext(
 		})
 		.join("\n\n");
 
-	return `${legend}\n\n${body}`;
+	return limitPromptText(`${legend}\n\n${body}`, MAX_PROMPT_CHARS);
 }
 
 function tryParseJson(text: string): any {
@@ -2096,6 +2129,15 @@ function truncate(s: string, n: number) {
   return s.length > n ? s.slice(0, n) + "…" : s;
 }
 
+function limitPromptText(text: string, maxChars: number) {
+	if (text.length <= maxChars) {
+		return text;
+	}
+	const truncated = text.slice(0, maxChars);
+	const omitted = text.length - maxChars;
+	return `${truncated}\n\n[TRUNCATED ${omitted} CHARS]`;
+}
+
 // ========== OFFERTEN-VERGLEICH ACTIONS ==========
 
 type PflichtenheftExtractArgs = {
@@ -2133,8 +2175,8 @@ export const extractPflichtenheftCriteria: RegisteredAction<
 
 		// Get Pflichtenheft document pages
 			const docPageIds = (await ctx.runQuery(
-				internal.analysis.getDocPageIdsForProject,
-				{ projectId: args.projectId },
+				internal.analysis.getPflichtenheftDocPageIdsForProject,
+				{ projectId: args.projectId, orgId: identity.orgId },
 			)) as Id<"docPages">[];
 
 		if (docPageIds.length === 0) {
@@ -2265,6 +2307,9 @@ export const checkOfferAgainstCriteria = action({
 		if (!offer || offer.orgId !== identity.orgId) {
 			throw new ConvexError("Angebot nicht gefunden.");
 		}
+		if (offer.projectId !== project._id) {
+			throw new ConvexError("Angebot gehört nicht zu diesem Projekt.");
+		}
 
 		if (!offer.documentId) {
 			throw new ConvexError("Kein Dokument für dieses Angebot hochgeladen.");
@@ -2366,8 +2411,9 @@ Vorgaben:
 	const pagesText = pages
 		.map((page) => `Seite ${page.page}:\n${page.text}`)
 		.join("\n\n");
+	const cappedPagesText = limitPromptText(pagesText, MAX_PROMPT_CHARS);
 
-	const userPrompt = `Analysiere das folgende Pflichtenheft und extrahiere alle Muss-Kriterien und Kann-Kriterien:\n\n${pagesText}`;
+	const userPrompt = `Analysiere das folgende Pflichtenheft und extrahiere alle Muss-Kriterien und Kann-Kriterien:\n\n${cappedPagesText}`;
 
 	const start = Date.now();
 	const { text, usage, provider, model } = await callLlm({
@@ -2432,6 +2478,7 @@ Vorgaben:
 	const pagesText = pages
 		.map((page) => `Seite ${page.page}:\n${page.text}`)
 		.join("\n\n");
+	const cappedPagesText = limitPromptText(pagesText, MAX_PROMPT_CHARS);
 
 	const criterionText = `
 Kriterium: ${criterion.title}
@@ -2440,7 +2487,7 @@ ${criterion.hints ? `Hinweise: ${criterion.hints}` : ""}
 Typ: ${criterion.required ? "Muss-Kriterium" : "Kann-Kriterium"}
 `;
 
-	const userPrompt = `Prüfe das folgende Angebot gegen dieses Kriterium:\n\n${criterionText}\n\nAngebot:\n\n${pagesText}`;
+	const userPrompt = `Prüfe das folgende Angebot gegen dieses Kriterium:\n\n${criterionText}\n\nAngebot:\n\n${cappedPagesText}`;
 
 	const start = Date.now();
 	const { text, usage, provider, model } = await callLlm({

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getIdentityOrThrow } from "./auth";
+import type { Doc } from "./_generated/dataModel";
 
 export const getByOffer = query({
 	args: {
@@ -16,10 +17,16 @@ export const getByOffer = query({
 			return [];
 		}
 
+		const latestRunId = offer.latestRunId;
+		if (!latestRunId) {
+			return [];
+		}
+
 		const results = await ctx.db
 			.query("offerCriteriaResults")
-			.withIndex("by_offerId", (q) => q.eq("offerId", args.offerId))
+			.withIndex("by_runId", (q) => q.eq("runId", latestRunId))
 			.filter((q) => q.eq(q.field("orgId"), orgId))
+			.filter((q) => q.eq(q.field("offerId"), args.offerId))
 			.collect();
 
 		return results;
@@ -75,12 +82,21 @@ export const getComparison = query({
 			.filter((q) => q.eq(q.field("orgId"), orgId))
 			.collect();
 
-		// Get all results for this project
-		const results = await ctx.db
-			.query("offerCriteriaResults")
-			.withIndex("by_projectId", (q) => q.eq("projectId", args.projectId))
-			.filter((q) => q.eq(q.field("orgId"), orgId))
-			.collect();
+		// Get results for the latest run of each offer
+		const results: Doc<"offerCriteriaResults">[] = [];
+		for (const offer of offers) {
+			const latestRunId = offer.latestRunId;
+			if (!latestRunId) {
+				continue;
+			}
+			const offerResults = await ctx.db
+				.query("offerCriteriaResults")
+				.withIndex("by_runId", (q) => q.eq("runId", latestRunId))
+				.filter((q) => q.eq(q.field("orgId"), orgId))
+				.filter((q) => q.eq(q.field("offerId"), offer._id))
+				.collect();
+			results.push(...offerResults);
+		}
 
 		// Build unique criteria list
 		const criteriaMap = new Map<string, {
