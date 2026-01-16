@@ -332,7 +332,7 @@ npm run build
 npx convex dashboard
 
 # Deploy backend to production
-npx convex deploy --prod
+npx convex deploy
 
 # View logs
 npx convex logs
@@ -457,7 +457,7 @@ tests/
 ### Pre-Deployment Checklist
 
 **Security:**
-- [ ] Fix all CRITICAL issues in `SECURITY_AND_ISSUES.md`
+- [ ] Resolve open CRITICAL issues in `SECURITY_AND_ISSUES.md` (currently #4, #5) or document risk acceptance
 - [ ] Rotate API keys from development
 - [ ] Enable Clerk production settings
 - [ ] Configure CSP headers
@@ -478,7 +478,7 @@ tests/
 
 ```bash
 cd packages/backend
-npx convex deploy --prod
+npx convex deploy
 ```
 
 **Output:**

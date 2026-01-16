@@ -20,7 +20,7 @@ This index provides quick access to all documentation for the Tendera codebase. 
 
 **For External Code Reviewers:**
 1. Read [ARCHITECTURE.md](./ARCHITECTURE.md) - System design and components
-2. Review [SECURITY_AND_ISSUES.md](./SECURITY_AND_ISSUES.md) - **CRITICAL:** Known security issues
+2. Review [SECURITY_AND_ISSUES.md](./SECURITY_AND_ISSUES.md) - open security issues and mitigations
 3. Examine [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) - Data model
 4. Check [API_REFERENCE.md](./API_REFERENCE.md) - Backend API documentation
 
@@ -140,24 +140,24 @@ This index provides quick access to all documentation for the Tendera codebase. 
 **Audience:** Security Engineers, DevOps, Management, Code Reviewers
 **Purpose:** Security model and known vulnerabilities
 
-**⚠️ CRITICAL: Contains 5 production-blocking issues that MUST be fixed!**
+**⚠️ IMPORTANT: Open CRITICAL issues (#4, #5) must be resolved or risk-accepted before production.**
 
 **Contents:**
 - Multi-tenant security model
 - Authentication and authorization flow
-- **5 CRITICAL Issues:**
-  1. Weak token generation fallback
-  2. Infinite loop in token creation
-  3. No transaction for project delete
-  4. Unbounded queries causing memory overflow
-- **10 HIGH Priority Issues**
-- **10 MEDIUM Priority Issues**
+- **CRITICAL issues (current status):**
+  - ✅ Fixed: Weak token generation fallback (Issue #2)
+  - ✅ Fixed: Infinite loop in token creation (Issue #3)
+  - ⚠️ Open: No transaction for project delete (Issue #4)
+  - ⚠️ Open: Unbounded queries causing memory overflow (Issue #5)
+- **High priority issues**
+- **Medium priority issues**
 - Mitigation roadmap
 - Security best practices
 
 **Action Items:**
-- Review all CRITICAL issues before production
-- Implement fixes in Sprint 1 (Week 1)
+- Review open CRITICAL issues before production
+- Track mitigations in the roadmap
 - Security audit of deployment environment
 
 ---

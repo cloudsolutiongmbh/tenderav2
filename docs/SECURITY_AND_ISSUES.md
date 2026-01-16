@@ -1,7 +1,7 @@
 # Security Model and Known Issues
 
-**Last Updated:** 2025-09-30
-**Status:** ⚠️ REQUIRES IMMEDIATE ATTENTION BEFORE PRODUCTION
+**Last Updated:** 2026-01-16
+**Status:** ⚠️ ATTENTION BEFORE PRODUCTION (Open Critical: Issue #4, Issue #5)
 
 ---
 
@@ -132,30 +132,14 @@ export const resolve = query({
 ### 🔴 Issue #2: Weak Token Generation Fallback
 
 **Severity:** CRITICAL - Security Vulnerability
-**File:** `packages/backend/convex/shares.ts:147-156`
-**Status:** ⚠️ UNFIXED
+**File:** `packages/backend/convex/shares.ts`
+**Status:** ✅ FIXED (2026-01-16)
 
-**Description:**
-```typescript
-function fillRandomBytes(bytes: Uint8Array) {
-  if (typeof globalThis.crypto?.getRandomValues === "function") {
-    globalThis.crypto.getRandomValues(bytes);
-    return;
-  }
+**Resolution:**
+Fallback to `Math.random()` was removed. Token generation now requires
+cryptographically secure randomness and fails fast if unavailable.
 
-  // ❌ FALLBACK: Math.random() is NOT cryptographically secure
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = Math.floor(Math.random() * 256);
-  }
-}
-```
-
-**Impact:**
-- Fallback uses `Math.random()`, which is **predictable**
-- Attacker can brute-force or guess share tokens
-- Unauthorized access to tender documents
-
-**Fix:**
+**Current Implementation:**
 ```typescript
 function fillRandomBytes(bytes: Uint8Array) {
   if (typeof globalThis.crypto?.getRandomValues === "function") {
@@ -169,64 +153,52 @@ function fillRandomBytes(bytes: Uint8Array) {
 }
 ```
 
-**Priority:** 🔴 IMMEDIATE
+**Priority:** ✅ RESOLVED
 
 ---
 
 ### 🔴 Issue #3: Infinite Loop in Token Generation
 
 **Severity:** CRITICAL - Availability
-**File:** `packages/backend/convex/shares.ts:27-36`
-**Status:** ⚠️ UNFIXED
+**File:** `packages/backend/convex/shares.ts`
+**Status:** ✅ FIXED (2026-01-16)
 
-**Description:**
+**Resolution:**
+Token generation now uses a bounded retry loop with a hard cap.
+
+**Current Implementation:**
 ```typescript
-let token: string;
-while (true) {  // ❌ No timeout protection
-  token = generateShareToken();
-  const existing = await ctx.db.query("shares")
-    .withIndex("by_token", (q) => q.eq("token", token))
+const MAX_TOKEN_GENERATION_ATTEMPTS = 10;
+let token: string | null = null;
+for (let attempt = 0; attempt < MAX_TOKEN_GENERATION_ATTEMPTS; attempt++) {
+  const candidate = generateShareToken();
+  const existing = await ctx.db
+    .query("shares")
+    .withIndex("by_token", (q) => q.eq("token", candidate))
     .first();
-  if (!existing) break;
-}
-```
-
-**Impact:**
-- If collision rate is high (shouldn't happen with 256 bits, but...)
-- Race condition: Two simultaneous requests can both see `!existing` and insert duplicate tokens
-- DoS vector: Attacker creates many shares simultaneously
-
-**Fix:**
-```typescript
-const MAX_RETRIES = 10;
-let token: string;
-
-for (let i = 0; i < MAX_RETRIES; i++) {
-  token = generateShareToken();
-  const existing = await ctx.db.query("shares")
-    .withIndex("by_token", (q) => q.eq("token", token))
-    .first();
-
-  if (!existing) break;
-
-  if (i === MAX_RETRIES - 1) {
-    throw new Error("Token-Generierung fehlgeschlagen nach mehreren Versuchen.");
+  if (!existing) {
+    token = candidate;
+    break;
   }
 }
+if (!token) {
+  throw new Error("Token-Generierung fehlgeschlagen nach mehreren Versuchen.");
+}
 ```
 
-**Priority:** 🔴 IMMEDIATE
+**Priority:** ✅ RESOLVED
 
 ---
 
 ### 🔴 Issue #4: No Transaction for Project Delete
 
 **Severity:** CRITICAL - Data Integrity
-**File:** `packages/backend/convex/projects.ts:209-297`
-**Status:** ⚠️ UNFIXED
+**File:** `packages/backend/convex/projects.ts`
+**Status:** ⚠️ OPEN (Non-atomic deletes)
 
 **Description:**
-Cascade delete uses sequential operations without transaction:
+Cascade delete uses sequential operations without a transaction. Storage delete
+failures are logged but not retried or recorded for cleanup:
 
 ```typescript
 export const remove = mutation({
@@ -242,7 +214,7 @@ export const remove = mutation({
       try {
         await ctx.storage.delete(doc.storageId);
       } catch (e) {
-        // ❌ Ignored! Storage leak
+        console.error(e); // logged, but no retry / tracking
       }
       await ctx.db.delete(doc._id);
     }
@@ -255,12 +227,12 @@ export const remove = mutation({
 
 **Impact:**
 - If operation fails mid-way → orphaned records
-- Storage delete failures ignored → blob leaks
+- Storage delete failures logged only → potential blob leaks
 - Inconsistent database state
 
 **Mitigation (Convex doesn't support transactions):**
 1. Delete in reverse FK dependency order
-2. Log failed storage deletions for manual cleanup
+2. Track failed storage deletions for manual cleanup
 3. Consider soft-delete pattern
 
 ```typescript
@@ -288,8 +260,8 @@ if (failedDeletes.length > 0) {
 ### 🔴 Issue #5: Unbounded Query - Memory Overflow
 
 **Severity:** CRITICAL - Performance/Availability
-**File:** `packages/backend/convex/analysis.ts:339-344`
-**Status:** ⚠️ UNFIXED
+**File:** `packages/backend/convex/analysis.ts` (getLatest)
+**Status:** ⚠️ OPEN
 
 **Description:**
 ```typescript
@@ -308,13 +280,13 @@ const runs = await ctx.db
 
 **Fix:**
 ```typescript
-const runs = await ctx.db
+const latest = await ctx.db
   .query("analysisRuns")
-  .withIndex("by_projectId_type", (q) =>
+  .withIndex("by_projectId_type_createdAt", (q) =>
     q.eq("projectId", args.projectId).eq("type", args.type),
   )
-  .order("desc") // Newest first
-  .take(100);    // Reasonable limit
+  .order("desc")
+  .first();
 ```
 
 **Priority:** 🔴 CRITICAL
@@ -326,17 +298,18 @@ const runs = await ctx.db
 ### 🟠 Issue #6: Prompt Injection + Token Bombing
 
 **Severity:** HIGH - Security + Cost
-**File:** `packages/backend/convex/analysis.ts:540-543`
-**Status:** ⚠️ UNFIXED
+**File:** `packages/backend/convex/analysis.ts`
+**Status:** ⚠️ PARTIALLY MITIGATED (size caps in place)
 
 **Description:**
 User-controlled document text directly injected into LLM prompt:
 
 ```typescript
+const cappedText = limitPromptText(chunk.text, MAX_PROMPT_CHARS);
 const userPrompt = `Lies die folgenden Seiten...
 
 Seiten:
-${chunk.text}`;  // ❌ Unsanitized user content
+${cappedText}`;  // ❌ Unsanitized user content (only truncated)
 ```
 
 **Attack Vectors:**
@@ -348,13 +321,13 @@ ${chunk.text}`;  // ❌ Unsanitized user content
 - Manipulated analysis results
 - API key exhaustion
 
-**Mitigation:**
-```typescript
-const MAX_PROMPT_CHARS = 50000;
-if (chunk.text.length > MAX_PROMPT_CHARS) {
-  throw new ConvexError("Dokumentseite zu groß für Analyse.");
-}
+**Current Mitigation:**
+- Prompt size is capped via `CONVEX_MAX_PROMPT_CHARS` (default `1200000`) and
+  enforced by `limitPromptText(...)` in analysis flows.
+- Offer analysis limits pages via `CONVEX_OFFER_PAGE_LIMIT` (default `8`).
 
+**Additional Mitigation (recommended):**
+```typescript
 // Basic prompt injection sanitization
 const sanitized = chunk.text
   .replace(/ignore (all )?previous instructions/gi, "[REDACTED]")
@@ -370,21 +343,27 @@ const userPrompt = `...\n\n${sanitized}`;
 ### 🟠 Issue #7: Race Condition in Queue Limit
 
 **Severity:** HIGH - Cost Control
-**File:** `packages/backend/convex/projects.ts:137-178`
+**File:** `packages/backend/convex/projects.ts`
 **Status:** ⚠️ UNFIXED
 
 **Description:**
 Queue limit check is not atomic:
 
 ```typescript
-const activeRuns = await ctx.db.query("analysisRuns")...collect();
-const activeCount = activeRuns.filter(
-  (run) => run.status === "wartet" || run.status === "läuft"
-).length;
+const projectRuns = await ctx.db
+  .query("analysisRuns")
+  .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
+  .collect();
+const orgRuns = await ctx.db
+  .query("analysisRuns")
+  .withIndex("by_orgId", (q) => q.eq("orgId", identity.orgId))
+  .collect();
 
-const shouldStartImmediately = activeCount < maxActive;
+const shouldStartImmediately =
+  projectActiveCount < maxActivePerProject &&
+  orgActiveCount < maxActivePerOrg;
 
-// ❌ Race: Two simultaneous calls both see activeCount < maxActive
+// ❌ Race: Two simultaneous calls both see counts below limits
 const runId = await ctx.db.insert("analysisRuns", {
   status: shouldStartImmediately ? "läuft" : "wartet",
 });
@@ -403,17 +382,17 @@ const runId = await ctx.db.insert("analysisRuns", {
 
 ---
 
-### 🟠 Issue #8-10: Frontend Memory Leaks
+### 🟠 Issue #8-10: Frontend Memory/Resource Leaks (Needs Verification)
 
 **Files:** Multiple files in `apps/web/src/`
-**Status:** ⚠️ UNFIXED
+**Status:** 🔍 UNVERIFIED
 
-**Issues:**
-- File upload without cleanup on unmount
-- Unbounded state arrays (offer uploads)
-- Missing error boundaries for PDF extraction
+**Notes:**
+- No recent audit has confirmed these issues in the current codebase.
+- Past concerns included cleanup on unmount for uploads, unbounded state growth,
+  and missing error boundaries during PDF extraction.
 
-**Priority:** 🟠 HIGH
+**Priority:** 🟠 HIGH (if confirmed)
 
 ---
 
@@ -421,7 +400,7 @@ const runId = await ctx.db.insert("analysisRuns", {
 
 ### 🟡 Issue #11: Cross-Project Document Attachment
 
-**File:** `packages/backend/convex/offers.ts:135-158`
+**File:** `packages/backend/convex/offers.ts`
 **Status:** ⚠️ UNFIXED
 
 **Description:**
@@ -440,7 +419,7 @@ if (document.projectId !== offer.projectId) {
 
 ### 🟡 Issue #12: N+1 Query Performance
 
-**File:** `packages/backend/convex/projects.ts:299-339`
+**File:** `packages/backend/convex/projects.ts`
 **Status:** ⚠️ UNFIXED
 
 **Description:**
@@ -455,11 +434,12 @@ Load all runs for org, group by projectId in-memory.
 
 ### 🟡 Issue #13-20: UX and Performance Issues
 
-**Examples:**
-- XSS risk in citation display (unsanitized quotes)
-- Missing rate limits per user
-- window.location.href instead of React Router navigation
-- Unhandled promise rejections
+**Examples (verified in current codebase):**
+- Missing rate limits per user (no per-user throttling)
+- `window.location.href` used for navigation in several routes (full reload)
+
+**Examples (needs audit):**
+- Unhandled promise rejections in UI flows (not recently validated)
 
 **Priority:** 🟡 MEDIUM
 
@@ -471,26 +451,25 @@ Load all runs for org, group by projectId in-memory.
 
 **Must complete before production:**
 
-1. ✅ Fix auth bypass (Issue #1)
-2. ✅ Fix weak token generation (Issue #2)
-3. ✅ Fix infinite loop in token creation (Issue #3)
-4. ✅ Add transaction-like logic for project delete (Issue #4)
-5. ✅ Add query limits to prevent memory overflow (Issue #5)
+1. ✅ Fix weak token generation (Issue #2)
+2. ✅ Fix infinite loop in token creation (Issue #3)
+3. ⚠️ Address non-atomic project delete (Issue #4) or document risk acceptance
+4. ⚠️ Add query limits to prevent memory overflow (Issue #5)
 
 **Verification:**
 - Security audit of deployment environment
-- Manual testing of all 5 scenarios
+- Manual testing of all critical scenarios
 - Staging deployment validation
 
 ---
 
 ### Sprint 2 (Week 2) - HIGH PRIORITY
 
-6. ✅ Implement prompt injection sanitization (Issue #6)
-7. ✅ Fix queue race condition (Issue #7)
-8. ✅ Fix frontend memory leaks (Issues #8-10)
-9. ✅ Add comprehensive error boundaries
-10. ✅ Implement client-side upload abort logic
+6. ⚠️ Partial: prompt size caps added, sanitization still missing (Issue #6)
+7. ⚠️ Fix queue race condition (Issue #7)
+8. 🔍 Verify frontend memory/resource leaks (Issues #8-10)
+9. ⬜ Add comprehensive error boundaries
+10. ⬜ Implement client-side upload abort logic
 
 ---
 
@@ -498,7 +477,7 @@ Load all runs for org, group by projectId in-memory.
 
 11. ⬜ Fix cross-project document attachment
 12. ⬜ Optimize N+1 queries
-13. ⬜ Add XSS sanitization for citations
+13. ⬜ Verify citation rendering is escaped; add sanitization if needed
 14. ⬜ Implement rate limiting
 15. ⬜ Improve UX (loading states, error messages)
 
@@ -581,7 +560,7 @@ Load all runs for org, group by projectId in-memory.
 
 ### Performance
 
-1. **Analysis queue:** Max 1 concurrent run per org (configurable)
+1. **Analysis queue:** Max concurrent runs per org = `CONVEX_MAX_ACTIVE_RUNS_PER_ORG` (default 10); per project = `CONVEX_MAX_ACTIVE_RUNS_PER_PROJECT` (default 1)
 2. **Document size:** 400 MB limit per project (client + server enforcement)
 3. **Share link expiration:** Manual cleanup (no auto-delete)
 
@@ -601,9 +580,9 @@ Load all runs for org, group by projectId in-memory.
 ---
 
 **Document maintained by:** Cloud Solution GmbH
-**Last Security Review:** 2025-09-30
-**Next Review:** 2025-10-15 (after Issue #1-5 fixes deployed)
+**Last Security Review:** 2026-01-16
+**Next Review:** 2026-02-15
 
 ---
 
-**⚠️ REMINDER: Issues #1-5 MUST be fixed before production deployment!**
+**⚠️ REMINDER: Open CRITICAL issues (#4, #5) must be resolved or explicitly risk-accepted before production deployment.**
