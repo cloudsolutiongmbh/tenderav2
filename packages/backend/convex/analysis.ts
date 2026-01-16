@@ -23,6 +23,15 @@ const MAX_PARALLEL_OFFER_JOBS = Math.max(
 	1,
 	Number.parseInt(process.env.CONVEX_MAX_PARALLEL_OFFER_JOBS ?? "3"),
 );
+const MAX_PARALLEL_OFFER_JOBS_PER_RUN = Math.min(
+	MAX_PARALLEL_OFFER_JOBS,
+	Math.max(
+		1,
+		Number.parseInt(
+			process.env.CONVEX_MAX_PARALLEL_OFFER_JOBS_PER_RUN ?? "2",
+		),
+	),
+);
 const OFFER_JOB_TIMEOUT_MS = Math.max(
 	30_000,
 	Number.parseInt(process.env.CONVEX_OFFER_JOB_TIMEOUT_MS ?? "120000"),
@@ -1822,12 +1831,27 @@ export const kickQueue = internalAction({
                 if (available > 0) {
                     const runIds = await ctx.runQuery(
                         internal.analysis.listOfferRunsWithPendingJobs,
-                        { orgId, limit: available },
+                        { orgId, limit: Math.max(1, available) },
                     );
-                    for (const runId of runIds) {
-                        await ctx.scheduler.runAfter(0, internal.analysis.runOfferCriterionWorker, {
-                            runId,
-                        });
+                    if (runIds.length > 0) {
+                        const perRunLimit = Math.min(
+                            MAX_PARALLEL_OFFER_JOBS_PER_RUN,
+                            available,
+                        );
+                        let remaining = available;
+                        for (let round = 0; round < perRunLimit && remaining > 0; round++) {
+                            for (const runId of runIds) {
+                                if (remaining <= 0) {
+                                    break;
+                                }
+                                await ctx.scheduler.runAfter(
+                                    0,
+                                    internal.analysis.runOfferCriterionWorker,
+                                    { runId },
+                                );
+                                remaining -= 1;
+                            }
+                        }
                     }
                 }
             }
