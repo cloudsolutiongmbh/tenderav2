@@ -340,8 +340,8 @@ const handleExtractPflichtenheft = async () => {
 		}
 	};
 
-	const standardStatus = standardRun?.run?.status ?? "wartet";
-	const criteriaStatus = criteriaRun?.run?.status ?? "wartet";
+	const standardStatus = standardRun?.run?.status ?? "bereit";
+	const criteriaStatus = criteriaRun?.run?.status ?? "bereit";
 	const headerStatuses = (
 		<div className="flex flex-wrap items-center gap-3 text-xs font-medium text-muted-foreground">
 			<span className="flex items-center gap-2">

@@ -147,7 +147,7 @@ function ProjectStandardPage() {
 				description:
 					"Automatisch extrahierte Zusammenfassung, Meilensteine, Anforderungen und wichtige Informationen aus Ihren Dokumenten.",
 			}}
-			statusBadge={<StatusBadge status={runSummary?.status ?? "wartet"} />}
+			statusBadge={runSummary?.status ? <StatusBadge status={runSummary.status} /> : <StatusBadge status="bereit" />}
 			actions={
 				<Button
 					variant="ghost"

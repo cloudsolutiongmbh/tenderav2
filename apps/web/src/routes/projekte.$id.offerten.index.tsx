@@ -337,6 +337,17 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 	const isRunActive = runStatus === "läuft" || runStatus === "wartet";
 	const hasRun = progress?.run != null;
 	const badgeStatus = progress?.run?.status ?? offer.latestStatus ?? null;
+	const statusLine = hasRun
+		? runStatus === "läuft"
+			? "Prüfung läuft – Ergebnisse werden laufend aktualisiert."
+			: runStatus === "wartet"
+				? "Prüfung ist in der Warteschlange."
+				: runStatus === "fertig"
+					? "Prüfung abgeschlossen."
+					: "Prüfung fehlgeschlagen."
+		: offer.documentId
+			? "Bereit zur Prüfung."
+			: "Kein Angebotsdokument hinterlegt.";
 
 	const handleCheck = async () => {
 		if (!offer.documentId) {
@@ -420,10 +431,19 @@ function OfferCard({ offer, metric, projectId, document }: OfferCardProps) {
 						Dokument: {document.filename}
 					</p>
 				) : (
-					<p className="text-sm text-muted-foreground">
-						Noch kein Dokument hochgeladen.
-					</p>
+					<div className="space-y-1">
+						<p className="text-sm text-muted-foreground">
+							Noch kein Dokument hochgeladen.
+						</p>
+						<Button size="sm" variant="outline" asChild>
+							<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
+								Dokument hinzufügen
+							</Link>
+						</Button>
+					</div>
 				)}
+
+				<p className="text-xs text-muted-foreground">{statusLine}</p>
 
 			{hasRun && totalCount > 0 && (
 				<div className="space-y-2 text-xs">

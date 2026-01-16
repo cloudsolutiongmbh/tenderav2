@@ -188,7 +188,7 @@ function ProjektePage() {
 				) : viewMode === "board" ? (
 					projects.map(({ project, runs }) => {
 						const latestRun = getLatestRun(runs);
-						const latestStatus = latestRun?.status ?? "wartet";
+						const latestStatus = latestRun?.status ?? "bereit";
 						const latestType = getRunLabel(runs, latestRun?._id);
 						const updatedAt = formatDate(
 							getLastActivity(project.createdAt, runs),
@@ -287,7 +287,7 @@ function ProjektePage() {
 				) : (
 					projects.map(({ project, runs }) => {
 						const latestRun = getLatestRun(runs);
-						const latestStatus = latestRun?.status ?? "wartet";
+						const latestStatus = latestRun?.status ?? "bereit";
 						const latestType = getRunLabel(runs, latestRun?._id);
 						const updatedAt = formatDate(
 							getLastActivity(project.createdAt, runs),

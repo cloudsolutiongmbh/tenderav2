@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useAction, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -55,6 +55,7 @@ function OfferDetailPage() {
 
 	const metric = metrics?.find((m) => m.offerId === offerId);
 	const erfuellungsGrad = metric?.erfuellungsGrad ?? 0;
+	const hasDocument = Boolean(offer?.documentId);
 
 	const sortedResults = useMemo(() => {
 		const items = (results ?? []) as OfferCriterionResult[];
@@ -131,6 +132,10 @@ function OfferDetailPage() {
 	}, [sortedResults]);
 
 	const handleCheck = async () => {
+		if (!hasDocument) {
+			toast.error("Bitte zuerst ein Angebotsdokument hochladen.");
+			return;
+		}
 		setChecking(true);
 		try {
 			await checkOffer({
@@ -195,6 +200,24 @@ function OfferDetailPage() {
 					</Card>
 				)}
 
+				{!hasDocument && (
+					<Card>
+						<CardContent className="py-6">
+							<AnalysisEmptyState
+								title="Angebotsdokument fehlt"
+								description="Lade das Angebotsdokument hoch, damit die Kriterienprüfung starten kann."
+								action={
+									<Button size="sm" asChild>
+										<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
+											Dokument hochladen
+										</Link>
+									</Button>
+								}
+							/>
+						</CardContent>
+					</Card>
+				)}
+
 				{sortedResults.length === 0 ? (
 					<Card>
 						<CardContent className="py-6">
@@ -202,7 +225,7 @@ function OfferDetailPage() {
 								title="Noch keine Ergebnisse"
 								description="Starte die Prüfung, um die Kriterienauswertung zu sehen."
 								action={
-									<Button size="sm" onClick={handleCheck} disabled={isChecking}>
+									<Button size="sm" onClick={handleCheck} disabled={isChecking || !hasDocument}>
 										{isChecking ? "Prüft ..." : "Prüfung starten"}
 									</Button>
 								}
