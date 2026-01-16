@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ import { StatusBadge, type AnalysisStatus } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
+import { SetupStepsCard } from "@/components/setup-steps-card";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import type { Citation } from "@/types/citation";
 import type { Id } from "@tendera/backend/convex/_generated/dataModel";
@@ -74,6 +75,10 @@ function ProjectStandardPage() {
 			}
 			: "skip",
 	);
+	const documents = useQuery(
+		api.documents.listByProject,
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
+	);
 	const runLatest = standard?.run;
 
 	const standardResult = useMemo<StandardResult | null>(() => {
@@ -99,6 +104,16 @@ function ProjectStandardPage() {
 	const projectMeta = project?.project;
 	const isLoading = project === undefined || standard === undefined;
 	const [isDeleting, setDeleting] = useState(false);
+	const documentsCount = documents?.length ?? 0;
+	const hasExtractedPages = useMemo(
+		() =>
+			(documents ?? []).some(
+				(doc) => doc.textExtracted && (doc.pageCount ?? 0) > 0,
+			),
+		[documents],
+	);
+	const analysisDone = runLatest?.status === "fertig";
+	const analysisRunning = runLatest?.status === "läuft" || runLatest?.status === "wartet";
 
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
@@ -157,25 +172,100 @@ function ProjectStandardPage() {
 					: null
 			}
 		>
+			<SetupStepsCard
+				title="So kommst du zum Ergebnis"
+				description="Der schnellste Weg zur Analyse in drei klaren Schritten."
+				steps={[
+					{
+						id: "upload",
+						status: documentsCount > 0 ? "done" : "current",
+						title: "Dokumente hochladen",
+						description:
+							documentsCount > 0
+								? `${documentsCount} Dokument${documentsCount === 1 ? "" : "e"} vorhanden.`
+								: "Lade Ausschreibungsunterlagen hoch, um die Analyse zu starten.",
+					},
+					{
+						id: "extract",
+						status: hasExtractedPages
+							? "done"
+							: documentsCount > 0
+								? "current"
+								: "pending",
+						title: "Text extrahieren",
+						description: hasExtractedPages
+							? "Text wurde extrahiert."
+							: documentsCount > 0
+								? "Textextraktion läuft oder steht noch aus."
+								: "Startet automatisch nach dem Upload.",
+					},
+					{
+						id: "analyse",
+						status: analysisDone
+							? "done"
+							: hasExtractedPages
+								? "current"
+								: "pending",
+						title: "Analyse durchführen",
+						description: analysisDone
+							? "Ergebnisse sind verfügbar."
+							: hasExtractedPages
+								? "Starte die Analyse im Dokumente-Bereich."
+								: "Sobald Text vorliegt, kannst du die Analyse starten.",
+					},
+				]}
+				actions={
+					<Button size="sm" asChild disabled={analysisRunning && !analysisDone}>
+						<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
+							Dokumente öffnen
+						</Link>
+					</Button>
+				}
+			/>
 			<section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
 				<div className="space-y-6">
 					<SummaryCard
 						summary={standardResult?.summary ?? undefined}
 						isLoading={isLoading}
+						emptyState={{
+							title: "Noch keine Zusammenfassung",
+							description: analysisRunning
+								? "Die Analyse läuft gerade. Ergebnisse erscheinen hier automatisch."
+								: "Sobald eine Analyse abgeschlossen ist, erscheint hier die Zusammenfassung.",
+							action: (
+								<Button size="sm" variant="outline" asChild>
+									<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
+										Dokumente öffnen
+									</Link>
+								</Button>
+							),
+						}}
 					/>
 					<MilestonesCard
 						milestones={standardResult?.milestones ?? []}
 						isLoading={isLoading}
+						emptyState={{
+							title: "Noch keine Meilensteine",
+							description: "Nach der Analyse werden Termine und Fristen hier angezeigt.",
+						}}
 					/>
 					<RequirementsCard
 						requirements={standardResult?.requirements ?? []}
 						isLoading={isLoading}
+						emptyState={{
+							title: "Noch keine Anforderungen",
+							description: "Starte die Analyse, um Anforderungen auszuwerten.",
+						}}
 					/>
 				</div>
 				<div className="space-y-6">
 					<MetadataCard
 						metadata={standardResult?.metadata ?? []}
 						isLoading={isLoading}
+						emptyState={{
+							title: "Noch keine Metadaten",
+							description: "Projekt- und Ausschreibungsdaten erscheinen nach der Analyse.",
+						}}
 					/>
 				</div>
 			</section>

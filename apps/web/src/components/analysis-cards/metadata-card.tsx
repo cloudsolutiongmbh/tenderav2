@@ -1,5 +1,8 @@
+import type { ReactNode } from "react";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnalysisEmptyState } from "@/components/analysis-empty-state";
 import type { Citation } from "@/types/citation";
 
 export interface MetadataItem {
@@ -11,9 +14,14 @@ export interface MetadataItem {
 interface MetadataCardProps {
 	metadata?: MetadataItem[];
 	isLoading?: boolean;
+	emptyState?: {
+		title: string;
+		description: string;
+		action?: ReactNode;
+	};
 }
 
-export function MetadataCard({ metadata = [], isLoading }: MetadataCardProps) {
+export function MetadataCard({ metadata = [], isLoading, emptyState }: MetadataCardProps) {
 	return (
 		<Card>
 			<CardHeader>
@@ -47,11 +55,14 @@ export function MetadataCard({ metadata = [], isLoading }: MetadataCardProps) {
 						))}
 					</dl>
 				) : (
-					<div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
-						<p className="text-xs text-muted-foreground">
-							Noch keine Metadaten vorhanden. Starte die Analyse unter "Dokumente".
-						</p>
-					</div>
+					<AnalysisEmptyState
+						title={emptyState?.title ?? "Noch keine Metadaten"}
+						description={
+							emptyState?.description ??
+							"Führe die Analyse durch, um Projektdaten hier zu sehen."
+						}
+						action={emptyState?.action}
+					/>
 				)}
 			</CardContent>
 		</Card>

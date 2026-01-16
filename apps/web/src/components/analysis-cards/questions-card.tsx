@@ -1,5 +1,8 @@
+import type { ReactNode } from "react";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnalysisEmptyState } from "@/components/analysis-empty-state";
 import type { Citation } from "@/types/citation";
 
 export interface QuestionItem {
@@ -10,9 +13,14 @@ export interface QuestionItem {
 interface QuestionsCardProps {
 	questions?: QuestionItem[];
 	isLoading?: boolean;
+	emptyState?: {
+		title: string;
+		description: string;
+		action?: ReactNode;
+	};
 }
 
-export function QuestionsCard({ questions = [], isLoading }: QuestionsCardProps) {
+export function QuestionsCard({ questions = [], isLoading, emptyState }: QuestionsCardProps) {
 	return (
 		<Card>
 			<CardHeader>
@@ -39,11 +47,14 @@ export function QuestionsCard({ questions = [], isLoading }: QuestionsCardProps)
 						))}
 					</ul>
 				) : (
-					<div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
-						<p className="text-xs text-muted-foreground">
-							Noch keine Fragen vorhanden. Starte die Analyse unter "Dokumente".
-						</p>
-					</div>
+					<AnalysisEmptyState
+						title={emptyState?.title ?? "Noch keine Fragen"}
+						description={
+							emptyState?.description ??
+							"Führe die Analyse durch, um offene Punkte zu sehen."
+						}
+						action={emptyState?.action}
+					/>
 				)}
 			</CardContent>
 		</Card>

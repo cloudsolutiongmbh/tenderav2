@@ -1,16 +1,24 @@
+import type { ReactNode } from "react";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnalysisEmptyState } from "@/components/analysis-empty-state";
 
 interface SummaryCardProps {
 	summary?: string;
 	isLoading?: boolean;
+	emptyState?: {
+		title: string;
+		description: string;
+		action?: ReactNode;
+	};
 }
 
-export function SummaryCard({ summary, isLoading }: SummaryCardProps) {
+export function SummaryCard({ summary, isLoading, emptyState }: SummaryCardProps) {
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Executive Summary</CardTitle>
+				<CardTitle>Zusammenfassung</CardTitle>
 				<CardDescription>Überblick über die wichtigsten Punkte der Ausschreibung.</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -23,14 +31,14 @@ export function SummaryCard({ summary, isLoading }: SummaryCardProps) {
 				) : summary ? (
 					<p className="whitespace-pre-wrap text-sm leading-relaxed">{summary}</p>
 				) : (
-					<div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center">
-						<p className="text-sm font-medium text-foreground">
-							Keine Analyse vorhanden
-						</p>
-						<p className="mt-1 text-xs text-muted-foreground">
-							Gehe zu "Dokumente", um Dateien hochzuladen und die Analyse zu starten.
-						</p>
-					</div>
+					<AnalysisEmptyState
+						title={emptyState?.title ?? "Noch keine Zusammenfassung"}
+						description={
+							emptyState?.description ??
+							"Starte die Analyse, sobald Dokumente und Textseiten verfügbar sind."
+						}
+						action={emptyState?.action}
+					/>
 				)}
 			</CardContent>
 		</Card>

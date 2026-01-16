@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
+import { toast } from "sonner";
 
 import { api } from "@tendera/backend/convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { AnalysisEmptyState } from "@/components/analysis-empty-state";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
@@ -23,6 +26,8 @@ export const Route = createFileRoute("/projekte/$id/offerten/$offerId")({
 function OfferDetailPage() {
 	const { id: projectId, offerId } = Route.useParams();
 	const auth = useOrgAuth();
+	const checkOffer = useAction(api.analysis.checkOfferAgainstCriteria);
+	const [isChecking, setChecking] = useState(false);
 
 	const project = useQuery(
 		api.projects.get,
@@ -125,6 +130,21 @@ function OfferDetailPage() {
 		);
 	}, [sortedResults]);
 
+	const handleCheck = async () => {
+		setChecking(true);
+		try {
+			await checkOffer({
+				projectId: projectId as Id<"projects">,
+				offerId: offerId as Id<"offers">,
+			});
+			toast.success("Prüfung gestartet.");
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Prüfung fehlgeschlagen.");
+		} finally {
+			setChecking(false);
+		}
+	};
+
 	return (
 		<ProjectSectionLayout
 			projectId={projectId}
@@ -177,8 +197,16 @@ function OfferDetailPage() {
 
 				{sortedResults.length === 0 ? (
 					<Card>
-						<CardContent className="py-8 text-center text-sm text-muted-foreground">
-							Noch keine Ergebnisse verfügbar. Starte die Prüfung im Offerten-Vergleich.
+						<CardContent className="py-6">
+							<AnalysisEmptyState
+								title="Noch keine Ergebnisse"
+								description="Starte die Prüfung, um die Kriterienauswertung zu sehen."
+								action={
+									<Button size="sm" onClick={handleCheck} disabled={isChecking}>
+										{isChecking ? "Prüft ..." : "Prüfung starten"}
+									</Button>
+								}
+							/>
 						</CardContent>
 					</Card>
 				) : (

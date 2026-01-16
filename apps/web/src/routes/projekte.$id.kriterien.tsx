@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -13,7 +13,9 @@ import { StatusBadge, type AnalysisStatus } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AuthStateNotice } from "@/components/auth-state-notice";
+import { AnalysisEmptyState } from "@/components/analysis-empty-state";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
+import { SetupStepsCard } from "@/components/setup-steps-card";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import type { Doc, Id } from "@tendera/backend/convex/_generated/dataModel";
 
@@ -151,10 +153,13 @@ function ProjectCriteriaPage() {
 	}, [computedCriteria, selectedId]);
 
 	const hasTemplate = Boolean(project?.project.templateId);
+	const documentsCount = documents?.length ?? 0;
 	const hasPages = useMemo(
 		() => (documents ?? []).some((doc) => doc.textExtracted && (doc.pageCount ?? 0) > 0),
 		[documents],
 	);
+	const analysisDone = runSummary?.status === "fertig";
+	const analysisRunning = runSummary?.status === "läuft" || runSummary?.status === "wartet";
 
     const [isAssigningTemplate, setAssigningTemplate] = useState(false);
     const [isDeleting, setDeleting] = useState(false);
@@ -270,6 +275,53 @@ function ProjectCriteriaPage() {
 					: null
 			}
 		>
+			<SetupStepsCard
+				title="Kriterien-Analyse in 3 Schritten"
+				description="Wähle einen Katalog, lade Dokumente hoch und starte die Prüfung."
+				steps={[
+					{
+						id: "upload",
+						status: documentsCount > 0 ? "done" : "current",
+						title: "Dokumente hochladen",
+						description:
+							documentsCount > 0
+								? `${documentsCount} Dokument${documentsCount === 1 ? "" : "e"} vorhanden.`
+								: "Lade Ausschreibungsunterlagen hoch, um fortzufahren.",
+					},
+					{
+						id: "template",
+						status: hasTemplate ? "done" : documentsCount > 0 ? "current" : "pending",
+						title: "Kriterienkatalog wählen",
+						description: hasTemplate
+							? "Katalog ist zugewiesen."
+							: "Wähle einen Kriterienkatalog für die Prüfung.",
+					},
+					{
+						id: "analyse",
+						status: analysisDone
+							? "done"
+							: hasTemplate && hasPages
+								? "current"
+								: "pending",
+						title: "Analyse starten",
+						description: analysisDone
+							? "Ergebnisse sind verfügbar."
+							: analysisRunning
+								? "Analyse läuft gerade."
+								: hasTemplate && hasPages
+									? "Starte die Analyse mit einem Klick."
+									: "Sobald Textseiten vorhanden sind, kannst du starten.",
+					},
+				]}
+				actions={
+					<Button size="sm" variant="outline" asChild>
+						<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
+							Dokumente öffnen
+						</Link>
+					</Button>
+				}
+			/>
+
 			<TemplateAssignmentCard
 				isLoading={templates === undefined}
 				templates={templates ?? []}
@@ -279,11 +331,17 @@ function ProjectCriteriaPage() {
 			/>
 
 			{!hasPages ? (
-				<Card>
-					<CardContent className="text-sm text-muted-foreground">
-						Es wurden noch keine Dokumentseiten extrahiert. Lade Dokumente im Reiter „Dokumente“ hoch, um die Analyse zu starten.
-					</CardContent>
-				</Card>
+				<AnalysisEmptyState
+					title="Noch keine extrahierten Seiten"
+					description="Lade Dokumente hoch und starte die Textextraktion, damit die Kriterienanalyse laufen kann."
+					action={
+						<Button size="sm" variant="outline" asChild>
+							<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
+								Dokumente öffnen
+							</Link>
+						</Button>
+					}
+				/>
 			) : null}
 
 			<Card>
@@ -301,14 +359,10 @@ function ProjectCriteriaPage() {
 				</CardHeader>
 				<CardContent>
 					{items.length === 0 ? (
-						<div className="rounded-lg border border-dashed border-border bg-muted/30 p-8 text-center">
-							<p className="text-sm font-medium text-foreground">
-								Noch keine Kriterien vorhanden
-							</p>
-							<p className="mt-1 text-xs text-muted-foreground">
-								Weise einen Kriterienkatalog zu oder starte eine Analyse, um Kriterien anzuzeigen.
-							</p>
-						</div>
+						<AnalysisEmptyState
+							title="Noch keine Kriterien ausgewertet"
+							description="Sobald die Analyse abgeschlossen ist, erscheinen hier die Ergebnisse."
+						/>
 					) : activeCriterion ? (
 						<div className="grid gap-6 lg:grid-cols-[320px_1fr]">
 							<div className="lg:sticky lg:top-28">

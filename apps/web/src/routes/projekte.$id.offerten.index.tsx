@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, Circle, CircleDot } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { api } from "@tendera/backend/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 import { StatusBadge } from "@/components/status-badge";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
+import { SetupStepsCard } from "@/components/setup-steps-card";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
 import type { Doc, Id } from "@tendera/backend/convex/_generated/dataModel";
 
@@ -47,6 +48,8 @@ export const Route = createFileRoute("/projekte/$id/offerten/")({
 function OffertenIndexPage() {
 	const { id: projectId } = Route.useParams();
 	const auth = useOrgAuth();
+	const checkOffer = useAction(api.analysis.checkOfferAgainstCriteria);
+	const [isCheckingAll, setCheckingAll] = useState(false);
 
 	const project = useQuery(
 		api.projects.get,
@@ -95,6 +98,19 @@ function OffertenIndexPage() {
 	);
 	const pflichtenheftExtracted = Boolean(pflichtenheft?.textExtracted);
 	const offersCount = offers?.length ?? 0;
+	const offersWithDocs = useMemo(
+		() => (offers ?? []).filter((offer) => Boolean(offer.documentId)),
+		[offers],
+	);
+	const runnableOffers = useMemo(
+		() =>
+			offersWithDocs.filter(
+				(offer) =>
+					offer.latestStatus !== "läuft" && offer.latestStatus !== "wartet",
+			),
+		[offersWithDocs],
+	);
+	const hasResults = (comparison?.criteria?.length ?? 0) > 0;
 	const documentsById = useMemo(() => {
 		const map = new Map<Id<"documents">, Doc<"documents">>();
 		for (const doc of documents ?? []) {
@@ -102,12 +118,6 @@ function OffertenIndexPage() {
 		}
 		return map;
 	}, [documents]);
-	const stepIcons = {
-		done: <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden />,
-		current: <CircleDot className="h-4 w-4 text-primary" aria-hidden />,
-		pending: <Circle className="h-4 w-4 text-muted-foreground" aria-hidden />,
-	} as const;
-
 	const setupSteps = [
 		{
 			id: "upload",
@@ -153,10 +163,42 @@ function OffertenIndexPage() {
 			description: hasTemplate
 				? offersCount > 0
 					? `${offersCount} Angebote erfasst.`
-					: "Füge nun Angebote hinzu und starte den Vergleich."
+					: "Füge Angebote hinzu und starte den Vergleich."
 				: "Verfügbar nach der Kriterien-Extraktion.",
 		},
 	] as const;
+
+	const handleCheckAll = async () => {
+		if (runnableOffers.length === 0) {
+			toast.info("Alle Angebote sind bereits in Prüfung oder fertig.");
+			return;
+		}
+		setCheckingAll(true);
+		try {
+			const results = await Promise.allSettled(
+				runnableOffers.map((offer) =>
+					checkOffer({
+						projectId: projectId as Id<"projects">,
+						offerId: offer._id,
+					}),
+				),
+			);
+			const failed = results.filter((result) => result.status === "rejected");
+			if (failed.length > 0) {
+				toast.error(
+					`${failed.length} Angebot${failed.length === 1 ? "" : "e"} konnte${failed.length === 1 ? "" : "n"} nicht gestartet werden.`,
+				);
+			} else {
+				toast.success("Prüfung für alle Angebote gestartet.");
+			}
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Prüfung konnte nicht gestartet werden.",
+			);
+		} finally {
+			setCheckingAll(false);
+		}
+	};
 
 	return (
 		<ProjectSectionLayout
@@ -169,55 +211,58 @@ function OffertenIndexPage() {
 				description: `${offers?.length ?? 0} Angebote im Vergleich`,
 			}}
 			actions={
-				<Button size="sm" asChild>
-					<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
-						Dokumente hochladen
-					</Link>
-				</Button>
+				<div className="flex flex-wrap gap-2">
+					<Button size="sm" asChild>
+						<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
+							Setup öffnen
+						</Link>
+					</Button>
+					<Button
+						size="sm"
+						variant="outline"
+						onClick={handleCheckAll}
+						disabled={runnableOffers.length === 0 || isCheckingAll || !hasTemplate}
+					>
+						{isCheckingAll ? "Prüft ..." : "Alle Angebote prüfen"}
+					</Button>
+				</div>
 			}
 		>
 			<div className="space-y-6">
-				{!hasTemplate && (
-					<Card className="border-primary/40 bg-primary/5">
-						<CardHeader>
-							<CardTitle>Setup ausstehend</CardTitle>
-							<CardDescription>
-								Schliesse die folgenden Schritte ab, um Angebote zu vergleichen.
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-3">
-							{setupSteps.map((step) => (
-								<div
-									key={step.id}
-									className="flex items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-3"
-								>
-									<span className="mt-1">{stepIcons[step.status]}</span>
-									<div className="space-y-1">
-										<p className="text-sm font-medium">{step.title}</p>
-										<p className="text-xs text-muted-foreground">{step.description}</p>
-									</div>
-								</div>
-							))}
-							<div className="flex flex-wrap gap-2 pt-1">
-								<Button size="sm" asChild>
-									<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
-										Setup öffnen
-									</Link>
-								</Button>
-								<Button size="sm" variant="outline" asChild>
-									<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
-										Dokumente
-									</Link>
-								</Button>
-							</div>
-						</CardContent>
-					</Card>
-				)}
+				<SetupStepsCard
+					title="Offerten-Vergleich in 4 Schritten"
+					description="Vom Pflichtenheft bis zur Vergleichsmatrix – mit klaren Zwischenständen."
+					steps={setupSteps}
+					actions={
+						<>
+							<Button size="sm" asChild>
+								<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
+									Setup öffnen
+								</Link>
+							</Button>
+							<Button size="sm" variant="outline" asChild>
+								<Link to="/projekte/$id/dokumente" params={{ id: projectId }} preload="intent">
+									Dokumente
+								</Link>
+							</Button>
+						</>
+					}
+				/>
 
 				{offers && offers.length === 0 ? (
 					<Card>
-						<CardContent className="py-8 text-center text-sm text-muted-foreground">
-							Noch keine Angebote verfügbar. Lade Angebotsdokumente im Setup hoch, um automatisch Angebote zu erstellen.
+						<CardContent className="py-8 text-center">
+							<p className="text-sm font-medium text-foreground">Noch keine Angebote</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Lade Angebotsdokumente im Setup hoch – daraus werden automatisch Angebote erstellt.
+							</p>
+							<div className="mt-4 flex justify-center">
+								<Button size="sm" asChild>
+									<Link to="/projekte/$id/offerten/setup" params={{ id: projectId }} preload="intent">
+										Angebote hochladen
+									</Link>
+								</Button>
+							</div>
 						</CardContent>
 					</Card>
 				) : (
@@ -248,6 +293,21 @@ function OffertenIndexPage() {
 						</CardHeader>
 						<CardContent>
 							<ComparisonTable comparison={comparison} />
+						</CardContent>
+					</Card>
+				)}
+				{offers && offers.length > 0 && !hasResults && (
+					<Card>
+						<CardContent className="py-6 text-center">
+							<p className="text-sm font-medium text-foreground">Noch keine Vergleichsergebnisse</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Starte die Prüfung für einzelne Angebote oder für alle auf einmal.
+							</p>
+							<div className="mt-4 flex justify-center gap-2">
+								<Button size="sm" onClick={handleCheckAll} disabled={runnableOffers.length === 0 || isCheckingAll || !hasTemplate}>
+									{isCheckingAll ? "Prüft ..." : "Alle Angebote prüfen"}
+								</Button>
+							</div>
 						</CardContent>
 					</Card>
 				)}

@@ -1,5 +1,8 @@
+import type { ReactNode } from "react";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnalysisEmptyState } from "@/components/analysis-empty-state";
 import type { Citation } from "@/types/citation";
 
 export interface MilestoneItem {
@@ -11,9 +14,14 @@ export interface MilestoneItem {
 interface MilestonesCardProps {
 	milestones?: MilestoneItem[];
 	isLoading?: boolean;
+	emptyState?: {
+		title: string;
+		description: string;
+		action?: ReactNode;
+	};
 }
 
-export function MilestonesCard({ milestones = [], isLoading }: MilestonesCardProps) {
+export function MilestonesCard({ milestones = [], isLoading, emptyState }: MilestonesCardProps) {
 	return (
 		<Card>
 			<CardHeader>
@@ -52,11 +60,14 @@ export function MilestonesCard({ milestones = [], isLoading }: MilestonesCardPro
 						))}
 					</ul>
 				) : (
-					<div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
-						<p className="text-xs text-muted-foreground">
-							Noch keine Meilensteine erfasst. Starte die Analyse unter "Dokumente".
-						</p>
-					</div>
+					<AnalysisEmptyState
+						title={emptyState?.title ?? "Noch keine Meilensteine"}
+						description={
+							emptyState?.description ??
+							"Führe die Analyse durch, um wichtige Termine hier zu sehen."
+						}
+						action={emptyState?.action}
+					/>
 				)}
 			</CardContent>
 		</Card>

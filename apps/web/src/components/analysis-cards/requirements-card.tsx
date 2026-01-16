@@ -1,5 +1,8 @@
+import type { ReactNode } from "react";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnalysisEmptyState } from "@/components/analysis-empty-state";
 import type { Citation } from "@/types/citation";
 
 export interface RequirementItem {
@@ -14,6 +17,11 @@ interface RequirementsCardProps {
 	isLoading?: boolean;
 	title?: string;
 	description?: string;
+	emptyState?: {
+		title: string;
+		description: string;
+		action?: ReactNode;
+	};
 }
 
 export function RequirementsCard({
@@ -21,6 +29,7 @@ export function RequirementsCard({
 	isLoading,
 	title = "Anforderungen",
 	description = "Wesentliche funktionale und nicht-funktionale Anforderungen.",
+	emptyState,
 }: RequirementsCardProps) {
 	return (
 		<Card>
@@ -55,11 +64,14 @@ export function RequirementsCard({
 						))}
 					</ul>
 				) : (
-					<div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-center">
-						<p className="text-xs text-muted-foreground">
-							Noch keine Anforderungen vorhanden. Starte die Analyse unter "Dokumente".
-						</p>
-					</div>
+					<AnalysisEmptyState
+						title={emptyState?.title ?? "Noch keine Anforderungen"}
+						description={
+							emptyState?.description ??
+							"Führe die Analyse durch, um Anforderungen hier zu sehen."
+						}
+						action={emptyState?.action}
+					/>
 				)}
 			</CardContent>
 		</Card>
