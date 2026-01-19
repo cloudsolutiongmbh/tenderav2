@@ -1079,26 +1079,30 @@ function mergeCriterionResults(results: Array<z.infer<typeof criteriaItemSchema>
 		"nicht_gefunden",
 	];
 	const bestStatus =
-		results
-			.map((result) => result.status)
-			.sort((a, b) => precedence.indexOf(a) - precedence.indexOf(b))[0] ??
+		precedence.find((status) => results.some((result) => result.status === status)) ??
 		"nicht_gefunden";
-	const bestScore = results
+	const statusCandidates = results.filter((result) => result.status === bestStatus);
+	const bestResult =
+		statusCandidates.find((result) => (result.citations ?? []).length > 0) ??
+		statusCandidates.find((result) => typeof result.answer === "string" && result.answer.length > 0) ??
+		statusCandidates[0] ??
+		results[0];
+	const bestScore = statusCandidates
 		.map((result) => result.score)
 		.filter((score): score is number => typeof score === "number")
 		.sort((a, b) => b - a)[0];
-	const bestAnswer =
-		results.find((result) => typeof result.answer === "string" && result.answer.length > 0)
-			?.answer ?? null;
-	const bestComment =
-		results.find((result) => typeof result.comment === "string" && result.comment.length > 0)
-			?.comment ?? null;
-	const citations = results.flatMap((result) => result.citations ?? []);
+	const citations = statusCandidates.flatMap((result) => result.citations ?? []);
 
 	return {
 		status: bestStatus,
-		comment: bestComment,
-		answer: bestAnswer,
+		comment:
+			typeof bestResult?.comment === "string" && bestResult.comment.length > 0
+				? bestResult.comment
+				: null,
+		answer:
+			typeof bestResult?.answer === "string" && bestResult.answer.length > 0
+				? bestResult.answer
+				: null,
 		score: bestScore ?? null,
 		citations,
 	};
@@ -1170,12 +1174,10 @@ function mergeOfferCheckResults(results: Array<z.infer<typeof offerCheckResultSc
 		results.find((result) => result.status === bestByStatus) ??
 		results[0];
 
-	const citations = results.flatMap((result) => result.citations ?? []);
-
 	return {
 		status: bestResult?.status ?? "unklar",
 		comment: bestResult?.comment ?? null,
-		citations,
+		citations: bestResult?.citations ?? [],
 		confidence: bestResult?.confidence ?? null,
 	};
 }
