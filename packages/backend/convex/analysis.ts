@@ -56,6 +56,10 @@ const MAX_PROMPT_TOKENS = Math.max(
 	2_000,
 	Number.parseInt(process.env.CONVEX_MAX_PROMPT_TOKENS ?? "200000"),
 );
+const CRITERIA_BATCH_SIZE = Math.max(
+	1,
+	Number.parseInt(process.env.CONVEX_CRITERIA_BATCH_SIZE ?? "3"),
+);
 
 const MAX_ACTIVE_RUNS_PER_ORG = Math.max(
 	1,
@@ -1646,7 +1650,178 @@ export const recordCriteriaResult = internalMutation({
             orgId: args.orgId,
         });
 
+	return { resultId };
+	},
+});
+
+export const ensureCriteriaResult = internalMutation({
+	args: {
+		projectId: v.id("projects"),
+		runId: v.id("analysisRuns"),
+		orgId: v.string(),
+		templateId: v.id("templates"),
+		totalCount: v.number(),
+	},
+	handler: async (ctx, args) => {
+		const run = await ctx.db.get(args.runId);
+		if (!run || run.orgId !== args.orgId) {
+			throw new ConvexError("Analyse nicht gefunden.");
+		}
+
+		if (run.resultId) {
+			return { resultId: run.resultId };
+		}
+
+		const now = Date.now();
+		const resultId = await ctx.db.insert("analysisResults", {
+			projectId: args.projectId,
+			runId: args.runId,
+			type: "criteria",
+			criteria: {
+				templateId: args.templateId,
+				summary: undefined,
+				items: [],
+			},
+			standard: undefined,
+			orgId: args.orgId,
+			createdAt: now,
+		});
+
+		await ctx.db.patch(args.runId, {
+			resultId,
+			templateSnapshotId: run.templateSnapshotId ?? args.templateId,
+			totalCount: args.totalCount,
+			processedCount: run.processedCount ?? 0,
+			failedCount: run.failedCount ?? 0,
+		});
+
 		return { resultId };
+	},
+});
+
+export const appendCriteriaBatch = internalMutation({
+	args: {
+		runId: v.id("analysisRuns"),
+		orgId: v.string(),
+		resultId: v.id("analysisResults"),
+		items: v.array(
+			v.object({
+				key: v.string(),
+				title: v.string(),
+				description: v.optional(v.string()),
+				hints: v.optional(v.string()),
+				answerType: v.union(
+					v.literal("boolean"),
+					v.literal("skala"),
+					v.literal("text"),
+				),
+				weight: v.number(),
+				required: v.boolean(),
+				keywords: v.optional(v.array(v.string())),
+				status: v.union(
+					v.literal("gefunden"),
+					v.literal("nicht_gefunden"),
+					v.literal("teilweise"),
+				),
+				comment: v.optional(v.string()),
+				answer: v.optional(v.string()),
+				score: v.optional(v.number()),
+				citations: v.array(
+					v.object({
+						page: v.number(),
+						quote: v.string(),
+						documentKey: v.optional(v.string()),
+					}),
+				),
+			}),
+		),
+		telemetry: v.object({
+			provider: v.string(),
+			model: v.string(),
+			promptTokens: v.optional(v.number()),
+			completionTokens: v.optional(v.number()),
+			latencyMs: v.number(),
+		}),
+		processedCount: v.number(),
+	},
+	handler: async (ctx, args) => {
+		const run = await ctx.db.get(args.runId);
+		if (!run || run.orgId !== args.orgId) {
+			throw new ConvexError("Analyse nicht gefunden.");
+		}
+
+		const result = await ctx.db.get(args.resultId);
+		if (!result || result.orgId !== args.orgId || result.type !== "criteria") {
+			throw new ConvexError("Analyse-Ergebnis nicht gefunden.");
+		}
+
+		const existing = result.criteria?.items ?? [];
+		const appended = existing.concat(
+			args.items.map((item) => ({
+				criterionId: item.key,
+				title: item.title,
+				status: item.status,
+				comment: item.comment ?? undefined,
+				answer: item.answer ?? undefined,
+				score: item.score ?? undefined,
+				weight: item.weight,
+				citations: item.citations.map((citation) => ({
+					documentKey: citation.documentKey ?? undefined,
+					page: citation.page,
+					quote: citation.quote,
+				})),
+			})),
+		);
+
+		await ctx.db.patch(args.resultId, {
+			criteria: {
+				templateId: result.criteria?.templateId,
+				summary: result.criteria?.summary,
+				items: appended,
+			},
+		});
+
+		const nextProcessed = (run.processedCount ?? 0) + args.processedCount;
+		await ctx.db.patch(args.runId, {
+			processedCount: nextProcessed,
+			promptTokens:
+				(run.promptTokens ?? 0) + (args.telemetry.promptTokens ?? 0),
+			completionTokens:
+				(run.completionTokens ?? 0) + (args.telemetry.completionTokens ?? 0),
+			latencyMs: (run.latencyMs ?? 0) + args.telemetry.latencyMs,
+			provider: args.telemetry.provider,
+			model: args.telemetry.model,
+		});
+
+		return { processedCount: nextProcessed, totalCount: run.totalCount };
+	},
+});
+
+export const completeCriteriaRun = internalMutation({
+	args: {
+		runId: v.id("analysisRuns"),
+		orgId: v.string(),
+		resultId: v.id("analysisResults"),
+	},
+	handler: async (ctx, args) => {
+		const run = await ctx.db.get(args.runId);
+		if (!run || run.orgId !== args.orgId) {
+			throw new ConvexError("Analyse nicht gefunden.");
+		}
+
+		const now = Date.now();
+		await ctx.db.patch(args.runId, {
+			status: "fertig",
+			finishedAt: now,
+			resultId: args.resultId,
+			error: undefined,
+		});
+
+		await ctx.scheduler.runAfter(0, internal.analysis.kickQueue, {
+			orgId: args.orgId,
+		});
+
+		return { resultId: args.resultId };
 	},
 });
 
@@ -1775,10 +1950,10 @@ export const runStandardQueueWorker = internalAction({
 });
 
 export const runCriteriaQueueWorker = internalAction({
-    args: {
-        runId: v.id("analysisRuns"),
-    },
-    handler: async (ctx, { runId }) => {
+	args: {
+		runId: v.id("analysisRuns"),
+	},
+	handler: async (ctx, { runId }) => {
         const run = (await ctx.runQuery(internal.analysis.getRunForAnalysis, {
             runId,
         })) as Doc<"analysisRuns"> | null;
@@ -1823,24 +1998,126 @@ export const runCriteriaQueueWorker = internalAction({
             return;
         }
 
-        const userId = run.createdBy ?? "system";
+		const userId = run.createdBy ?? "system";
 
-        try {
-            await executeCriteriaAnalysis(ctx, {
-                project,
-                template,
-                orgId: run.orgId,
-                userId,
-                expectedRunId: run._id,
-            });
-        } catch (error) {
-            await ctx.runMutation(internal.analysis.markRunFailed, {
-                runId,
-                error: error instanceof Error ? error.message : "Analyse fehlgeschlagen.",
-            });
-            throw error;
-        }
-    },
+		try {
+			const resultId = (await ctx.runMutation(
+				internal.analysis.ensureCriteriaResult,
+				{
+					projectId: project._id,
+					runId: run._id,
+					orgId: run.orgId,
+					templateId: template._id,
+					totalCount: template.criteria.length,
+				},
+			)) as { resultId: Id<"analysisResults"> };
+
+			const pages = await fetchDocPages(
+				ctx,
+				await ctx.runQuery(internal.analysis.getDocPageIdsForProject, {
+					projectId: project._id,
+				}) as Id<"docPages">[],
+				run.orgId,
+				project._id,
+			);
+			if (pages.length === 0) {
+				throw new ConvexError("Keine Dokumentseiten zum Analysieren gefunden.");
+			}
+
+			const documentLookup = buildDocumentLookup(pages);
+			const documentLegend = formatDocumentLegend(documentLookup);
+			const chunks = chunkPages(pages, PAGES_PER_CHUNK, documentLookup);
+
+			const startIndex = run.processedCount ?? 0;
+			const batch = template.criteria.slice(startIndex, startIndex + CRITERIA_BATCH_SIZE);
+			if (batch.length === 0) {
+				await ctx.runMutation(internal.analysis.completeCriteriaRun, {
+					runId: run._id,
+					orgId: run.orgId,
+					resultId: resultId.resultId,
+				});
+				return;
+			}
+
+			let batchPromptTokens = 0;
+			let batchCompletionTokens = 0;
+			let batchLatencyMs = 0;
+			let provider = run.provider;
+			let model = run.model;
+			const criteriaResults: CriterionComputation[] = [];
+
+			for (const criterion of batch) {
+				const merged = await analyseCriterionAcrossChunks(
+					criterion,
+					chunks,
+					documentLegend,
+				);
+				criteriaResults.push({
+					key: criterion.key,
+					title: criterion.title,
+					description: criterion.description ?? undefined,
+					hints: criterion.hints ?? undefined,
+					answerType: criterion.answerType,
+					weight: criterion.weight,
+					required: criterion.required,
+					keywords: criterion.keywords ?? undefined,
+					status: merged.result.status,
+					comment: merged.result.comment ?? undefined,
+					answer: merged.result.answer ?? undefined,
+					score: merged.result.score ?? undefined,
+					citations: (merged.result.citations ?? []).map(
+						(citation) =>
+							normalizeCitationWithDocuments(citation, documentLookup) ?? citation,
+					),
+				});
+				if (merged.usage.promptTokens) batchPromptTokens += merged.usage.promptTokens;
+				if (merged.usage.completionTokens) {
+					batchCompletionTokens += merged.usage.completionTokens;
+				}
+				batchLatencyMs += merged.latencyMs;
+				provider = merged.meta.provider;
+				model = merged.meta.model;
+			}
+
+			const updated = (await ctx.runMutation(
+				internal.analysis.appendCriteriaBatch,
+				{
+					runId: run._id,
+					orgId: run.orgId,
+					resultId: resultId.resultId,
+					items: criteriaResults,
+					telemetry: {
+						provider,
+						model,
+						promptTokens: batchPromptTokens || undefined,
+						completionTokens: batchCompletionTokens || undefined,
+						latencyMs: batchLatencyMs,
+					},
+					processedCount: batch.length,
+				},
+			)) as { processedCount: number; totalCount?: number };
+
+			const totalCount = updated.totalCount ?? template.criteria.length;
+			if (updated.processedCount >= totalCount) {
+				await ctx.runMutation(internal.analysis.completeCriteriaRun, {
+					runId: run._id,
+					orgId: run.orgId,
+					resultId: resultId.resultId,
+				});
+				return;
+			}
+
+			await ctx.scheduler.runAfter(0, internal.analysis.runCriteriaQueueWorker, {
+				runId: run._id,
+			});
+		} catch (error) {
+			await ctx.runMutation(internal.analysis.markRunFailed, {
+				runId,
+				error: error instanceof Error ? error.message : "Analyse fehlgeschlagen.",
+			});
+			throw error;
+		}
+	},
 });
 
 export const runOfferCriterionWorker = internalAction({
