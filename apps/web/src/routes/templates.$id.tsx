@@ -75,10 +75,11 @@ function TemplateDetailPage() {
 	const [version, setVersion] = useState("1.0");
 	const [visibleOrgWide, setVisibleOrgWide] = useState(false);
 	const [criteria, setCriteria] = useState<EditableCriterion[]>([createEmptyCriterion()]);
-    const [isSaving, setSaving] = useState(false);
+	const [isSaving, setSaving] = useState(false);
     const [isDeleting, setDeleting] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [activeSearch, setActiveSearch] = useState("");
+	const [searchScope, setSearchScope] = useState<"title" | "all">("title");
 
 	const isLoading = !isNew && template === undefined;
 
@@ -118,15 +119,18 @@ function TemplateDetailPage() {
 		if (!activeSearch.trim()) return criteria;
 		const query = activeSearch.toLowerCase();
 		return criteria.filter((criterion) => {
-			const searchableText = [
-				criterion.title,
-				criterion.description,
-				criterion.hints,
-				criterion.keywords,
-			].join(" ").toLowerCase();
-			return searchableText.includes(query);
+			const searchableText =
+				searchScope === "title"
+					? criterion.title
+					: [
+						criterion.title,
+						criterion.description,
+						criterion.hints,
+						criterion.keywords,
+					].join(" ");
+			return searchableText.toLowerCase().includes(query);
 		});
-	}, [criteria, activeSearch]);
+	}, [criteria, activeSearch, searchScope]);
 
 	const handleSearch = () => {
 		setActiveSearch(searchQuery);
@@ -170,7 +174,7 @@ function TemplateDetailPage() {
 	};
 
 	const handleAddCriterion = () => {
-		setCriteria((prev) => [...prev, createEmptyCriterion()]);
+		setCriteria((prev) => [createEmptyCriterion(), ...prev]);
 	};
 
 	const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -287,6 +291,16 @@ function TemplateDetailPage() {
 								className="w-48"
 								disabled={isLoading}
 							/>
+							<select
+								value={searchScope}
+								onChange={(event) => setSearchScope(event.target.value as "title" | "all")}
+								className="h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm"
+								aria-label="Suchbereich"
+								disabled={isLoading}
+							>
+								<option value="title">Nur Titel</option>
+								<option value="all">Titel + Beschreibung/Hinweise</option>
+							</select>
 							<Button
 								type="button"
 								variant="outline"

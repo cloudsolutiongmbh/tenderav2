@@ -18,6 +18,7 @@ import { ShareLink } from "@/components/share-link";
 import { PdfExportButton } from "@/components/pdf-export-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AuthStateNotice } from "@/components/auth-state-notice";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
@@ -76,12 +77,17 @@ function ProjectExportPage() {
 			}
 			: "skip",
 	);
+	const comments = useQuery(
+		api.comments.listByProject,
+		auth.authReady ? { projectId: projectId as Id<"projects"> } : "skip",
+	);
 
 	const createShare = useMutation(api.shares.create);
 	const removeProject = useMutation(api.projects.remove);
 	const [shareInfo, setShareInfo] = useState<ShareInfo | null>(null);
 	const [isCreatingShare, setCreatingShare] = useState(false);
 	const [isDeleting, setDeleting] = useState(false);
+	const [includeNotFound, setIncludeNotFound] = useState(false);
 
 	const projectMeta = project?.project;
 	const standardResult = useMemo<StandardResultShape | null>(() => {
@@ -104,8 +110,23 @@ function ProjectExportPage() {
 		return [];
 	}, [criteria]);
 
-	const isLoading =
-		project === undefined || standard === undefined || criteria === undefined;
+	const visibleCriteriaItems = useMemo(
+		() =>
+			includeNotFound
+				? criteriaItems
+				: criteriaItems.filter((item) => item.status !== "nicht_gefunden"),
+		[criteriaItems, includeNotFound],
+	);
+
+	const sortedComments = useMemo(() => {
+		if (!comments) {
+			return [];
+		}
+		return [...comments].sort((a, b) => b.createdAt - a.createdAt);
+	}, [comments]);
+
+	const isLoading = project === undefined || standard === undefined || criteria === undefined;
+	const isCommentsLoading = comments === undefined;
 
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
@@ -206,6 +227,13 @@ function ProjectExportPage() {
 					<CardDescription>
 						Bewertung der Kriterien-basierenden Analyse mit Status und Fundstellen.
 					</CardDescription>
+					<label className="flex items-center gap-2 text-sm text-muted-foreground">
+						<Checkbox
+							checked={includeNotFound}
+							onCheckedChange={(checked) => setIncludeNotFound(checked === true)}
+						/>
+						<span>Nicht gefundene Kriterien anzeigen</span>
+					</label>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					{isLoading ? (
@@ -214,8 +242,12 @@ function ProjectExportPage() {
 						<p className="text-sm text-muted-foreground">
 							Noch keine Kriterien-Ergebnisse verfügbar. Starte eine Kriterien-Analyse im Dokumente-Reiter.
 						</p>
+					) : visibleCriteriaItems.length === 0 ? (
+						<p className="text-sm text-muted-foreground">
+							Keine Kriterien sichtbar. Aktiviere „Nicht gefundene Kriterien anzeigen“, um alle Ergebnisse zu sehen.
+						</p>
 					) : (
-						criteriaItems.map((item) => (
+						visibleCriteriaItems.map((item) => (
 							<div key={item.criterionId} className="rounded-lg border border-border/60 p-4">
 								<div className="flex flex-wrap items-center justify-between gap-3">
 									<h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
@@ -234,6 +266,30 @@ function ProjectExportPage() {
 										<CitationList citations={item.citations} />
 									</div>
 								) : null}
+							</div>
+						))
+					)}
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Kommentare</CardTitle>
+					<CardDescription>Hinweise und Diskussionen zum Projekt.</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-3">
+					{isCommentsLoading ? (
+						<p className="text-sm text-muted-foreground">Lade Kommentare …</p>
+					) : sortedComments.length === 0 ? (
+						<p className="text-sm text-muted-foreground">Noch keine Kommentare vorhanden.</p>
+					) : (
+						sortedComments.map((comment) => (
+							<div key={comment._id} className="rounded-lg border border-border/60 p-3 text-sm">
+								<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+									<span>{mapContextLabel(comment.contextType, comment.referenceLabel)}</span>
+									<time>{formatDateTime(comment.createdAt)}</time>
+								</div>
+								<p className="mt-2 text-sm text-foreground">{comment.content}</p>
 							</div>
 						))
 					)}
@@ -320,6 +376,31 @@ function statusBadgeClass(status: CriteriaItem["status"]) {
 		default:
 			return "rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground";
 	}
+}
+
+function mapContextLabel(
+	contextType: "general" | "milestone" | "criterion",
+	referenceLabel?: string | null,
+) {
+	switch (contextType) {
+		case "milestone":
+			return `Meilenstein: ${referenceLabel ?? "Unbenannt"}`;
+		case "criterion":
+			return `Kriterium: ${referenceLabel ?? "Unbenannt"}`;
+		case "general":
+		default:
+			return "Allgemein";
+	}
+}
+
+function formatDateTime(timestamp: number) {
+	return new Date(timestamp).toLocaleString("de-CH", {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
 }
 
 function formatDate(timestamp: number) {
