@@ -44,9 +44,17 @@ const OFFER_PAGE_LIMIT = Math.max(
         1,
         Number.parseInt(process.env.CONVEX_OFFER_PAGE_LIMIT ?? "8"),
 );
+const OFFER_CHECK_PAGES_PER_CHUNK = Math.max(
+	1,
+	Number.parseInt(process.env.CONVEX_OFFER_CHECK_PAGES_PER_CHUNK ?? "20"),
+);
 const MAX_PROMPT_CHARS = Math.max(
 	10_000,
 	Number.parseInt(process.env.CONVEX_MAX_PROMPT_CHARS ?? "1200000"),
+);
+const MAX_PROMPT_TOKENS = Math.max(
+	2_000,
+	Number.parseInt(process.env.CONVEX_MAX_PROMPT_TOKENS ?? "200000"),
 );
 
 const MAX_ACTIVE_RUNS_PER_ORG = Math.max(
@@ -291,38 +299,43 @@ async function executeCriteriaAnalysis(
     let model = run.model;
 
     try {
-        const documentLookup = buildDocumentLookup(pages);
-        const documentContext = buildDocumentContext(pages, documentLookup);
-        const criteriaResults: CriterionComputation[] = [];
+		const documentLookup = buildDocumentLookup(pages);
+		const documentLegend = formatDocumentLegend(documentLookup);
+		const chunks = chunkPages(pages, PAGES_PER_CHUNK, documentLookup);
+		const criteriaResults: CriterionComputation[] = [];
 
-        for (const criterion of template.criteria) {
-            const { result, usage, latencyMs, meta } = await analyseCriterion(
-                criterion,
-                documentContext,
-            );
-            criteriaResults.push({
-                key: criterion.key,
-                title: criterion.title,
-                description: criterion.description ?? undefined,
-                hints: criterion.hints ?? undefined,
-                answerType: criterion.answerType,
-                weight: criterion.weight,
-                required: criterion.required,
-                keywords: criterion.keywords ?? undefined,
-                status: result.status,
-                comment: result.comment ?? undefined,
-                answer: result.answer ?? undefined,
-                score: result.score ?? undefined,
-                citations: (result.citations ?? []).map(
-                    (citation) => normalizeCitationWithDocuments(citation, documentLookup) ?? citation,
-                ),
-            });
-            if (usage.promptTokens) totalPromptTokens += usage.promptTokens;
-            if (usage.completionTokens) totalCompletionTokens += usage.completionTokens;
-            totalLatency += latencyMs;
-            provider = meta.provider;
-            model = meta.model;
-        }
+		for (const criterion of template.criteria) {
+			const merged = await analyseCriterionAcrossChunks(
+				criterion,
+				chunks,
+				documentLegend,
+			);
+			criteriaResults.push({
+				key: criterion.key,
+				title: criterion.title,
+				description: criterion.description ?? undefined,
+				hints: criterion.hints ?? undefined,
+				answerType: criterion.answerType,
+				weight: criterion.weight,
+				required: criterion.required,
+				keywords: criterion.keywords ?? undefined,
+				status: merged.result.status,
+				comment: merged.result.comment ?? undefined,
+				answer: merged.result.answer ?? undefined,
+				score: merged.result.score ?? undefined,
+				citations: (merged.result.citations ?? []).map(
+					(citation) =>
+						normalizeCitationWithDocuments(citation, documentLookup) ?? citation,
+				),
+			});
+			if (merged.usage.promptTokens) totalPromptTokens += merged.usage.promptTokens;
+			if (merged.usage.completionTokens) {
+				totalCompletionTokens += merged.usage.completionTokens;
+			}
+			totalLatency += merged.latencyMs;
+			provider = merged.meta.provider;
+			model = merged.meta.model;
+		}
 
         const { resultId } = (await ctx.runMutation(internal.analysis.recordCriteriaResult, {
             projectId: project._id,
@@ -693,6 +706,14 @@ function chunkPages(
 	return chunks;
 }
 
+function chunkPlainPages<T extends { page: number; text: string }>(pages: T[], size: number) {
+	const chunks: T[][] = [];
+	for (let i = 0; i < pages.length; i += size) {
+		chunks.push(pages.slice(i, i + size));
+	}
+	return chunks;
+}
+
 function normalizeCitationWithDocuments(
 	citation: z.infer<typeof citationSchema> | null | undefined,
 	lookup: DocumentLookup,
@@ -907,7 +928,7 @@ Hinweise:
 - Nicht eindeutig belegbare Inhalte sind wegzulassen oder mit \`null\` zu kennzeichnen.
 - Bei unvollständigem oder fehlendem Kontext sind alle Felder gemäß oben zu behandeln und keine Fehlerhinweise oder Meldungen auszugeben.`;
 
-    const cappedText = limitPromptText(chunk.text, MAX_PROMPT_CHARS);
+    const cappedText = limitPromptText(chunk.text, MAX_PROMPT_CHARS, MAX_PROMPT_TOKENS);
     const userPrompt = `Lies die folgenden Seiten und liefere genau EIN valides JSON-Objekt (kein Array, keine Erklärungen, keine Kommentare, kein Fließtext).
 
 Dokumente in diesem Chunk:
@@ -950,7 +971,7 @@ async function analyseCriterion(
 ) {
 	const systemPrompt =
 		"Du bist ein deutschsprachiger Assistent zur Bewertung von Kriterien in Ausschreibungsunterlagen. Antworte ausschliesslich auf Deutsch und nur auf Basis der bereitgestellten Textauszüge.";
-	const cappedContext = limitPromptText(documentContext, MAX_PROMPT_CHARS);
+	const cappedContext = limitPromptText(documentContext, MAX_PROMPT_CHARS, MAX_PROMPT_TOKENS);
 	const userPrompt = `Bewerte das folgende Kriterium anhand der bereitgestellten Dokumentseiten. Liefere GENAU EIN JSON-OBJEKT (kein Array, keine Erklärungen, kein Markdown) mit folgender Struktur:
 
 {\n  \"status\": \"gefunden\" | \"nicht_gefunden\" | \"teilweise\",\n  \"comment\": string | null,\n  \"answer\": string | null,\n  \"score\": number | null,\n  \"citations\": [ { \"documentKey\": string, \"page\": number, \"quote\": string } ]\n}
@@ -987,6 +1008,175 @@ ${cappedContext}`;
 		usage,
 		latencyMs,
 		meta: { provider, model },
+	};
+}
+
+async function analyseCriterionAcrossChunks(
+	criterion: {
+		key: string;
+		title: string;
+		description?: string;
+		hints?: string;
+		answerType: "boolean" | "skala" | "text";
+		weight: number;
+		required: boolean;
+		keywords?: string[];
+	},
+	chunks: Array<{ text: string }>,
+	documentLegend: string,
+) {
+	const mergedUsage: {
+		promptTokens?: number;
+		completionTokens?: number;
+	} = {};
+	let totalLatency = 0;
+	let lastMeta = { provider: "PENDING", model: "PENDING" } as {
+		provider: string;
+		model: string;
+	};
+	const results: Array<z.infer<typeof criteriaItemSchema>> = [];
+
+	for (const chunk of chunks) {
+		const context = limitPromptText(
+			`${documentLegend}\n\n${chunk.text}`,
+			MAX_PROMPT_CHARS,
+			MAX_PROMPT_TOKENS,
+		);
+		const { result, usage, latencyMs, meta } = await analyseCriterion(
+			criterion,
+			context,
+		);
+		results.push(result);
+		if (usage.promptTokens) {
+			mergedUsage.promptTokens = (mergedUsage.promptTokens ?? 0) + usage.promptTokens;
+		}
+		if (usage.completionTokens) {
+			mergedUsage.completionTokens =
+				(mergedUsage.completionTokens ?? 0) + usage.completionTokens;
+		}
+		totalLatency += latencyMs;
+		lastMeta = meta;
+
+		if (result.status === "gefunden" && (result.citations ?? []).length > 0) {
+			break;
+		}
+	}
+
+	const mergedResult = mergeCriterionResults(results);
+
+	return {
+		result: mergedResult,
+		usage: mergedUsage,
+		latencyMs: totalLatency,
+		meta: lastMeta,
+	};
+}
+
+function mergeCriterionResults(results: Array<z.infer<typeof criteriaItemSchema>>) {
+	const precedence: Array<z.infer<typeof criteriaItemSchema>["status"]> = [
+		"gefunden",
+		"teilweise",
+		"nicht_gefunden",
+	];
+	const bestStatus =
+		results
+			.map((result) => result.status)
+			.sort((a, b) => precedence.indexOf(a) - precedence.indexOf(b))[0] ??
+		"nicht_gefunden";
+	const bestScore = results
+		.map((result) => result.score)
+		.filter((score): score is number => typeof score === "number")
+		.sort((a, b) => b - a)[0];
+	const bestAnswer =
+		results.find((result) => typeof result.answer === "string" && result.answer.length > 0)
+			?.answer ?? null;
+	const bestComment =
+		results.find((result) => typeof result.comment === "string" && result.comment.length > 0)
+			?.comment ?? null;
+	const citations = results.flatMap((result) => result.citations ?? []);
+
+	return {
+		status: bestStatus,
+		comment: bestComment,
+		answer: bestAnswer,
+		score: bestScore ?? null,
+		citations,
+	};
+}
+
+function mergePflichtenheftResults(
+	results: Array<z.infer<typeof pflichtenheftExtractionSchema>>,
+) {
+	type PflichtenheftCriterion =
+		z.infer<typeof pflichtenheftExtractionSchema>["mussCriteria"][number];
+	const mussByKey = new Map<string, PflichtenheftCriterion>();
+	const kannByKey = new Map<string, PflichtenheftCriterion>();
+
+	const addItem = (
+		map: Map<string, PflichtenheftCriterion>,
+		item: PflichtenheftCriterion,
+	) => {
+		const key = `${item.title.trim().toLowerCase()}::${(item.description ?? "")
+			.trim()
+			.toLowerCase()}`;
+		const existing = map.get(key);
+		if (!existing) {
+			map.set(key, { ...item, pages: Array.from(new Set(item.pages)) });
+			return;
+		}
+		const mergedPages = new Set([...existing.pages, ...item.pages]);
+		map.set(key, {
+			...existing,
+			description: existing.description ?? item.description ?? null,
+			hints: existing.hints ?? item.hints ?? null,
+			pages: Array.from(mergedPages).sort((a, b) => a - b),
+		});
+	};
+
+	for (const result of results) {
+		for (const item of result.mussCriteria ?? []) {
+			addItem(mussByKey, item);
+		}
+		for (const item of result.kannCriteria ?? []) {
+			addItem(kannByKey, item);
+		}
+	}
+
+	return {
+		mussCriteria: Array.from(mussByKey.values()),
+		kannCriteria: Array.from(kannByKey.values()),
+	};
+}
+
+function mergeOfferCheckResults(results: Array<z.infer<typeof offerCheckResultSchema>>) {
+	const precedence: Array<z.infer<typeof offerCheckResultSchema>["status"]> = [
+		"erfuellt",
+		"teilweise",
+		"unklar",
+		"nicht_erfuellt",
+	];
+
+	const bestByConfidence = results
+		.filter((result) => typeof result.confidence === "number")
+		.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))[0];
+	const bestByStatus =
+		results
+			.map((result) => result.status)
+			.sort((a, b) => precedence.indexOf(a) - precedence.indexOf(b))[0] ??
+		"unklar";
+
+	const bestResult =
+		bestByConfidence ??
+		results.find((result) => result.status === bestByStatus) ??
+		results[0];
+
+	const citations = results.flatMap((result) => result.citations ?? []);
+
+	return {
+		status: bestResult?.status ?? "unklar",
+		comment: bestResult?.comment ?? null,
+		citations,
+		confidence: bestResult?.confidence ?? null,
 	};
 }
 
@@ -2110,7 +2300,7 @@ function buildDocumentContext(
 		})
 		.join("\n\n");
 
-	return limitPromptText(`${legend}\n\n${body}`, MAX_PROMPT_CHARS);
+	return limitPromptText(`${legend}\n\n${body}`, MAX_PROMPT_CHARS, MAX_PROMPT_TOKENS);
 }
 
 function tryParseJson(text: string): any {
@@ -2151,12 +2341,26 @@ function truncate(s: string, n: number) {
   return s.length > n ? s.slice(0, n) + "…" : s;
 }
 
-function limitPromptText(text: string, maxChars: number) {
-	if (text.length <= maxChars) {
-		return text;
+function estimateTokens(text: string) {
+	return Math.ceil(text.length / 4);
+}
+
+function limitPromptText(text: string, maxChars: number, maxTokens: number) {
+	let capped = text;
+	if (capped.length > maxChars) {
+		capped = capped.slice(0, maxChars);
+		const omitted = text.length - maxChars;
+		capped = `${capped}\n\n[TRUNCATED ${omitted} CHARS]`;
 	}
-	const truncated = text.slice(0, maxChars);
-	const omitted = text.length - maxChars;
+
+	const estimatedTokens = estimateTokens(capped);
+	if (estimatedTokens <= maxTokens) {
+		return capped;
+	}
+
+	const allowedChars = Math.max(1, Math.floor(maxTokens * 4));
+	const truncated = capped.slice(0, allowedChars);
+	const omitted = Math.max(0, capped.length - allowedChars);
 	return `${truncated}\n\n[TRUNCATED ${omitted} CHARS]`;
 }
 
@@ -2430,29 +2634,54 @@ Vorgaben:
   ]
 }`;
 
-	const pagesText = pages
-		.map((page) => `Seite ${page.page}:\n${page.text}`)
-		.join("\n\n");
-	const cappedPagesText = limitPromptText(pagesText, MAX_PROMPT_CHARS);
+	const chunks = chunkPlainPages(pages, PAGES_PER_CHUNK);
+	const mergedUsage: { promptTokens?: number; completionTokens?: number } = {};
+	let totalLatency = 0;
+	let lastMeta = { provider: "PENDING", model: "PENDING" } as {
+		provider: string;
+		model: string;
+	};
+	const results: Array<z.infer<typeof pflichtenheftExtractionSchema>> = [];
 
-	const userPrompt = `Analysiere das folgende Pflichtenheft und extrahiere alle Muss-Kriterien und Kann-Kriterien:\n\n${cappedPagesText}`;
+	for (const chunk of chunks) {
+		const pagesText = chunk
+			.map((page) => `Seite ${page.page}:\n${page.text}`)
+			.join("\n\n");
+		const cappedPagesText = limitPromptText(
+			pagesText,
+			MAX_PROMPT_CHARS,
+			MAX_PROMPT_TOKENS,
+		);
 
-	const start = Date.now();
-	const { text, usage, provider, model } = await callLlm({
-		systemPrompt,
-		userPrompt,
-		temperature: 0.1,
-	});
-	const latencyMs = Date.now() - start;
+		const userPrompt = `Analysiere das folgende Pflichtenheft und extrahiere alle Muss-Kriterien und Kann-Kriterien:\n\n${cappedPagesText}`;
 
-	const parsed = tryParseJson(text);
-	const result = pflichtenheftExtractionSchema.parse(parsed);
+		const start = Date.now();
+		const { text, usage, provider, model } = await callLlm({
+			systemPrompt,
+			userPrompt,
+			temperature: 0.1,
+		});
+		const latencyMs = Date.now() - start;
+
+		const parsed = tryParseJson(text);
+		const result = pflichtenheftExtractionSchema.parse(parsed);
+		results.push(result);
+		if (usage.promptTokens) {
+			mergedUsage.promptTokens = (mergedUsage.promptTokens ?? 0) + usage.promptTokens;
+		}
+		if (usage.completionTokens) {
+			mergedUsage.completionTokens =
+				(mergedUsage.completionTokens ?? 0) + usage.completionTokens;
+		}
+		totalLatency += latencyMs;
+		lastMeta = { provider, model };
+	}
 
 	return {
-		result,
-		usage,
-		latencyMs,
-		meta: { provider, model },
+		result: mergePflichtenheftResults(results),
+		usage: mergedUsage,
+		latencyMs: totalLatency,
+		meta: lastMeta,
 	};
 }
 
@@ -2497,11 +2726,6 @@ Vorgaben:
   "confidence": number | null // 0-100
 }`;
 
-	const pagesText = pages
-		.map((page) => `Seite ${page.page}:\n${page.text}`)
-		.join("\n\n");
-	const cappedPagesText = limitPromptText(pagesText, MAX_PROMPT_CHARS);
-
 	const criterionText = `
 Kriterium: ${criterion.title}
 ${criterion.description ? `Beschreibung: ${criterion.description}` : ""}
@@ -2509,18 +2733,54 @@ ${criterion.hints ? `Hinweise: ${criterion.hints}` : ""}
 Typ: ${criterion.required ? "Muss-Kriterium" : "Kann-Kriterium"}
 `;
 
-	const userPrompt = `Prüfe das folgende Angebot gegen dieses Kriterium:\n\n${criterionText}\n\nAngebot:\n\n${cappedPagesText}`;
+	const chunks = chunkPlainPages(pages, OFFER_CHECK_PAGES_PER_CHUNK);
+	const mergedUsage: { promptTokens?: number; completionTokens?: number } = {};
+	let totalLatency = 0;
+	let lastMeta = { provider: "PENDING", model: "PENDING" } as {
+		provider: string;
+		model: string;
+	};
+	const results: Array<z.infer<typeof offerCheckResultSchema>> = [];
 
-	const start = Date.now();
-	const { text, usage, provider, model } = await callLlm({
-		systemPrompt,
-		userPrompt,
-		temperature: 0.1,
-	});
-	const latencyMs = Date.now() - start;
+	for (const chunk of chunks) {
+		const pagesText = chunk
+			.map((page) => `Seite ${page.page}:\n${page.text}`)
+			.join("\n\n");
+		const cappedPagesText = limitPromptText(
+			pagesText,
+			MAX_PROMPT_CHARS,
+			MAX_PROMPT_TOKENS,
+		);
 
-	const parsed = tryParseJson(text);
-	const result = offerCheckResultSchema.parse(parsed);
+		const userPrompt = `Prüfe das folgende Angebot gegen dieses Kriterium:\n\n${criterionText}\n\nAngebot:\n\n${cappedPagesText}`;
+
+		const start = Date.now();
+		const { text, usage, provider, model } = await callLlm({
+			systemPrompt,
+			userPrompt,
+			temperature: 0.1,
+		});
+		const latencyMs = Date.now() - start;
+
+		const parsed = tryParseJson(text);
+		const result = offerCheckResultSchema.parse(parsed);
+		results.push(result);
+		if (usage.promptTokens) {
+			mergedUsage.promptTokens = (mergedUsage.promptTokens ?? 0) + usage.promptTokens;
+		}
+		if (usage.completionTokens) {
+			mergedUsage.completionTokens =
+				(mergedUsage.completionTokens ?? 0) + usage.completionTokens;
+		}
+		totalLatency += latencyMs;
+		lastMeta = { provider, model };
+
+		if (result.status === "erfuellt" && (result.citations ?? []).length > 0) {
+			break;
+		}
+	}
+
+	const merged = mergeOfferCheckResults(results);
 
 	const documentMeta =
 		pages.length > 0
@@ -2531,8 +2791,8 @@ Typ: ${criterion.required ? "Muss-Kriterium" : "Kann-Kriterium"}
 				}
 			: null;
 	const enriched = {
-		...result,
-		citations: (result.citations ?? []).map((citation) => ({
+		...merged,
+		citations: (merged.citations ?? []).map((citation) => ({
 			...citation,
 			documentId: documentMeta?.documentId,
 			documentName: documentMeta?.documentName ?? undefined,
@@ -2542,9 +2802,9 @@ Typ: ${criterion.required ? "Muss-Kriterium" : "Kann-Kriterium"}
 
 	return {
 		result: enriched,
-		usage,
-		latencyMs,
-		meta: { provider, model },
+		usage: mergedUsage,
+		latencyMs: totalLatency,
+		meta: lastMeta,
 	};
 }
 
