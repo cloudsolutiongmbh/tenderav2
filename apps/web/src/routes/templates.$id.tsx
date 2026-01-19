@@ -295,6 +295,7 @@ function TemplateDetailPage() {
 								value={searchScope}
 								onChange={(event) => setSearchScope(event.target.value as "title" | "all")}
 								className="h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm"
+								aria-label="Suchbereich"
 								disabled={isLoading}
 							>
 								<option value="title">Nur Titel</option>

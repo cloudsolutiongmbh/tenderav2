@@ -125,8 +125,8 @@ function ProjectExportPage() {
 		return [...comments].sort((a, b) => b.createdAt - a.createdAt);
 	}, [comments]);
 
-	const isLoading =
-		project === undefined || standard === undefined || criteria === undefined || comments === undefined;
+	const isLoading = project === undefined || standard === undefined || criteria === undefined;
+	const isCommentsLoading = comments === undefined;
 
 	if (auth.orgStatus !== "ready") {
 		return <AuthStateNotice status={auth.orgStatus} />;
@@ -227,13 +227,13 @@ function ProjectExportPage() {
 					<CardDescription>
 						Bewertung der Kriterien-basierenden Analyse mit Status und Fundstellen.
 					</CardDescription>
-					<div className="flex items-center gap-2 text-sm text-muted-foreground">
+					<label className="flex items-center gap-2 text-sm text-muted-foreground">
 						<Checkbox
 							checked={includeNotFound}
 							onCheckedChange={(checked) => setIncludeNotFound(checked === true)}
 						/>
 						<span>Nicht gefundene Kriterien anzeigen</span>
-					</div>
+					</label>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					{isLoading ? (
@@ -244,7 +244,7 @@ function ProjectExportPage() {
 						</p>
 					) : visibleCriteriaItems.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
-							Keine Kriterien sichtbar. Aktiviere „Nicht gefundene Kriterien anzeigen", um alle Ergebnisse zu sehen.
+							Keine Kriterien sichtbar. Aktiviere „Nicht gefundene Kriterien anzeigen“, um alle Ergebnisse zu sehen.
 						</p>
 					) : (
 						visibleCriteriaItems.map((item) => (
@@ -278,7 +278,7 @@ function ProjectExportPage() {
 					<CardDescription>Hinweise und Diskussionen zum Projekt.</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					{isLoading ? (
+					{isCommentsLoading ? (
 						<p className="text-sm text-muted-foreground">Lade Kommentare …</p>
 					) : sortedComments.length === 0 ? (
 						<p className="text-sm text-muted-foreground">Noch keine Kommentare vorhanden.</p>
