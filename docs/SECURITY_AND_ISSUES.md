@@ -305,7 +305,7 @@ const latest = await ctx.db
 User-controlled document text directly injected into LLM prompt:
 
 ```typescript
-const cappedText = limitPromptText(chunk.text, MAX_PROMPT_CHARS);
+const cappedText = limitPromptText(chunk.text, MAX_PROMPT_CHARS, MAX_PROMPT_TOKENS);
 const userPrompt = `Lies die folgenden Seiten...
 
 Seiten:
@@ -323,7 +323,8 @@ ${cappedText}`;  // ❌ Unsanitized user content (only truncated)
 
 **Current Mitigation:**
 - Prompt size is capped via `CONVEX_MAX_PROMPT_CHARS` (default `1200000`) and
-  enforced by `limitPromptText(...)` in analysis flows.
+  `CONVEX_MAX_PROMPT_TOKENS` (default `200000`), enforced by
+  `limitPromptText(...)` in analysis flows.
 - Offer analysis limits pages via `CONVEX_OFFER_PAGE_LIMIT` (default `8`).
 
 **Additional Mitigation (recommended):**
