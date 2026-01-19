@@ -980,6 +980,7 @@ Regeln:
 - Gib ausschliesslich dieses JSON-Objekt zurück (kein Array, kein Fliesstext, keine Codeblöcke).
 - Jede Aussage benötigt mindestens ein Zitat in \"citations\" (documentKey + page + quote).
 - Fehlende Werte als null eintragen.
+- Antwort immer als String liefern; bei boolean-Antworten verwende \"Ja\" oder \"Nein\".
 - Nutze den Dokument-Schlüssel (documentKey) aus der Dokumentliste, damit klar ist, aus welchem Dokument die Seite stammt.
 
 Kriterium:
@@ -1001,7 +1002,8 @@ ${cappedContext}`;
     });
 
     const c = Array.isArray(parsed) ? parsed[0] : parsed;
-    const validated = criteriaItemSchema.parse(c);
+    const normalized = normalizeCriteriaItem(c, criterion.answerType);
+    const validated = criteriaItemSchema.parse(normalized);
 
 	return {
 		result: validated,
@@ -1009,6 +1011,61 @@ ${cappedContext}`;
 		latencyMs,
 		meta: { provider, model },
 	};
+}
+
+function normalizeCriteriaItem(
+	value: unknown,
+	answerType: "boolean" | "skala" | "text",
+): Record<string, unknown> {
+	const item =
+		typeof value === "object" && value !== null
+			? { ...(value as Record<string, unknown>) }
+			: {};
+
+	if ("answer" in item) {
+		const answer = item.answer;
+		if (answer === null || answer === undefined) {
+			// keep null/undefined
+		} else if (typeof answer === "boolean") {
+			item.answer =
+				answerType === "boolean" ? (answer ? "Ja" : "Nein") : String(answer);
+		} else if (typeof answer === "number") {
+			item.answer = Number.isFinite(answer) ? String(answer) : null;
+		} else if (typeof answer !== "string") {
+			try {
+				item.answer = JSON.stringify(answer);
+			} catch {
+				item.answer = String(answer);
+			}
+		}
+	}
+
+	if ("comment" in item) {
+		const comment = item.comment;
+		if (comment === null || comment === undefined) {
+			// keep null/undefined
+		} else if (typeof comment !== "string") {
+			item.comment = String(comment);
+		}
+	}
+
+	if ("score" in item) {
+		const score = item.score;
+		if (score === null || score === undefined) {
+			// keep null/undefined
+		} else if (typeof score === "string") {
+			const parsedScore = Number(score);
+			item.score = Number.isFinite(parsedScore) ? parsedScore : null;
+		} else if (typeof score !== "number") {
+			item.score = null;
+		}
+	}
+
+	if (!Array.isArray(item.citations)) {
+		item.citations = [];
+	}
+
+	return item;
 }
 
 async function analyseCriterionAcrossChunks(
