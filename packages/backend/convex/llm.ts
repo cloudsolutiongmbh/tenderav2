@@ -56,6 +56,27 @@ export async function callLlm(args: LlmCallArgs): Promise<LlmCallResult> {
 	}
 }
 
+async function readJsonResponse(response: Response, providerLabel: string) {
+	const text = await response.text();
+	if (!text) {
+		return { data: null, text: "" };
+	}
+
+	try {
+		return { data: JSON.parse(text), text };
+	} catch {
+		throw new ConvexError(
+			`${providerLabel} hat eine nicht-JSON Antwort geliefert (Status ${response.status}). ` +
+				`Antwort: ${truncate(text, 500)}`,
+		);
+	}
+}
+
+function truncate(text: string, maxLength: number) {
+	if (text.length <= maxLength) return text;
+	return `${text.slice(0, maxLength)}…`;
+}
+
 function shouldUseResponsesApi(model: string) {
   // Heuristic: GPT‑5 models and some newer families expect the Responses API
   return /^gpt-5/i.test(model);
@@ -101,16 +122,18 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
         });
 
 		latencyMs = Date.now() - start;
-		const data = await response.json();
+		const { data, text: rawText } = await readJsonResponse(response, "OpenAI");
 		if (!response.ok) {
-			const message = data?.error?.message ?? "OpenAI-Anfrage fehlgeschlagen.";
+			const message =
+				data?.error?.message ??
+				`OpenAI-Anfrage fehlgeschlagen (Status ${response.status}). Antwort: ${truncate(rawText, 500)}`;
 			throw new ConvexError(message);
 		}
 
 		// Responses API: prefer `output_text`, otherwise stitch text from content
         // Extract structured/text output from Responses API
-        let text: string = typeof data?.output_text === "string" ? data.output_text : "";
-        if (!text && Array.isArray(data?.output)) {
+        let outputText: string = typeof data?.output_text === "string" ? data.output_text : "";
+        if (!outputText && Array.isArray(data?.output)) {
             const jsonPieces: any[] = [];
             const textPieces: string[] = [];
             for (const item of data.output) {
@@ -124,14 +147,14 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
                 }
             }
             if (jsonPieces.length > 0) {
-                text = JSON.stringify(jsonPieces.length === 1 ? jsonPieces[0] : jsonPieces);
+                outputText = JSON.stringify(jsonPieces.length === 1 ? jsonPieces[0] : jsonPieces);
             } else if (textPieces.length > 0) {
-                text = textPieces.join("\n");
+                outputText = textPieces.join("\n");
             }
         }
 
 		return {
-			text,
+			text: outputText,
 			usage: {
 				promptTokens: data?.usage?.input_tokens,
 				completionTokens: data?.usage?.output_tokens,
@@ -162,9 +185,11 @@ async function callOpenAi(model: string, args: LlmCallArgs): Promise<LlmCallResu
 	});
 
 	latencyMs = Date.now() - start;
-	const data = await response.json();
+	const { data, text: rawText } = await readJsonResponse(response, "OpenAI");
 	if (!response.ok) {
-		const message = data?.error?.message ?? "OpenAI-Anfrage fehlgeschlagen.";
+		const message =
+			data?.error?.message ??
+			`OpenAI-Anfrage fehlgeschlagen (Status ${response.status}). Antwort: ${truncate(rawText, 500)}`;
 		throw new ConvexError(message);
 	}
 
@@ -207,10 +232,12 @@ async function callAnthropic(model: string, args: LlmCallArgs): Promise<LlmCallR
 	});
 
 	const latencyMs = Date.now() - start;
-	const data = await response.json();
+	const { data, text: rawText } = await readJsonResponse(response, "Anthropic");
 
 	if (!response.ok) {
-		const message = data?.error?.message ?? "Anthropic-Anfrage fehlgeschlagen.";
+		const message =
+			data?.error?.message ??
+			`Anthropic-Anfrage fehlgeschlagen (Status ${response.status}). Antwort: ${truncate(rawText, 500)}`;
 		throw new ConvexError(message);
 	}
 
