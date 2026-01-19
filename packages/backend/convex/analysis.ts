@@ -36,6 +36,10 @@ const OFFER_JOB_TIMEOUT_MS = Math.max(
 	30_000,
 	Number.parseInt(process.env.CONVEX_OFFER_JOB_TIMEOUT_MS ?? "120000"),
 );
+const ANALYSIS_RUN_TIMEOUT_MS = Math.max(
+	300_000,
+	Number.parseInt(process.env.CONVEX_ANALYSIS_RUN_TIMEOUT_MS ?? "1800000"),
+);
 const OFFER_JOB_MAX_ATTEMPTS = Math.max(
 	1,
 	Number.parseInt(process.env.CONVEX_OFFER_JOB_MAX_ATTEMPTS ?? "3"),
@@ -2330,12 +2334,16 @@ export const kickQueue = internalAction({
 	handler: async (ctx, { orgId }) => {
 		await ctx.scheduler.runAfter(0, internal.analysis.cleanStaleRuns, {
 			orgId,
-			timeoutMs: OFFER_JOB_TIMEOUT_MS,
+			timeoutMs: ANALYSIS_RUN_TIMEOUT_MS,
 		});
-		await ctx.scheduler.runAfter(Math.floor(OFFER_JOB_TIMEOUT_MS / 2), internal.analysis.cleanStaleRuns, {
-			orgId,
-			timeoutMs: OFFER_JOB_TIMEOUT_MS,
-		});
+		await ctx.scheduler.runAfter(
+			Math.floor(ANALYSIS_RUN_TIMEOUT_MS / 2),
+			internal.analysis.cleanStaleRuns,
+			{
+				orgId,
+				timeoutMs: ANALYSIS_RUN_TIMEOUT_MS,
+			},
+		);
 
 			const runs = (await ctx.runQuery(internal.analysis.listRunsByOrg, {
 				orgId,
