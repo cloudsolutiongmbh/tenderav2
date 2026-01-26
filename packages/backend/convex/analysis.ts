@@ -3650,20 +3650,36 @@ export const listOfferRunsWithPendingJobs = internalQuery({
 		limit: v.number(),
 	},
 	handler: async (ctx, { orgId, limit }) => {
-		const jobs = await ctx.db
-			.query("offerCriterionJobs")
-			.withIndex("by_org_status", (q) => q.eq("orgId", orgId).eq("status", "pending"))
-			.take(limit * 5);
+		const runs = await ctx.db
+			.query("analysisRuns")
+			.withIndex("by_orgId", (q) => q.eq("orgId", orgId))
+			.collect();
 
+		const activeRuns = runs
+			.filter(
+				(run) =>
+					run.type === "offer_check"
+					&& (run.status === "läuft" || run.status === "wartet"),
+			)
+			.sort((a, b) => (a.queuedAt ?? 0) - (b.queuedAt ?? 0));
+
+		const now = Date.now();
 		const runIds: Id<"analysisRuns">[] = [];
-		const seen = new Set<string>();
-		for (const job of jobs) {
-			if (!seen.has(job.runId)) {
-				runIds.push(job.runId);
-				seen.add(job.runId);
-				if (runIds.length >= limit) {
-					break;
-				}
+		for (const run of activeRuns) {
+			if (runIds.length >= limit) {
+				break;
+			}
+			const candidates = await ctx.db
+				.query("offerCriterionJobs")
+				.withIndex("by_run_status", (q) =>
+					q.eq("runId", run._id).eq("status", "pending"),
+				)
+				.take(25);
+			const hasReady = candidates.some(
+				(job) => job.retryAfter === undefined || job.retryAfter <= now,
+			);
+			if (hasReady) {
+				runIds.push(run._id);
 			}
 		}
 		return runIds;
