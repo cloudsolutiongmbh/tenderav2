@@ -3,17 +3,21 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
 type CriteriaStatus = "gefunden" | "nicht_gefunden" | "teilweise" | "unbekannt";
+type CriteriaSearchMode = "title" | "keywords" | "title+keywords";
 
 export interface CriteriaListItem {
 	criterionId: string;
 	title: string;
 	status: CriteriaStatus;
+	keywords?: string[];
 }
 
 interface CriteriaListProps {
 	items: CriteriaListItem[];
 	selectedId?: string;
 	onSelect?: (criterionId: string) => void;
+	searchModes?: Array<{ value: CriteriaSearchMode; label: string }>;
+	defaultSearchMode?: CriteriaSearchMode;
 }
 
 const STATUS_LABEL: Record<CriteriaStatus, string> = {
@@ -30,24 +34,65 @@ const STATUS_CLASS: Record<CriteriaStatus, string> = {
 	unbekannt: "bg-muted text-muted-foreground",
 };
 
-export function CriteriaList({ items, selectedId, onSelect }: CriteriaListProps) {
+export function CriteriaList({
+	items,
+	selectedId,
+	onSelect,
+	searchModes,
+	defaultSearchMode,
+}: CriteriaListProps) {
 	const [searchQuery, setSearchQuery] = useState("");
+	const [searchMode, setSearchMode] = useState<CriteriaSearchMode>(
+		defaultSearchMode ?? searchModes?.[0]?.value ?? "title",
+	);
+
+	const activeSearchMode = searchModes && searchModes.length > 0 ? searchMode : "title";
+	const placeholder =
+		activeSearchMode === "keywords"
+			? "Stichwort suchen"
+			: activeSearchMode === "title+keywords"
+				? "Titel oder Stichwort"
+				: "Kriterium suchen";
 
 	const filteredItems = useMemo(() => {
-		if (!searchQuery.trim()) return items;
-		const query = searchQuery.toLowerCase();
-		return items.filter((item) => item.title.toLowerCase().includes(query));
-	}, [items, searchQuery]);
+		const query = searchQuery.trim().toLowerCase();
+		if (!query) return items;
+		return items.filter((item) => {
+			const title = item.title.toLowerCase();
+			const keywords = (item.keywords ?? []).join(" ").toLowerCase();
+			if (activeSearchMode === "keywords") {
+				return keywords.includes(query);
+			}
+			if (activeSearchMode === "title+keywords") {
+				return title.includes(query) || keywords.includes(query);
+			}
+			return title.includes(query);
+		});
+	}, [items, searchQuery, activeSearchMode]);
 
 	return (
 		<div className="flex h-full max-h-[70vh] flex-col rounded-xl border bg-card p-2">
-			<div className="mb-2">
+			<div className="mb-2 flex items-center gap-2">
 				<Input
 					value={searchQuery}
 					onChange={(e) => setSearchQuery(e.target.value)}
-					placeholder="Kriterium suchen"
+					placeholder={placeholder}
 					className="h-8 text-sm"
 				/>
+				{searchModes && searchModes.length > 0 ? (
+					<select
+						value={searchMode}
+						onChange={(event) => setSearchMode(event.target.value as CriteriaSearchMode)}
+						className="h-8 rounded-md border border-input bg-background px-2 text-sm shadow-sm"
+						aria-label="Suchbereich"
+					>
+						{searchModes.map((mode) => (
+							<option key={mode.value} value={mode.value}>
+								{mode.label}
+							</option>
+						))}
+					</select>
+				) : null}
 			</div>
 			{items.length === 0 ? (
 				<p className="rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">

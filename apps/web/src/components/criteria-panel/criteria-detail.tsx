@@ -20,6 +20,7 @@ export interface CriteriaDetailData {
 	answer?: string;
 	score?: number;
 	weight?: number;
+	keywords?: string[];
 	citations?: Citation[];
 }
 

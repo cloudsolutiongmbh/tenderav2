@@ -103,6 +103,7 @@ function ProjectCriteriaPage() {
 					citations: item.citations ?? [],
 					sourcePages: templateCriterion?.sourcePages ?? [],
 					weight: item.weight ?? templateCriterion?.weight,
+					keywords: templateCriterion?.keywords ?? [],
 				};
 			});
 		}
@@ -119,6 +120,7 @@ function ProjectCriteriaPage() {
 				weight: criterion.weight,
 				citations: [],
 				sourcePages: criterion.sourcePages ?? [],
+				keywords: criterion.keywords ?? [],
 			}));
 		}
 		return [];
@@ -130,6 +132,7 @@ function ProjectCriteriaPage() {
 				criterionId: item.criterionId,
 				title: item.title,
 				status: item.status,
+				keywords: item.keywords,
 			})),
 		[computedCriteria],
 	);
@@ -376,7 +379,16 @@ function ProjectCriteriaPage() {
 						) : activeCriterion ? (
 							<div className="grid gap-6 lg:grid-cols-[320px_1fr]">
 								<div className="lg:sticky lg:top-28">
-									<CriteriaList items={items} selectedId={selectedId} onSelect={setSelectedId} />
+									<CriteriaList
+										items={items}
+										selectedId={selectedId}
+										onSelect={setSelectedId}
+										searchModes={[
+											{ value: "keywords", label: "Stichworte" },
+											{ value: "title+keywords", label: "Titel + Stichworte" },
+										]}
+										defaultSearchMode="keywords"
+									/>
 								</div>
 								<CriteriaDetail criterion={activeCriterion} />
 							</div>

@@ -79,7 +79,7 @@ function TemplateDetailPage() {
     const [isDeleting, setDeleting] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [activeSearch, setActiveSearch] = useState("");
-	const [searchScope, setSearchScope] = useState<"title" | "all">("title");
+	const [searchScope, setSearchScope] = useState<"keywords" | "title+keywords">("keywords");
 
 	const isLoading = !isNew && template === undefined;
 
@@ -120,14 +120,9 @@ function TemplateDetailPage() {
 		const query = activeSearch.toLowerCase();
 		return criteria.filter((criterion) => {
 			const searchableText =
-				searchScope === "title"
-					? criterion.title
-					: [
-						criterion.title,
-						criterion.description,
-						criterion.hints,
-						criterion.keywords,
-					].join(" ");
+				searchScope === "keywords"
+					? criterion.keywords
+					: [criterion.title, criterion.keywords].join(" ");
 			return searchableText.toLowerCase().includes(query);
 		});
 	}, [criteria, activeSearch, searchScope]);
@@ -293,13 +288,15 @@ function TemplateDetailPage() {
 							/>
 							<select
 								value={searchScope}
-								onChange={(event) => setSearchScope(event.target.value as "title" | "all")}
+								onChange={(event) =>
+									setSearchScope(event.target.value as "keywords" | "title+keywords")
+								}
 								className="h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm"
 								aria-label="Suchbereich"
 								disabled={isLoading}
 							>
-								<option value="title">Nur Titel</option>
-								<option value="all">Titel + Beschreibung/Hinweise</option>
+								<option value="keywords">Nur Stichworte</option>
+								<option value="title+keywords">Titel + Stichworte</option>
 							</select>
 							<Button
 								type="button"
