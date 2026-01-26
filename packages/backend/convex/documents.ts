@@ -4,7 +4,11 @@ import { getIdentityOrThrow } from "./auth";
 import type { Id } from "./_generated/dataModel";
 
 const DEFAULT_MAX_UPLOAD_MB = 400;
-const maxUploadMb = Number.parseInt(process.env.MAX_UPLOAD_MB ?? `${DEFAULT_MAX_UPLOAD_MB}`);
+const maxUploadMb = Number.parseInt(
+	process.env.MAX_UPLOAD_MB ??
+		process.env.VITE_MAX_UPLOAD_MB ??
+		`${DEFAULT_MAX_UPLOAD_MB}`,
+);
 const MAX_UPLOAD_BYTES = (Number.isNaN(maxUploadMb) ? DEFAULT_MAX_UPLOAD_MB : maxUploadMb) * 1024 * 1024;
 
 const DOCUMENT_ROLE_VALUES = ["pflichtenheft", "offer", "support"] as const;
@@ -153,11 +157,27 @@ export const remove = mutation({
 				await ctx.db.delete(job._id);
 			}
 
+			const runs = await ctx.db
+				.query("analysisRuns")
+				.withIndex("by_offerId_type", (q) =>
+					q.eq("offerId", offer._id).eq("type", "offer_check"),
+				)
+				.filter((q) => q.eq(q.field("orgId"), identity.orgId))
+				.collect();
+			for (const run of runs) {
+				await ctx.db.delete(run._id);
+			}
+
 			await ctx.db.delete(offer._id);
 		}
 
 		await Promise.all(pages.map((page) => ctx.db.delete(page._id)));
-		await ctx.storage.delete(document.storageId);
+		try {
+			await ctx.storage.delete(document.storageId);
+		} catch (error) {
+			console.error("Storage delete failed", error);
+			// Ignore storage deletion failures to allow document cleanup
+		}
 		await ctx.db.delete(documentId);
 
 		return {

@@ -275,18 +275,27 @@ export const remove = mutation({
             .withIndex("by_projectId", (q) => q.eq("projectId", projectId))
             .filter((q) => q.eq(q.field("orgId"), identity.orgId))
             .collect();
-        for (const offer of offers) {
-            // Delete offer criteria results
-            const offerResults = await ctx.db
-                .query("offerCriteriaResults")
-                .withIndex("by_offerId", (q) => q.eq("offerId", offer._id))
-                .filter((q) => q.eq(q.field("orgId"), identity.orgId))
-                .collect();
-            for (const result of offerResults) {
-                await ctx.db.delete(result._id);
-            }
-            await ctx.db.delete(offer._id);
-        }
+		for (const offer of offers) {
+			// Delete offer criteria results
+			const offerResults = await ctx.db
+				.query("offerCriteriaResults")
+				.withIndex("by_offerId", (q) => q.eq("offerId", offer._id))
+				.filter((q) => q.eq(q.field("orgId"), identity.orgId))
+				.collect();
+			for (const result of offerResults) {
+				await ctx.db.delete(result._id);
+			}
+			// Delete pending offer criterion jobs
+			const offerJobs = await ctx.db
+				.query("offerCriterionJobs")
+				.withIndex("by_offer", (q) => q.eq("offerId", offer._id))
+				.filter((q) => q.eq(q.field("orgId"), identity.orgId))
+				.collect();
+			for (const job of offerJobs) {
+				await ctx.db.delete(job._id);
+			}
+			await ctx.db.delete(offer._id);
+		}
 
         // Delete analysis results and runs
         const results = await ctx.db

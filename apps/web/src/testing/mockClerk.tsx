@@ -18,6 +18,8 @@ const defaultUser: MockUser = {
 	imageUrl: undefined,
 	fullName: "E2E Nutzer",
 };
+const defaultOrgId = "org_test";
+const defaultOrgSlug = "test-org";
 
 const ClerkContext = createContext<MockClerkState>({
 	user: defaultUser,
@@ -41,6 +43,14 @@ export function SignedOut({ children }: PropsWithChildren) {
 }
 
 export function SignInButton({ children }: PropsWithChildren<{ mode?: string; forceRedirectUrl?: string; signUpForceRedirectUrl?: string }>) {
+	return <>{children}</>;
+}
+
+export function ClerkLoaded({ children }: PropsWithChildren) {
+	return <>{children}</>;
+}
+
+export function ClerkLoading({ children }: PropsWithChildren) {
 	return <>{children}</>;
 }
 
@@ -90,7 +100,12 @@ export function useClerk() {
 
 export function useAuth() {
 	return {
+		isLoaded: true,
 		isSignedIn: true,
+		orgId: defaultOrgId,
+		orgSlug: defaultOrgSlug,
+		userId: defaultUser.id,
+		sessionId: "session_test",
 		getToken: async () => null,
 	};
 }

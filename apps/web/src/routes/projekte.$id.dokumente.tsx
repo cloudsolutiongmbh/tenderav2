@@ -182,12 +182,11 @@ const criteriaHint = !hasTemplate
 						documentId: attached?._id as Id<"documents">,
 						pages: pages.map((page) => ({ page: page.page, text: page.text })),
 					});
+				} else {
 					await markDocumentExtracted({
 						documentId: attached?._id as Id<"documents">,
-						pageCount: pages.length,
+						pageCount: 0,
 					});
-				} else {
-					await markDocumentExtracted({ documentId: attached?._id as Id<"documents">, pageCount: 0 });
 				}
 
 				setUploads((prev) =>

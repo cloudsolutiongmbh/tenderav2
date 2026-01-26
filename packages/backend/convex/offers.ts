@@ -117,6 +117,16 @@ export const remove = mutation({
 			throw new Error("Offer not found or access denied");
 		}
 
+		// Delete any pending criterion jobs tied to this offer
+		const jobs = await ctx.db
+			.query("offerCriterionJobs")
+			.withIndex("by_offer", (q) => q.eq("offerId", args.offerId))
+			.filter((q) => q.eq(q.field("orgId"), orgId))
+			.collect();
+		for (const job of jobs) {
+			await ctx.db.delete(job._id);
+		}
+
 		// Delete related criteria results
 		const results = await ctx.db
 			.query("offerCriteriaResults")
@@ -125,6 +135,18 @@ export const remove = mutation({
 
 		for (const result of results) {
 			await ctx.db.delete(result._id);
+		}
+
+		// Delete any offer_check runs for this offer
+		const runs = await ctx.db
+			.query("analysisRuns")
+			.withIndex("by_offerId_type", (q) =>
+				q.eq("offerId", args.offerId).eq("type", "offer_check"),
+			)
+			.filter((q) => q.eq(q.field("orgId"), orgId))
+			.collect();
+		for (const run of runs) {
+			await ctx.db.delete(run._id);
 		}
 
 		// Delete the offer

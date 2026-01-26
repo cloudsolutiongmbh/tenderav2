@@ -218,12 +218,11 @@ const isUploading = uploadState?.status === "uploading" || uploadState?.status =
 					documentId: attached?._id as Id<"documents">,
 					pages: pages.map((page) => ({ page: page.page, text: page.text })),
 				});
+			} else {
 				await markDocumentExtracted({
 					documentId: attached?._id as Id<"documents">,
-					pageCount: pages.length,
+					pageCount: 0,
 				});
-			} else {
-				await markDocumentExtracted({ documentId: attached?._id as Id<"documents">, pageCount: 0 });
 			}
 
 			setUploadState({ status: "done", filename: file.name });
@@ -304,12 +303,11 @@ const isUploading = uploadState?.status === "uploading" || uploadState?.status =
 						documentId: attached?._id as Id<"documents">,
 						pages: pages.map((page) => ({ page: page.page, text: page.text })),
 					});
+				} else {
 					await markDocumentExtracted({
 						documentId: attached?._id as Id<"documents">,
-						pageCount: pages.length,
+						pageCount: 0,
 					});
-				} else {
-					await markDocumentExtracted({ documentId: attached?._id as Id<"documents">, pageCount: 0 });
 				}
 
 				if (attached) {

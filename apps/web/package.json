@@ -14,11 +14,9 @@
 	"dependencies": {
 		"@clerk/clerk-react": "^5.45.0",
 		"@clerk/localizations": "^3.24.1",
-		"@hookform/resolvers": "^5.1.1",
 		"@radix-ui/react-accordion": "^1.2.12",
 		"@radix-ui/react-dialog": "^1.1.15",
 		"@tailwindcss/vite": "^4.0.15",
-		"@tanstack/react-form": "^1.12.3",
 		"@tanstack/react-router": "^1.114.25",
 		"@tendera/backend": "*",
 		"class-variance-authority": "^0.7.1",

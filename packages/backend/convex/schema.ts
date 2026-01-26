@@ -66,10 +66,6 @@ const criteriaAnalysisSchema = v.object({
 });
 
 export default defineSchema({
-	todos: defineTable({
-		text: v.string(),
-		completed: v.boolean(),
-	}),
 	projects: defineTable({
 		name: v.string(),
 		customer: v.string(),

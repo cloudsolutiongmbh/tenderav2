@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from "react";
 
-import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
@@ -67,6 +67,7 @@ function ProjektePage() {
 	const [isDialogOpen, setDialogOpen] = useState(false);
 	const [viewMode, setViewMode] = useState<"board" | "list">("board");
 	const [searchQuery, setSearchQuery] = useState("");
+	const navigate = useNavigate();
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
 	const isIndex = pathname === "/projekte";
 	const auth = useOrgAuth();
@@ -237,7 +238,10 @@ function ProjektePage() {
 									<button
 										onClick={(e) => {
 											e.preventDefault();
-											window.location.href = `/projekte/${project._id}/standard`;
+											navigate({
+												to: "/projekte/$id/standard",
+												params: { id: project._id },
+											});
 										}}
 										className="rounded-md border px-3 py-2 text-sm text-center transition-colors hover:bg-muted"
 									>
@@ -246,7 +250,10 @@ function ProjektePage() {
 									<button
 										onClick={(e) => {
 											e.preventDefault();
-											window.location.href = `/projekte/${project._id}/kriterien`;
+											navigate({
+												to: "/projekte/$id/kriterien",
+												params: { id: project._id },
+											});
 										}}
 										className="rounded-md border px-3 py-2 text-sm text-center transition-colors hover:bg-muted"
 									>
@@ -255,7 +262,10 @@ function ProjektePage() {
 									<button
 										onClick={(e) => {
 											e.preventDefault();
-											window.location.href = `/projekte/${project._id}/dokumente`;
+											navigate({
+												to: "/projekte/$id/dokumente",
+												params: { id: project._id },
+											});
 										}}
 										className="rounded-md border px-3 py-2 text-sm text-center transition-colors hover:bg-muted"
 									>
@@ -264,7 +274,10 @@ function ProjektePage() {
 									<button
 										onClick={(e) => {
 											e.preventDefault();
-											window.location.href = `/projekte/${project._id}/kommentare`;
+											navigate({
+												to: "/projekte/$id/kommentare",
+												params: { id: project._id },
+											});
 										}}
 										className="rounded-md border px-3 py-2 text-sm text-center transition-colors hover:bg-muted"
 									>
@@ -273,7 +286,10 @@ function ProjektePage() {
 									<button
 										onClick={(e) => {
 											e.preventDefault();
-											window.location.href = `/projekte/${project._id}/export`;
+											navigate({
+												to: "/projekte/$id/export",
+												params: { id: project._id },
+											});
 										}}
 										className="rounded-md border px-3 py-2 text-sm text-center transition-colors hover:bg-muted col-span-2"
 									>
@@ -323,7 +339,10 @@ function ProjektePage() {
 											<button
 												onClick={(e) => {
 													e.preventDefault();
-													window.location.href = `/projekte/${project._id}/standard`;
+													navigate({
+														to: "/projekte/$id/standard",
+														params: { id: project._id },
+													});
 												}}
 												className="rounded-md border px-3 py-1.5 text-xs transition-colors hover:bg-muted"
 											>
@@ -332,7 +351,10 @@ function ProjektePage() {
 											<button
 												onClick={(e) => {
 													e.preventDefault();
-													window.location.href = `/projekte/${project._id}/kriterien`;
+													navigate({
+														to: "/projekte/$id/kriterien",
+														params: { id: project._id },
+													});
 												}}
 												className="rounded-md border px-3 py-1.5 text-xs transition-colors hover:bg-muted"
 											>
@@ -341,7 +363,10 @@ function ProjektePage() {
 											<button
 												onClick={(e) => {
 													e.preventDefault();
-													window.location.href = `/projekte/${project._id}/dokumente`;
+													navigate({
+														to: "/projekte/$id/dokumente",
+														params: { id: project._id },
+													});
 												}}
 												className="rounded-md border px-3 py-1.5 text-xs transition-colors hover:bg-muted"
 											>
@@ -660,9 +685,12 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
                                 disabled={isSubmitting}
                                 className="md:col-span-2"
                         />
-                        <div className="space-y-2 md:col-span-2">
-				<label className="text-sm font-medium">Projekt-Typ</label>
+			<div className="space-y-2 md:col-span-2">
+				<label className="text-sm font-medium" htmlFor="project-type">
+					Projekt-Typ
+				</label>
 				<select
+					id="project-type"
 					className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
 					value={projectType}
 					onChange={handleProjectTypeChange}
@@ -679,7 +707,11 @@ function NewProjectForm({ templates, onSuccess }: NewProjectFormProps) {
 			</div>
                         {projectType === "standard" ? (
                                 <div className="space-y-3 md:col-span-2">
+					<label className="text-sm font-medium" htmlFor="project-template">
+						Kriterienkatalog (optional)
+					</label>
 					<select
+						id="project-template"
 						className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
 						value={templateId}
 						onChange={(event) => setTemplateId(event.target.value)}

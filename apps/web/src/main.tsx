@@ -7,7 +7,21 @@ import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { ClerkProvider, useAuth } from "@clerk/clerk-react";
 import { deDE } from "@clerk/localizations";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
+
+if (import.meta.env.VITE_E2E_MOCK === "1") {
+	void import("./testing/mockConvexBackend");
+}
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+
+if (!clerkPublishableKey && import.meta.env.VITE_E2E_MOCK !== "1") {
+	throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY. Set it in the web app environment.");
+}
+
+if (import.meta.env.PROD && clerkPublishableKey?.startsWith("pk_test_")) {
+	// Warn to avoid production builds accidentally using a dev key which often resolves to a non-public frontend API.
+	console.warn("Using a Clerk test publishable key in production.");
+}
 
 const isE2EMock = import.meta.env.VITE_E2E_MOCK === "1";
 
@@ -27,7 +41,7 @@ const router = createRouter({
 
 		return (
 			<ClerkProvider
-				publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}
+				publishableKey={clerkPublishableKey!}
 				localization={deDE}
 			>
 				<ConvexProviderWithClerk client={convex} useAuth={useAuth}>

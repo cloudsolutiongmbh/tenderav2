@@ -63,10 +63,12 @@ interface TemplateCriterion {
 	sourcePages?: number[];
 }
 
+type AnalysisRunType = "standard" | "criteria" | "pflichtenheft_extract" | "offer_check";
+
 interface AnalysisRunRecord {
 	_id: string;
 	projectId: string;
-	type: "standard" | "criteria";
+	type: AnalysisRunType;
 	status: "wartet" | "läuft" | "fertig" | "fehler";
 	error?: string;
 	queuedAt: number;
@@ -78,6 +80,10 @@ interface AnalysisRunRecord {
 	promptTokens?: number;
 	completionTokens?: number;
 	latencyMs?: number;
+	offerId?: string;
+	totalCount?: number;
+	processedCount?: number;
+	failedCount?: number;
 	orgId: string;
 	createdBy: string;
 	createdAt: number;
@@ -141,7 +147,10 @@ interface ShareRecord {
 interface CommentRecord {
 	_id: string;
 	projectId: string;
-	text: string;
+	contextType: "general" | "milestone" | "criterion";
+	referenceId?: string;
+	referenceLabel?: string;
+	content: string;
 	createdBy: string;
 	createdAt: number;
 	orgId: string;
@@ -167,7 +176,7 @@ const ORG_ID = "test-org";
 const USER_ID = "user-test";
 const MAX_UPLOAD_MB = Number.parseInt(import.meta.env.VITE_MAX_UPLOAD_MB ?? "400");
 const MAX_UPLOAD_BYTES = Number.isNaN(MAX_UPLOAD_MB)
-	? 200 * 1024 * 1024
+	? 400 * 1024 * 1024
 	: MAX_UPLOAD_MB * 1024 * 1024;
 
 let counter = 0;
@@ -264,7 +273,7 @@ class MockConvexBackend {
 		return this.state.analysisRuns.filter((run) => run.projectId === projectId);
 	}
 
-	private latestRun(projectId: string, type: "standard" | "criteria") {
+	private latestRun(projectId: string, type: AnalysisRunType) {
 		const runs = this.state.analysisRuns
 			.filter((run) => run.projectId === projectId && run.type === type)
 			.sort((a, b) => b.createdAt - a.createdAt);
@@ -274,6 +283,8 @@ class MockConvexBackend {
 	private computeRuns(projectId: string) {
 		const standard = this.latestRun(projectId, "standard");
 		const criteria = this.latestRun(projectId, "criteria");
+		const pflichtenheftExtract = this.latestRun(projectId, "pflichtenheft_extract");
+		const offerCheck = this.latestRun(projectId, "offer_check");
 		return {
 			standard: standard
 				? {
@@ -291,6 +302,24 @@ class MockConvexBackend {
 					createdAt: criteria.createdAt,
 					startedAt: criteria.startedAt,
 					finishedAt: criteria.finishedAt,
+				}
+				: undefined,
+			pflichtenheft_extract: pflichtenheftExtract
+				? {
+					_id: pflichtenheftExtract._id,
+					status: pflichtenheftExtract.status,
+					createdAt: pflichtenheftExtract.createdAt,
+					startedAt: pflichtenheftExtract.startedAt,
+					finishedAt: pflichtenheftExtract.finishedAt,
+				}
+				: undefined,
+			offer_check: offerCheck
+				? {
+					_id: offerCheck._id,
+					status: offerCheck.status,
+					createdAt: offerCheck.createdAt,
+					startedAt: offerCheck.startedAt,
+					finishedAt: offerCheck.finishedAt,
 				}
 				: undefined,
 		};
@@ -335,6 +364,27 @@ class MockConvexBackend {
 				return {
 					run: latest,
 					result: result ? (latest.type === "standard" ? result.standard : result.criteria) : null,
+				};
+			}
+			case "analysis:getPflichtenheftExtractionStatus": {
+				const latest = this.latestRun(args.projectId, "pflichtenheft_extract");
+				if (!latest) {
+					return { run: null };
+				}
+				return {
+					run: {
+						_id: latest._id,
+						status: latest.status,
+						error: latest.error,
+						queuedAt: latest.queuedAt,
+						startedAt: latest.startedAt,
+						finishedAt: latest.finishedAt,
+						provider: latest.provider,
+						model: latest.model,
+						promptTokens: latest.promptTokens,
+						completionTokens: latest.completionTokens,
+						latencyMs: latest.latencyMs,
+					},
 				};
 			}
 			case "templates:list": {
@@ -413,6 +463,40 @@ class MockConvexBackend {
 				this.notify();
 				return { success: true };
 			}
+			case "projects:remove": {
+				const project = this.projectById(args.projectId);
+				if (!project) throw new Error("Projekt nicht gefunden");
+
+				this.state.comments = this.state.comments.filter(
+					(comment) => comment.projectId !== project._id,
+				);
+				this.state.shares = this.state.shares.filter(
+					(share) => share.projectId !== project._id,
+				);
+				this.state.analysisResults = this.state.analysisResults.filter(
+					(result) => result.projectId !== project._id,
+				);
+				this.state.analysisRuns = this.state.analysisRuns.filter(
+					(run) => run.projectId !== project._id,
+				);
+
+				const documentIds = new Set(
+					this.state.documents
+						.filter((doc) => doc.projectId === project._id)
+						.map((doc) => doc._id),
+				);
+				this.state.docPages = this.state.docPages.filter(
+					(page) => !documentIds.has(page.documentId),
+				);
+				this.state.documents = this.state.documents.filter(
+					(doc) => doc.projectId !== project._id,
+				);
+				this.state.projects = this.state.projects.filter(
+					(p) => p._id !== project._id,
+				);
+				this.notify();
+				return { success: true };
+			}
 			case "documents:createUploadUrl": {
 				const storageId = generateId("storage");
 				this.uploads.set(storageId, { storageId, size: 0 });
@@ -446,6 +530,20 @@ class MockConvexBackend {
 				this.notify();
 				return document;
 			}
+			case "documents:remove": {
+				const document = this.state.documents.find((doc) => doc._id === args.documentId);
+				if (!document) throw new Error("Dokument nicht gefunden");
+				const beforePages = this.state.docPages.length;
+				this.state.docPages = this.state.docPages.filter(
+					(page) => page.documentId !== document._id,
+				);
+				const removedPages = beforePages - this.state.docPages.length;
+				this.state.documents = this.state.documents.filter(
+					(doc) => doc._id !== document._id,
+				);
+				this.notify();
+				return { success: true, removedPages, removedOffers: 0 };
+			}
 			case "docPages:bulkInsert": {
 				const document = this.state.documents.find((doc) => doc._id === args.documentId);
 				if (!document) throw new Error("Dokument nicht gefunden");
@@ -458,6 +556,11 @@ class MockConvexBackend {
 						orgId: ORG_ID,
 					};
 					this.state.docPages.push(record);
+				}
+				if ((args.pages ?? []).length > 0) {
+					document.pageCount = args.pages.length;
+					document.textExtracted = true;
+					document.updatedAt = Date.now();
 				}
 				this.notify();
 				return { inserted: args.pages?.length ?? 0 };
@@ -473,6 +576,98 @@ class MockConvexBackend {
 			}
 			case "projects:startAnalysis": {
 				return this.startAnalysis(args.projectId, args.type);
+			}
+			case "analysis:runStandardForProject": {
+				const project = this.projectById(args.projectId);
+				if (!project) throw new Error("Projekt nicht gefunden");
+				return { dispatched: true };
+			}
+			case "analysis:runCriteriaForProject": {
+				const project = this.projectById(args.projectId);
+				if (!project) throw new Error("Projekt nicht gefunden");
+				return { dispatched: true };
+			}
+			case "analysis:extractPflichtenheftCriteria": {
+				const project = this.projectById(args.projectId);
+				if (!project) throw new Error("Projekt nicht gefunden");
+				const pflichtenheftDocs = this.state.documents.filter(
+					(doc) => doc.projectId === project._id && doc.role === "pflichtenheft",
+				);
+				const docIds = new Set(pflichtenheftDocs.map((doc) => doc._id));
+				const pages = this.state.docPages.filter((page) => docIds.has(page.documentId));
+				if (pages.length === 0) {
+					throw new Error("Keine Pflichtenheft-Dokumente zum Analysieren gefunden.");
+				}
+
+				const pageNumbers = Array.from(new Set(pages.map((page) => page.page))).sort(
+					(a, b) => a - b,
+				);
+				const criteria: TemplateCriterion[] = [
+					{
+						key: "MUSS_1",
+						title: "Mock-Kriterium 1",
+						description: "Automatisch extrahiertes Muss-Kriterium.",
+						answerType: "boolean",
+						weight: 100,
+						required: true,
+						sourcePages: pageNumbers.slice(0, 3),
+					},
+					{
+						key: "KANN_1",
+						title: "Mock-Kriterium 2",
+						description: "Automatisch extrahiertes Kann-Kriterium.",
+						answerType: "boolean",
+						weight: 50,
+						required: false,
+						sourcePages: pageNumbers.slice(0, 3),
+					},
+				];
+
+				const now = Date.now();
+				const template: TemplateRecord = {
+					_id: generateId("template"),
+					name: `${project.name} - Kriterien`,
+					description: "Automatisch extrahierte Kriterien aus Pflichtenheft",
+					language: "de",
+					version: "1.0",
+					visibleOrgWide: true,
+					criteria,
+					orgId: ORG_ID,
+					createdBy: USER_ID,
+					updatedBy: USER_ID,
+					createdAt: now,
+					updatedAt: now,
+				};
+				this.state.templates.push(template);
+				project.templateId = template._id;
+
+				const run: AnalysisRunRecord = {
+					_id: generateId("run"),
+					projectId: project._id,
+					type: "pflichtenheft_extract",
+					status: "fertig",
+					error: undefined,
+					queuedAt: now,
+					startedAt: now,
+					finishedAt: now,
+					resultId: undefined,
+					provider: "TEST",
+					model: "mock-pflichtenheft",
+					promptTokens: 0,
+					completionTokens: 0,
+					latencyMs: 25,
+					orgId: ORG_ID,
+					createdBy: USER_ID,
+					createdAt: now,
+				};
+				this.state.analysisRuns.push(run);
+				project.latestRunId = run._id;
+
+				this.notify();
+				return { status: "fertig", templateId: template._id, criteriaCount: criteria.length };
+			}
+			case "analysis:checkOfferAgainstCriteria": {
+				return { runId: generateId("run"), queued: true };
 			}
 			case "templates:upsert": {
 				const now = Date.now();
@@ -536,7 +731,10 @@ class MockConvexBackend {
 				const comment: CommentRecord = {
 					_id: generateId("comment"),
 					projectId: args.projectId,
-					text: args.text,
+					contextType: args.contextType ?? "general",
+					referenceId: args.referenceId,
+					referenceLabel: args.referenceLabel,
+					content: args.content,
 					createdBy: USER_ID,
 					createdAt: Date.now(),
 					orgId: ORG_ID,
@@ -578,7 +776,10 @@ class MockConvexBackend {
 		}
 
 		const activeRuns = this.state.analysisRuns.filter(
-			(run) => run.orgId === ORG_ID && (run.status === "wartet" || run.status === "läuft"),
+			(run) =>
+				run.orgId === ORG_ID &&
+				run.type !== "offer_check" &&
+				(run.status === "wartet" || run.status === "läuft"),
 		);
 		const maxActive = 1;
 		const shouldStartImmediately = activeRuns.length < maxActive;

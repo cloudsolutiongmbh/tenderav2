@@ -105,20 +105,17 @@ async function loadLatestResult(
 	projectId: Id<"projects">,
 	type: "standard" | "criteria",
 ) {
-	const results = await ctx.db
+	const latest = await ctx.db
 		.query("analysisResults")
 		.withIndex("by_projectId_type", (q) =>
 			q.eq("projectId", projectId).eq("type", type),
 		)
-		.collect();
+		.order("desc")
+		.first();
 
-	if (results.length === 0) {
+	if (!latest) {
 		return null;
 	}
-
-	const latest = results.reduce((acc, current) =>
-		current.createdAt > acc.createdAt ? current : acc,
-	);
 
 	if (type === "standard") {
 		return {

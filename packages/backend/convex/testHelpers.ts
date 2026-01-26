@@ -93,13 +93,12 @@ export const reset = mutation({
 		"templates",
 		"shares",
 		"comments",
-		"todos",
 	];
 
 	for (const table of tables) {
 		const entries = await ctx.db.query(table).collect();
 		for (const entry of entries) {
-			if (("orgId" in entry && entry.orgId === orgId) || table === "todos") {
+			if ("orgId" in entry && entry.orgId === orgId) {
 				await ctx.db.delete(entry._id);
 			}
 		}

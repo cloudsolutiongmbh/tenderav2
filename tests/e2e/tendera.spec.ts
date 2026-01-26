@@ -69,17 +69,17 @@ test.describe.serial("Tendera End-to-End", () => {
 		await page.getByPlaceholder("Projektname").fill(projectName);
 		await page.getByPlaceholder("Kunde/Behörde").fill(customer);
 		await page.getByPlaceholder("Interne Tags (Komma-getrennt)").fill(tags);
-		await page.locator("select").selectOption(templateId);
+		await page.getByLabel("Kriterienkatalog (optional)").selectOption(templateId);
 		await page.getByRole("button", { name: "Projekt anlegen" }).click();
 
 		await expect(page.getByText("Projekt angelegt.")).toBeVisible();
 		await expect(page.getByRole("heading", { name: projectName })).toBeVisible();
 
-		await page.getByRole("link", { name: "Dokumente" }).first().click();
-
-		await expect(page.getByText(`Dokumente · ${projectName}`)).toBeVisible();
+		await page.getByRole("button", { name: "Dokumente" }).first().click();
+		await expect(page).toHaveURL(/\/projekte\/[^/]+\/dokumente/);
 		const currentUrl = new URL(page.url());
 		projectId = currentUrl.pathname.split("/")[2];
+		await expect(page.getByRole("heading", { name: projectName })).toBeVisible();
 
 		const fixturesDir = path.resolve(process.cwd(), "tests/e2e/fixtures");
 		const files = [
@@ -90,16 +90,23 @@ test.describe.serial("Tendera End-to-End", () => {
 		await page.locator('input[type="file"]').setInputFiles(files);
 
 		await expect(page.getByText("Fertig").first()).toBeVisible();
-		await expect(page.getByText("angebot.pdf")).toBeVisible();
-		await expect(page.getByText("kriterien.docx")).toBeVisible();
+		const uploadedCard = page
+			.getByRole("heading", { name: "Hochgeladene Dateien" })
+			.locator('xpath=ancestor::div[@data-slot="card"]');
+		await expect(uploadedCard.getByText("angebot.pdf")).toBeVisible();
+		await expect(uploadedCard.getByText("kriterien.docx")).toBeVisible();
 
-		const standardCard = page.locator("section").filter({ hasText: "Standard-Analyse" }).first();
+		const standardCard = page
+			.getByRole("heading", { name: "Standard-Analyse" })
+			.locator('xpath=ancestor::div[@data-slot="card"][1]');
 		await standardCard.getByRole("button", { name: "Analyse starten" }).click();
 		await expect(page.getByText("Standard-Analyse gestartet.")).toBeVisible();
 		await page.evaluate((id) => window.__mockConvex.completeStandardRun(id), projectId);
 		await expect(standardCard.locator("span", { hasText: "Fertig" })).toBeVisible();
 
-		const criteriaCard = page.locator("section").filter({ hasText: "Kriterien-Analyse" }).first();
+		const criteriaCard = page
+			.getByRole("heading", { name: "Kriterien-Analyse" })
+			.locator('xpath=ancestor::div[@data-slot="card"][1]');
 		await criteriaCard.getByRole("button", { name: "Analyse starten" }).click();
 		await expect(page.getByText("Kriterien-Analyse gestartet.")).toBeVisible();
 		await page.evaluate((id) => window.__mockConvex.completeCriteriaRun(id), projectId);
@@ -110,27 +117,35 @@ test.describe.serial("Tendera End-to-End", () => {
 		await page.goto(`/projekte/${projectId}/standard`);
 		await page.waitForFunction(() => typeof window !== "undefined" && !!window.__mockConvex);
 		await expect(page.getByText("Dieses Test-Ergebnis fasst die wichtigsten Inhalte", { exact: false })).toBeVisible();
-		await expect(page.getByText("Angebotsabgabe")).toBeVisible();
+		const milestonesCard = page
+			.getByRole("heading", { name: "Meilensteine & Fristen" })
+			.locator('xpath=ancestor::div[@data-slot="card"][1]');
+		await expect(
+			milestonesCard
+				.getByRole("listitem")
+				.filter({ hasText: "Angebotsabgabe" })
+				.locator("div.font-medium"),
+		).toBeVisible();
 		await expect(page.getByText("Sicherheitskonzept", { exact: false })).toBeVisible();
 		await expect(page.getByText("Testkommune")).toBeVisible();
-		await expect(page.getByText("Seite", { exact: false })).toBeVisible();
+		await expect(milestonesCard.getByText(/Zitat \(Seite/).first()).toBeVisible();
 	});
 
 	test("Kriterien-Ansicht zeigt Gefunden und Nicht gefunden", async ({ page }) => {
 		await page.goto(`/projekte/${projectId}/kriterien`);
 		await page.waitForFunction(() => typeof window !== "undefined" && !!window.__mockConvex);
-		await expect(page.getByText("Gefunden")).toBeVisible();
-		await expect(page.getByText("Nicht gefunden")).toBeVisible();
-		await expect(page.getByText("Referenzen", { exact: false })).toBeVisible();
-		await expect(page.getByText("ISO 9001", { exact: false })).toBeVisible();
-		await expect(page.getByText("Seite", { exact: false })).toBeVisible();
+		await expect(page.getByText("Gefunden", { exact: true }).first()).toBeVisible();
+		await expect(page.getByText("Nicht gefunden", { exact: false }).first()).toBeVisible();
+		await expect(page.getByRole("button", { name: "Referenzen" })).toBeVisible();
+		await expect(page.getByRole("button", { name: "ISO 9001" })).toBeVisible();
+		await expect(page.getByText(/Seite \d+/, { exact: false }).first()).toBeVisible();
 	});
 
 	test("Export und Freigabe funktionieren inklusive Ablauf", async ({ page, context }) => {
 		await page.goto(`/projekte/${projectId}/export`);
 		await page.waitForFunction(() => typeof window !== "undefined" && !!window.__mockConvex);
 		await expect(page.getByRole("button", { name: "Als PDF exportieren" })).toBeVisible();
-		await expect(page.getByText("Seite", { exact: false })).toBeVisible();
+		await expect(page.getByText(/Seite \d+/, { exact: false }).first()).toBeVisible();
 
 		await page.getByRole("button", { name: "Link erstellen" }).click();
 		const linkButton = page.locator("button", { hasText: "/share/" }).first();
@@ -140,16 +155,24 @@ test.describe.serial("Tendera End-to-End", () => {
 		shareToken = linkText.split("/").pop() ?? "";
 		await expect(shareToken.length).toBeGreaterThan(0);
 
+		const shareState = await page.evaluate(() => window.__mockConvex?.getState?.() ?? null);
 		const sharePage = await context.newPage();
+		await sharePage.addInitScript((state) => {
+			(window as any).__mockConvexInitialState = state ?? null;
+		}, shareState);
 		await sharePage.goto(linkText);
 		await expect(sharePage.getByText("Analyse-Ergebnisse")).toBeVisible();
-		await expect(sharePage.getByText("Referenzen", { exact: false })).toBeVisible();
+		await expect(sharePage.getByRole("heading", { name: "Referenzen" })).toBeVisible();
 		await expect(sharePage.getByRole("button", { name: "Analyse starten" })).toHaveCount(0);
 
 		await sharePage.close();
 
 		await page.evaluate((token) => window.__mockConvex.expireShare(token), shareToken);
+		const expiredState = await page.evaluate(() => window.__mockConvex?.getState?.() ?? null);
 		const expiredPage = await context.newPage();
+		await expiredPage.addInitScript((state) => {
+			(window as any).__mockConvexInitialState = state ?? null;
+		}, expiredState);
 		await expiredPage.goto(linkText);
 		await expect(expiredPage.getByText("Link ungültig")).toBeVisible();
 		await expiredPage.close();

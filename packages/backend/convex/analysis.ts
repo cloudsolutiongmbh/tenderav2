@@ -445,58 +445,56 @@ export const getLatest = query({
 			throw new ConvexError("Projekt nicht gefunden.");
 		}
 
-		const runs = await ctx.db
+		const latestRun = await ctx.db
 			.query("analysisRuns")
 			.withIndex("by_projectId_type", (q) =>
 				q.eq("projectId", args.projectId).eq("type", args.type),
 			)
-			.collect();
+			.order("desc")
+			.first();
 
-		if (runs.length === 0) {
+		if (!latestRun) {
 			return { run: null, result: null };
 		}
 
-		runs.sort((a, b) => b.createdAt - a.createdAt);
-		const latest = runs[0];
+		const latestResult = await ctx.db
+			.query("analysisResults")
+			.withIndex("by_projectId_type", (q) =>
+				q.eq("projectId", args.projectId).eq("type", args.type),
+			)
+			.order("desc")
+			.first();
 
 		let result: Doc<"analysisResults">["standard"] | Doc<"analysisResults">["criteria"] | null = null;
-		// Surface the most recent completed result even if a newer run is queued or running.
-		for (const run of runs) {
-			if (!run.resultId) {
-				continue;
-			}
-			const stored = await ctx.db.get(run.resultId);
-			if (stored && stored.orgId === identity.orgId) {
-				if (args.type === "standard") {
-					const standard = stored.standard as
-						| (Record<string, unknown> & { openQuestions?: unknown })
-						| undefined;
-					if (standard && "openQuestions" in standard) {
-						const { openQuestions: _deprecated, ...rest } = standard;
-						result = rest as Doc<"analysisResults">["standard"];
-					} else {
-						result = stored.standard ?? null;
-					}
+		if (latestResult && latestResult.orgId === identity.orgId) {
+			if (args.type === "standard") {
+				const standard = latestResult.standard as
+					| (Record<string, unknown> & { openQuestions?: unknown })
+					| undefined;
+				if (standard && "openQuestions" in standard) {
+					const { openQuestions: _deprecated, ...rest } = standard;
+					result = rest as Doc<"analysisResults">["standard"];
 				} else {
-					result = stored.criteria ?? null;
+					result = latestResult.standard ?? null;
 				}
-				break;
+			} else {
+				result = latestResult.criteria ?? null;
 			}
 		}
 
 		return {
 			run: {
-				_id: latest._id,
-				status: latest.status,
-				error: latest.error,
-				queuedAt: latest.queuedAt,
-				startedAt: latest.startedAt,
-				finishedAt: latest.finishedAt,
-				promptTokens: latest.promptTokens,
-				completionTokens: latest.completionTokens,
-				latencyMs: latest.latencyMs,
-				provider: latest.provider,
-				model: latest.model,
+				_id: latestRun._id,
+				status: latestRun.status,
+				error: latestRun.error,
+				queuedAt: latestRun.queuedAt,
+				startedAt: latestRun.startedAt,
+				finishedAt: latestRun.finishedAt,
+				promptTokens: latestRun.promptTokens,
+				completionTokens: latestRun.completionTokens,
+				latencyMs: latestRun.latencyMs,
+				provider: latestRun.provider,
+				model: latestRun.model,
 			},
 			result,
 		};
@@ -2999,15 +2997,13 @@ Vorgaben:
 
 		const userPrompt = `Analysiere das folgende Pflichtenheft und extrahiere alle Muss-Kriterien und Kann-Kriterien:\n\n${cappedPagesText}`;
 
-		const start = Date.now();
-		const { text, usage, provider, model } = await callLlm({
+		const { parsed, usage, latencyMs, provider, model } = await callLlmForJson({
 			systemPrompt,
 			userPrompt,
+			maxOutputTokens: 3500,
 			temperature: 0.1,
 		});
-		const latencyMs = Date.now() - start;
 
-		const parsed = tryParseJson(text);
 		const result = pflichtenheftExtractionSchema.parse(parsed);
 		results.push(result);
 		if (usage.promptTokens) {
@@ -3098,15 +3094,13 @@ Typ: ${criterion.required ? "Muss-Kriterium" : "Kann-Kriterium"}
 
 		const userPrompt = `Prüfe das folgende Angebot gegen dieses Kriterium:\n\n${criterionText}\n\nAngebot:\n\n${cappedPagesText}`;
 
-		const start = Date.now();
-		const { text, usage, provider, model } = await callLlm({
+		const { parsed, usage, latencyMs, provider, model } = await callLlmForJson({
 			systemPrompt,
 			userPrompt,
+			maxOutputTokens: 1000,
 			temperature: 0.1,
 		});
-		const latencyMs = Date.now() - start;
 
-		const parsed = tryParseJson(text);
 		const result = offerCheckResultSchema.parse(parsed);
 		results.push(result);
 		if (usage.promptTokens) {
