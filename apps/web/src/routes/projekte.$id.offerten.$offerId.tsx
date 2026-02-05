@@ -28,6 +28,7 @@ function OfferDetailPage() {
 	const auth = useOrgAuth();
 	const checkOffer = useAction(api.analysis.checkOfferAgainstCriteria);
 	const [isChecking, setChecking] = useState(false);
+	const [statusFilter, setStatusFilter] = useState<OfferStatus | "all">("all");
 
 	const project = useQuery(
 		api.projects.get,
@@ -67,37 +68,42 @@ function OfferDetailPage() {
 		});
 	}, [results]);
 
-	const listItems = useMemo<CriteriaListItem[]>(
+	const filteredResults = useMemo(
+		() => (statusFilter === "all" ? sortedResults : sortedResults.filter((item) => item.status === statusFilter)),
+		[sortedResults, statusFilter],
+	);
+
+	const filteredListItems = useMemo<CriteriaListItem[]>(
 		() =>
-			sortedResults.map((item) => ({
+			filteredResults.map((item) => ({
 				criterionId: item.criterionKey,
 				title: item.criterionTitle,
 				status: mapStatusForBoard(item.status),
 			})),
-		[sortedResults],
+		[filteredResults],
 	);
 
-	const [selectedId, setSelectedId] = useState<string | undefined>(listItems[0]?.criterionId);
+	const [selectedId, setSelectedId] = useState<string | undefined>(filteredListItems[0]?.criterionId);
 
 	useEffect(() => {
-		if (listItems.length === 0) {
+		if (filteredListItems.length === 0) {
 			setSelectedId(undefined);
 			return;
 		}
-		if (!selectedId || !listItems.some((item) => item.criterionId === selectedId)) {
-			setSelectedId(listItems[0]?.criterionId);
+		if (!selectedId || !filteredListItems.some((item) => item.criterionId === selectedId)) {
+			setSelectedId(filteredListItems[0]?.criterionId);
 		}
-	}, [listItems, selectedId]);
+	}, [filteredListItems, selectedId]);
 
 	const activeResult = useMemo<OfferCriterionResult | undefined>(() => {
-		if (sortedResults.length === 0) {
+		if (filteredResults.length === 0) {
 			return undefined;
 		}
 		if (!selectedId) {
-			return sortedResults[0];
+			return filteredResults[0];
 		}
-		return sortedResults.find((item) => item.criterionKey === selectedId) ?? sortedResults[0];
-	}, [selectedId, sortedResults]);
+		return filteredResults.find((item) => item.criterionKey === selectedId) ?? filteredResults[0];
+	}, [selectedId, filteredResults]);
 
 	const activeCriterion = useMemo<CriteriaDetailData | undefined>(() => {
 		if (!activeResult) {
@@ -243,14 +249,40 @@ function OfferDetailPage() {
 						</CardHeader>
 						<CardContent className="space-y-5">
 							<div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-								<StatusPill label="Erfüllt" tone="success" value={statusBreakdown.erfuellt} />
-								<StatusPill label="Teilweise" tone="warn" value={statusBreakdown.teilweise} />
-								<StatusPill label="Nicht erfüllt" tone="error" value={statusBreakdown.nicht_erfuellt} />
-								<StatusPill label="Unklar" tone="muted" value={statusBreakdown.unklar} />
+								<StatusPill
+									label="Erfüllt"
+									tone="success"
+									value={statusBreakdown.erfuellt}
+									isActive={statusFilter === "erfuellt"}
+									onClick={() => setStatusFilter((prev) => (prev === "erfuellt" ? "all" : "erfuellt"))}
+								/>
+								<StatusPill
+									label="Teilweise"
+									tone="warn"
+									value={statusBreakdown.teilweise}
+									isActive={statusFilter === "teilweise"}
+									onClick={() => setStatusFilter((prev) => (prev === "teilweise" ? "all" : "teilweise"))}
+								/>
+								<StatusPill
+									label="Nicht erfüllt"
+									tone="error"
+									value={statusBreakdown.nicht_erfuellt}
+									isActive={statusFilter === "nicht_erfuellt"}
+									onClick={() =>
+										setStatusFilter((prev) => (prev === "nicht_erfuellt" ? "all" : "nicht_erfuellt"))
+									}
+								/>
+								<StatusPill
+									label="Unklar"
+									tone="muted"
+									value={statusBreakdown.unklar}
+									isActive={statusFilter === "unklar"}
+									onClick={() => setStatusFilter((prev) => (prev === "unklar" ? "all" : "unklar"))}
+								/>
 							</div>
 							<div className="grid gap-6 lg:grid-cols-[320px_1fr]">
 								<div className="lg:sticky lg:top-28">
-									<CriteriaList items={listItems} selectedId={selectedId} onSelect={setSelectedId} />
+									<CriteriaList items={filteredListItems} selectedId={selectedId} onSelect={setSelectedId} />
 								</div>
 								<CriteriaDetail criterion={activeCriterion} />
 							</div>
@@ -300,10 +332,14 @@ function StatusPill({
 	label,
 	value,
 	tone,
+	isActive = false,
+	onClick,
 }: {
 	label: string;
 	value: number;
 	tone: "success" | "warn" | "error" | "muted";
+	isActive?: boolean;
+	onClick?: () => void;
 }) {
 	const toneClass = {
 		success: "bg-emerald-100 text-emerald-900",
@@ -313,11 +349,18 @@ function StatusPill({
 	}[tone];
 
 	return (
-		<span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium ${toneClass}`}>
+		<button
+			type="button"
+			onClick={onClick}
+			className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium transition-shadow ${toneClass} ${
+				isActive ? "ring-2 ring-primary ring-offset-2" : "hover:shadow-sm"
+			}`}
+			aria-pressed={isActive}
+		>
 			{label}
 			<span className="rounded-full bg-background px-2 py-0.5 text-xs font-semibold text-foreground">
 				{value}
 			</span>
-		</span>
+		</button>
 	);
 }
