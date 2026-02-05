@@ -14,7 +14,7 @@
 		"dev:web": "turbo -F web dev",
 		"dev:server": "turbo -F @tendera/backend dev",
 		"dev:setup": "turbo -F @tendera/backend dev:setup",
-		"dev:e2e": "concurrently --names \"convex,web\" --prefix-colors \"blue,magenta\" \"cross-env CONVEX_TEST_MODE=1 npm run dev --workspace @tendera/backend\" \"cross-env VITE_E2E_MOCK=1 VITE_CONVEX_URL=http://127.0.0.1:9876 VITE_CLERK_PUBLISHABLE_KEY=test VITE_MAX_UPLOAD_MB=400 npm run dev --workspace web -- --host 127.0.0.1 --port 3001\"",
+		"dev:e2e": "cross-env VITE_E2E_MOCK=1 VITE_CONVEX_URL=http://127.0.0.1:9876 VITE_CLERK_PUBLISHABLE_KEY=test VITE_MAX_UPLOAD_MB=400 npm run dev --workspace web -- --host 127.0.0.1 --port 3001",
 		"test:unit": "vitest run",
 		"test:e2e": "cross-env CONVEX_URL=http://127.0.0.1:9876 E2E_WEB_BASE_URL=http://127.0.0.1:3001 playwright test"
 	},
