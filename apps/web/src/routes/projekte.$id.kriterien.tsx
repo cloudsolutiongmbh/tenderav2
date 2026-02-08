@@ -17,6 +17,7 @@ import { AnalysisEmptyState } from "@/components/analysis-empty-state";
 import { ProjectSectionLayout } from "@/components/project-section-layout";
 import { SetupStepsCard } from "@/components/setup-steps-card";
 import { useOrgAuth } from "@/hooks/useOrgAuth";
+import { cn } from "@/lib/utils";
 import type { Doc, Id } from "@tendera/backend/convex/_generated/dataModel";
 
 interface RunSummary {
@@ -126,15 +127,23 @@ function ProjectCriteriaPage() {
 		return [];
 	}, [criteriaResult, templateDoc, templateCriteriaMap]);
 
+	const [activeStatusFilters, setActiveStatusFilters] = useState<CriteriaListItem["status"][]>([]);
+	const filteredCriteria = useMemo(() => {
+		if (activeStatusFilters.length === 0) {
+			return computedCriteria;
+		}
+		return computedCriteria.filter((item) => activeStatusFilters.includes(item.status));
+	}, [computedCriteria, activeStatusFilters]);
+
 	const items: CriteriaListItem[] = useMemo(
 		() =>
-			computedCriteria.map((item) => ({
+			filteredCriteria.map((item) => ({
 				criterionId: item.criterionId,
 				title: item.title,
 				status: item.status,
 				keywords: item.keywords,
 			})),
-		[computedCriteria],
+		[filteredCriteria],
 	);
 
 	const statusBreakdown = useMemo(() => {
@@ -147,13 +156,36 @@ function ProjectCriteriaPage() {
 		);
 	}, [computedCriteria]);
 
-	const [selectedId, setSelectedId] = useState<string | undefined>(items[0]?.criterionId);
-	const activeCriterion = useMemo(() => {
-		if (!selectedId && computedCriteria.length > 0) {
-			return computedCriteria[0];
+	const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+	useEffect(() => {
+		if (items.length === 0) {
+			if (selectedId !== undefined) {
+				setSelectedId(undefined);
+			}
+			return;
 		}
-		return computedCriteria.find((item) => item.criterionId === selectedId);
-	}, [computedCriteria, selectedId]);
+		if (!selectedId || !items.some((item) => item.criterionId === selectedId)) {
+			setSelectedId(items[0].criterionId);
+		}
+	}, [items, selectedId]);
+
+	const toggleStatusFilter = (status: CriteriaListItem["status"]) => {
+		setActiveStatusFilters((prev) =>
+			prev.includes(status)
+				? prev.filter((entry) => entry !== status)
+				: [...prev, status],
+		);
+	};
+
+	const activeCriterion = useMemo(() => {
+		if (filteredCriteria.length === 0) {
+			return undefined;
+		}
+		if (!selectedId) {
+			return filteredCriteria[0];
+		}
+		return filteredCriteria.find((item) => item.criterionId === selectedId) ?? filteredCriteria[0];
+	}, [filteredCriteria, selectedId]);
 
 	const hasTemplate = Boolean(project?.project.templateId);
 	const documentsCount = documents?.length ?? 0;
@@ -364,18 +396,49 @@ function ProjectCriteriaPage() {
 							Ergebnisse der Analyse – Muss-Kriterien zuerst, danach optionale Anforderungen.
 						</CardDescription>
 						<div className="flex flex-wrap gap-2 pt-3 text-xs text-muted-foreground">
-							<StatusPill label="Gefunden" tone="success" value={statusBreakdown.gefunden} />
-							<StatusPill label="Teilweise" tone="warn" value={statusBreakdown.teilweise} />
-							<StatusPill label="Nicht gefunden" tone="error" value={statusBreakdown.nicht_gefunden} />
-							<StatusPill label="Nicht bewertet" tone="muted" value={statusBreakdown.unbekannt} />
+							<StatusPill
+								label="Gefunden"
+								tone="success"
+								value={statusBreakdown.gefunden}
+								isActive={activeStatusFilters.includes("gefunden")}
+								onClick={() => toggleStatusFilter("gefunden")}
+							/>
+							<StatusPill
+								label="Teilweise"
+								tone="warn"
+								value={statusBreakdown.teilweise}
+								isActive={activeStatusFilters.includes("teilweise")}
+								onClick={() => toggleStatusFilter("teilweise")}
+							/>
+							<StatusPill
+								label="Nicht gefunden"
+								tone="error"
+								value={statusBreakdown.nicht_gefunden}
+								isActive={activeStatusFilters.includes("nicht_gefunden")}
+								onClick={() => toggleStatusFilter("nicht_gefunden")}
+							/>
+							<StatusPill
+								label="Nicht bewertet"
+								tone="muted"
+								value={statusBreakdown.unbekannt}
+								isActive={activeStatusFilters.includes("unbekannt")}
+								onClick={() => toggleStatusFilter("unbekannt")}
+							/>
 						</div>
 					</CardHeader>
 					<CardContent>
-						{items.length === 0 ? (
+						{computedCriteria.length === 0 ? (
 							<AnalysisEmptyState
 								title="Noch keine Kriterien ausgewertet"
 								description="Sobald die Analyse abgeschlossen ist, erscheinen hier die Ergebnisse."
 							/>
+						) : items.length === 0 ? (
+							<div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-8 text-center">
+								<p className="text-sm text-muted-foreground">Keine Kriterien für den gewählten Status.</p>
+								<Button size="sm" variant="outline" onClick={() => setActiveStatusFilters([])}>
+									Filter zurücksetzen
+								</Button>
+							</div>
 						) : activeCriterion ? (
 							<div className="grid gap-6 lg:grid-cols-[320px_1fr]">
 								<div className="lg:sticky lg:top-28">
@@ -495,10 +558,14 @@ function StatusPill({
 	label,
 	value,
 	tone,
+	isActive,
+	onClick,
 }: {
 	label: string;
 	value: number;
 	tone: "success" | "warn" | "error" | "muted";
+	isActive: boolean;
+	onClick: () => void;
 }) {
 	const toneClass = {
 		success: "bg-emerald-100 text-emerald-900",
@@ -508,11 +575,20 @@ function StatusPill({
 	}[tone];
 
 	return (
-		<span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium ${toneClass}`}>
+		<button
+			type="button"
+			onClick={onClick}
+			aria-pressed={isActive}
+			className={cn(
+				"inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium transition",
+				toneClass,
+				isActive ? "ring-2 ring-primary/40" : "opacity-80 hover:opacity-100",
+			)}
+		>
 			{label}
 			<span className="rounded-full bg-background px-2 py-0.5 text-xs font-semibold text-foreground">
 				{value}
 			</span>
-		</span>
+		</button>
 	);
 }
